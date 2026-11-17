@@ -152,10 +152,7 @@ fn cmd_session(args: &[String]) -> Result<String, String> {
         match args[i].as_str() {
             "--logs" | "--spans" => i += 2,
             other => {
-                return Err(format!(
-                    "unknown session argument {other:?}\n{}",
-                    usage()
-                ));
+                return Err(format!("unknown session argument {other:?}\n{}", usage()));
             }
         }
     }
