@@ -146,6 +146,9 @@ pub enum Panel {
         data: String,
         unit: Unit,
     },
+    ServiceMap {
+        data: String,
+    },
 }
 
 impl Panel {
@@ -157,7 +160,8 @@ impl Panel {
             | Panel::RedRow { data, .. }
             | Panel::Sankey { data, .. }
             | Panel::Flame { data, .. }
-            | Panel::Heatmap { data, .. } => data,
+            | Panel::Heatmap { data, .. }
+            | Panel::ServiceMap { data, .. } => data,
         }
     }
 
@@ -170,6 +174,7 @@ impl Panel {
             Panel::Sankey { .. } => "sankey",
             Panel::Flame { .. } => "flame",
             Panel::Heatmap { .. } => "heatmap",
+            Panel::ServiceMap { .. } => "service_map",
         }
     }
 }

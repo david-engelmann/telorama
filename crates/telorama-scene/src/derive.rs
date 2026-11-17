@@ -487,3 +487,74 @@ pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
     sort_flame_children(&mut root.children);
     root
 }
+
+/// One directed edge of a service map: calls observed from one service
+/// into another, with the child spans as the evidence.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MapEdge {
+    pub from: String,
+    pub to: String,
+    pub calls: u64,
+    pub errors: u64,
+    pub p50_nanos: i64,
+    pub p99_nanos: i64,
+}
+
+/// The derived service map over a span set: every service as a node
+/// with its RED rollup, and the evidenced edges between them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ServiceGraph {
+    pub nodes: Vec<RedStats>,
+    pub edges: Vec<MapEdge>,
+}
+
+/// Derive the service map over a span set.
+///
+/// An edge exists only on span-tree evidence: a span whose parent, in
+/// the same trace, belongs to another service. The child span is the
+/// evidence and is counted once, with its duration and error state.
+/// A client span and the server span it caused are one call, counted
+/// at the server span; the client span's own parent edge, when it has
+/// one, is separate evidence about the client's caller. Edges are
+/// sorted by caller then callee; nodes carry the same RED rollup, on
+/// the same basis, as the red_row panel.
+pub fn service_graph(spans: &[Span], window_seconds: f64) -> ServiceGraph {
+    let by_key: BTreeMap<(&str, &str), &Span> = spans
+        .iter()
+        .map(|s| ((s.trace_id.as_str(), s.span_id.as_str()), s))
+        .collect();
+    let mut edge_spans: BTreeMap<(String, String), Vec<&Span>> = BTreeMap::new();
+    for span in spans {
+        let Some(parent_id) = span.parent_span_id.as_deref() else {
+            continue;
+        };
+        let Some(parent) = by_key.get(&(span.trace_id.as_str(), parent_id)) else {
+            continue;
+        };
+        if parent.service != span.service {
+            edge_spans
+                .entry((parent.service.clone(), span.service.clone()))
+                .or_default()
+                .push(span);
+        }
+    }
+    let edges = edge_spans
+        .into_iter()
+        .map(|((from, to), evidence)| {
+            let mut durations: Vec<i64> = evidence.iter().map(|s| s.duration_nanos()).collect();
+            durations.sort_unstable();
+            MapEdge {
+                from,
+                to,
+                calls: evidence.len() as u64,
+                errors: evidence.iter().filter(|s| s.is_error).count() as u64,
+                p50_nanos: percentile_nanos(&durations, 50.0),
+                p99_nanos: percentile_nanos(&durations, 99.0),
+            }
+        })
+        .collect();
+    ServiceGraph {
+        nodes: red_by_service(spans, window_seconds),
+        edges,
+    }
+}

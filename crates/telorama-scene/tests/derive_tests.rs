@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use telorama_scene::{
     Span, SpanKind, StackSample, TimeRange, critical_path, flame_from_spans, flame_tree,
-    heatmap_grid, percentile_nanos, red_by_service, waterfall_rows,
+    heatmap_grid, percentile_nanos, red_by_service, service_graph, waterfall_rows,
 };
 
 fn ms(v: i64) -> i64 {
@@ -272,4 +272,29 @@ fn flame_from_spans_weights_self_time() {
     // The checkout span: 33 ms of self time plus 437 ms of child
     // values, the children again overlapping each other.
     assert_eq!(tree.children[0].children[0].value, ms(470) as u64);
+}
+
+#[test]
+fn service_graph_edges_come_from_span_parents() {
+    let spans = checkout_spans();
+    let graph = service_graph(&spans, 1.0);
+    assert_eq!(graph.nodes.len(), 8);
+    // frontend into checkout, then checkout into its six callees.
+    assert_eq!(graph.edges.len(), 7);
+    let entry = graph
+        .edges
+        .iter()
+        .find(|e| e.to == "checkout")
+        .expect("the entry edge exists");
+    assert_eq!(entry.from, "frontend");
+    assert_eq!(entry.calls, 1);
+    assert_eq!(entry.p99_nanos, ms(390));
+    let email = graph
+        .edges
+        .iter()
+        .find(|e| e.to == "email")
+        .expect("the email edge exists");
+    assert_eq!(email.from, "checkout");
+    assert_eq!(email.calls, 1);
+    assert_eq!(email.errors, 1);
 }

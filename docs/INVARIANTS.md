@@ -104,6 +104,20 @@ later milestones are marked as validator-side.
   (golden_tests golden_checkout_scene), which records the rendered
   result byte for byte.
 
+## Service map (telorama-scene derive.rs, telorama-svg)
+
+- INV-32. A service map edge exists only on span-tree evidence: a
+  span whose parent, in the same trace, belongs to another service.
+  The child span is counted once, with its duration and error state.
+  No edge is inferred from naming, configuration, or co-occurrence.
+  Enforced by derive_tests service_graph_edges_come_from_span_parents.
+- INV-33. Map layout is a pure function of the span set: layers by
+  longest path from a root service (bounded relaxation, so cycles
+  terminate), barycenter of predecessors then name within a layer.
+  The same spans render the same map, byte for byte.
+  Enforced by the golden corpus (golden_tests
+  golden_service_map_scene).
+
 ## Flame (telorama-scene derive.rs, telorama-ingest, telorama-svg)
 
 - INV-30. A flame panel over profile data renders only when the

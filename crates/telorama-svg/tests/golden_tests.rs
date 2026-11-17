@@ -76,6 +76,15 @@ fn golden_heatmap_scene() {
 }
 
 #[test]
+fn golden_service_map_scene() {
+    golden(
+        "service_map_scene.svg",
+        "service_map_scene.json",
+        "otel-demo-checkout.json",
+    );
+}
+
+#[test]
 fn golden_flame_scene() {
     let scene =
         telorama_scene::parse_scene(&workspace_file("tests/fixtures/scenes/flame_scene.json"))

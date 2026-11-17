@@ -94,7 +94,15 @@ fn validate_thresholds(panel: &Value, base: &str, errors: &mut Vec<ValidationErr
     }
 }
 
-const PANEL_TYPES: [&str; 6] = ["waterfall", "stat", "red_row", "sankey", "flame", "heatmap"];
+const PANEL_TYPES: [&str; 7] = [
+    "waterfall",
+    "stat",
+    "red_row",
+    "sankey",
+    "flame",
+    "heatmap",
+    "service_map",
+];
 const UNITS: [&str; 5] = ["duration", "count", "ratio", "requests_per_second", "bytes"];
 const STATS: [&str; 7] = ["p50", "p95", "p99", "count", "rate", "error_ratio", "last"];
 const SAMPLING: [&str; 3] = ["unsampled", "sampled", "unknown"];

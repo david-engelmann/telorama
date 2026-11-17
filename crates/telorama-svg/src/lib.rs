@@ -12,8 +12,9 @@
 use std::collections::BTreeMap;
 use std::fmt;
 use telorama_scene::{
-    FlameNode, Panel, Scene, Span, StackSample, StatKind, Thresholds, Unit, critical_path,
-    flame_from_spans, flame_tree, heatmap_grid, percentile_nanos, red_by_service, waterfall_rows,
+    FlameNode, Panel, RedStats, Scene, ServiceGraph, Span, StackSample, StatKind, Thresholds, Unit,
+    critical_path, flame_from_spans, flame_tree, heatmap_grid, percentile_nanos, red_by_service,
+    service_graph, waterfall_rows,
 };
 
 /// Canonical float formatting for emitted geometry. The implementation
@@ -479,6 +480,231 @@ fn render_waterfall(
         ),
     );
     *y += 22.0;
+    Ok(())
+}
+
+fn plural(n: u64, singular: &str, plural_form: &str) -> String {
+    if n == 1 {
+        format!("{n} {singular}")
+    } else {
+        format!("{n} {plural_form}")
+    }
+}
+
+/// Layered layout for the service map. A service's layer is the
+/// longest path from a root service, found by bounded relaxation so
+/// cyclic call graphs still terminate. Within a layer, services order
+/// by the barycenter of their predecessors in the layer above, then
+/// by name. Returns (service, layer, position in layer).
+fn map_positions(graph: &ServiceGraph) -> Vec<(String, usize, usize)> {
+    let mut layer: BTreeMap<&str, usize> = graph
+        .nodes
+        .iter()
+        .map(|n| (n.service.as_str(), 0usize))
+        .collect();
+    for _ in 0..graph.nodes.len() {
+        let mut changed = false;
+        for edge in &graph.edges {
+            let want = layer[edge.from.as_str()] + 1;
+            if layer[edge.to.as_str()] < want {
+                layer.insert(edge.to.as_str(), want);
+                changed = true;
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    let mut preds: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    for edge in &graph.edges {
+        preds
+            .entry(edge.to.as_str())
+            .or_default()
+            .push(edge.from.as_str());
+    }
+    let max_layer = layer.values().copied().max().unwrap_or(0);
+    let mut by_layer: Vec<Vec<String>> = vec![Vec::new(); max_layer + 1];
+    for node in &graph.nodes {
+        by_layer[layer[node.service.as_str()]].push(node.service.clone());
+    }
+    let mut prev_pos: BTreeMap<String, usize> = BTreeMap::new();
+    for (l, members) in by_layer.iter_mut().enumerate() {
+        if l == 0 {
+            members.sort();
+        } else {
+            let key = |name: &str, prev_pos: &BTreeMap<String, usize>| -> f64 {
+                let ps: Vec<f64> = preds
+                    .get(name)
+                    .map(|v| {
+                        v.iter()
+                            .filter_map(|p| prev_pos.get(*p).map(|i| *i as f64))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                if ps.is_empty() {
+                    f64::MAX
+                } else {
+                    ps.iter().sum::<f64>() / ps.len() as f64
+                }
+            };
+            members.sort_by(|a, b| {
+                key(a, &prev_pos)
+                    .partial_cmp(&key(b, &prev_pos))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+                    .then_with(|| a.cmp(b))
+            });
+        }
+        prev_pos = members
+            .iter()
+            .enumerate()
+            .map(|(i, s)| (s.clone(), i))
+            .collect();
+    }
+    let mut out = Vec::new();
+    for (l, members) in by_layer.into_iter().enumerate() {
+        for (i, name) in members.into_iter().enumerate() {
+            out.push((name, l, i));
+        }
+    }
+    out
+}
+
+fn render_service_map(
+    scene: &Scene,
+    spans: &[Span],
+    panel: &Panel,
+    colors: &BTreeMap<String, String>,
+    prims: &mut Vec<Prim>,
+    y: &mut f64,
+) -> Result<(), RenderError> {
+    let Panel::ServiceMap { data } = panel else {
+        return Err(fail("render_service_map called on a non-service-map panel"));
+    };
+    let set_owned: Vec<Span> = dataset(scene, spans, data).into_iter().cloned().collect();
+    if set_owned.is_empty() {
+        return Err(fail("service map has no spans in its data set"));
+    }
+    let window_seconds =
+        ((scene.context.range.to_unix_ms - scene.context.range.from_unix_ms) as f64 / 1000.0)
+            .max(0.001);
+    let graph = service_graph(&set_owned, window_seconds);
+    let positions = map_positions(&graph);
+    let layers = positions.iter().map(|(_, l, _)| *l).max().unwrap_or(0) + 1;
+    let rows = positions.iter().map(|(_, _, i)| *i).max().unwrap_or(0) + 1;
+    let step = (WIDTH - 2.0 * MARGIN) / layers as f64;
+    let box_w = (step - 10.0).min(160.0);
+    let box_h = 32.0;
+    let row_step = 46.0;
+    let map_top = *y;
+    let mut centers: BTreeMap<String, (f64, f64)> = BTreeMap::new();
+    for (name, l, i) in &positions {
+        let bx = MARGIN + *l as f64 * step + 5.0;
+        let by = map_top + *i as f64 * row_step;
+        centers.insert(name.clone(), (bx, by));
+    }
+    // Edges first, so the boxes draw over their ends.
+    let max_calls = graph.edges.iter().map(|e| e.calls).max().unwrap_or(1);
+    let thresholds = Thresholds::error_ratio();
+    for edge in &graph.edges {
+        let (fx, fy) = centers[edge.from.as_str()];
+        let (tx, ty) = centers[edge.to.as_str()];
+        let ratio = if edge.calls == 0 {
+            0.0
+        } else {
+            edge.errors as f64 / edge.calls as f64
+        };
+        prims.push(Prim::Line {
+            x1: fx + box_w,
+            y1: fy + box_h / 2.0,
+            x2: tx,
+            y2: ty + box_h / 2.0,
+            stroke: thresholds.color_for(ratio, "#888888"),
+            width: 1.0 + 3.0 * (edge.calls as f64 / max_calls as f64),
+        });
+        prims.push(Prim::Text {
+            x: (fx + box_w + tx) / 2.0,
+            y: (fy + ty) / 2.0 + box_h / 2.0 - 4.0,
+            size: 10.0,
+            fill: MUTED.to_string(),
+            bold: false,
+            mono: false,
+            anchor: "middle",
+            content: format!(
+                "{} · p99 {}",
+                plural(edge.calls, "call", "calls"),
+                fmt_duration(edge.p99_nanos)
+            ),
+        });
+    }
+    // Boxes, with the service color and its call and error counts.
+    for node in &graph.nodes {
+        let (bx, by) = centers[node.service.as_str()];
+        let fill = colors
+            .get(&node.service)
+            .cloned()
+            .unwrap_or_else(|| "#999999".to_string());
+        prims.push(Prim::Rect {
+            x: bx,
+            y: by,
+            w: box_w,
+            h: box_h,
+            fill: fill.clone(),
+            opacity: None,
+            stroke: None,
+        });
+        let text_fill = bar_text_fill(&fill).to_string();
+        prims.push(Prim::Text {
+            x: bx + 8.0,
+            y: by + 14.0,
+            size: 11.0,
+            fill: text_fill.clone(),
+            bold: true,
+            mono: false,
+            anchor: "start",
+            content: truncate_label(&node.service, ((box_w - 12.0) / 6.5) as usize),
+        });
+        prims.push(Prim::Text {
+            x: bx + 8.0,
+            y: by + 27.0,
+            size: 10.0,
+            fill: text_fill,
+            bold: false,
+            mono: false,
+            anchor: "start",
+            content: format!(
+                "{} · {}",
+                plural(node.calls, "call", "calls"),
+                plural(node.errors, "error", "errors")
+            ),
+        });
+    }
+    // The legend table doubles as the ranked summary: services by
+    // calls descending, with the full RED line for each.
+    *y = map_top + rows as f64 * row_step + 2.0;
+    let mut ranked: Vec<&RedStats> = graph.nodes.iter().collect();
+    ranked.sort_by(|a, b| b.calls.cmp(&a.calls).then_with(|| a.service.cmp(&b.service)));
+    for node in ranked {
+        text(
+            prims,
+            MARGIN,
+            *y + 12.0,
+            11.0,
+            MUTED,
+            false,
+            false,
+            format!(
+                "{} · {} · {} ({}) · p50 {} · p99 {}",
+                node.service,
+                plural(node.calls, "call", "calls"),
+                plural(node.errors, "error", "errors"),
+                telorama_scene::format_ratio(node.error_ratio),
+                fmt_duration(node.p50_nanos),
+                fmt_duration(node.p99_nanos),
+            ),
+        );
+        *y += 15.0;
+    }
+    *y += 7.0;
     Ok(())
 }
 
@@ -1188,6 +1414,7 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
             Panel::RedRow { .. } => "Rate, errors, duration by service",
             Panel::Heatmap { .. } => "Latency heatmap",
             Panel::Flame { .. } => "Flame graph",
+            Panel::ServiceMap { .. } => "Service map",
             other => {
                 return Err(fail(format!(
                     "panel type {} is in the spec but has no renderer yet: it lands in a later milestone",
@@ -1216,6 +1443,9 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
             Panel::RedRow { .. } => render_red_row(scene, spans, panel, &mut prims, &mut y)?,
             Panel::Heatmap { .. } => render_heatmap(scene, spans, panel, &mut prims, &mut y)?,
             Panel::Flame { .. } => render_flame(scene, data, panel, &mut prims, &mut y)?,
+            Panel::ServiceMap { .. } => {
+                render_service_map(scene, spans, panel, &colors, &mut prims, &mut y)?
+            }
             _ => unreachable!("heading match already returned for unsupported panels"),
         }
     }
