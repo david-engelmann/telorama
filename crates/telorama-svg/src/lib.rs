@@ -546,8 +546,8 @@ fn render_heatmap(
     let plot_x0 = 200.0;
     let plot_x1 = WIDTH - MARGIN;
     let col_w = (plot_x1 - plot_x0) / grid.columns as f64;
-    let window_nano = (scene.context.range.to_unix_ms - scene.context.range.from_unix_ms) as f64
-        * 1_000_000.0;
+    let window_nano =
+        (scene.context.range.to_unix_ms - scene.context.range.from_unix_ms) as f64 * 1_000_000.0;
 
     // Time axis, the same five ticks the waterfall uses.
     let axis_y = *y + 4.0;
