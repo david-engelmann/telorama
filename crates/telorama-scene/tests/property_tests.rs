@@ -3,8 +3,10 @@
 //! any failure reproduces from its seed alone. No external crates: the
 //! dependency discipline in DECISIONS.md binds tests too.
 
-use telorama_scene::{Span, SpanKind, critical_path, percentile_nanos, red_by_service, waterfall_rows};
 use std::collections::BTreeMap;
+use telorama_scene::{
+    Span, SpanKind, critical_path, percentile_nanos, red_by_service, waterfall_rows,
+};
 
 struct Rng(u64);
 
@@ -66,11 +68,18 @@ fn critical_path_is_always_a_root_to_leaf_chain() {
             assert!(path.is_empty());
             continue;
         }
-        assert!(!path.is_empty(), "seed {seed}: non-empty trace needs a path");
+        assert!(
+            !path.is_empty(),
+            "seed {seed}: non-empty trace needs a path"
+        );
         // Starts at a root.
         let first = by_id[path[0].as_str()];
         assert!(
-            first.parent_span_id.as_deref().map(|p| !by_id.contains_key(p)).unwrap_or(true),
+            first
+                .parent_span_id
+                .as_deref()
+                .map(|p| !by_id.contains_key(p))
+                .unwrap_or(true),
             "seed {seed}: path must start at a root"
         );
         // Each step is a parent-to-child step.
@@ -87,7 +96,9 @@ fn critical_path_is_always_a_root_to_leaf_chain() {
         // Ends at a leaf.
         let last = path[path.len() - 1].as_str();
         assert!(
-            !spans.iter().any(|s| s.parent_span_id.as_deref() == Some(last)),
+            !spans
+                .iter()
+                .any(|s| s.parent_span_id.as_deref() == Some(last)),
             "seed {seed}: path must end at a leaf"
         );
     }
@@ -120,7 +131,10 @@ fn percentiles_are_monotone_and_red_ratios_are_bounded() {
         let p50 = percentile_nanos(&durations, 50).unwrap();
         let p95 = percentile_nanos(&durations, 95).unwrap();
         let p99 = percentile_nanos(&durations, 99).unwrap();
-        assert!(p50 <= p95 && p95 <= p99, "seed {seed}: percentiles out of order");
+        assert!(
+            p50 <= p95 && p95 <= p99,
+            "seed {seed}: percentiles out of order"
+        );
         for stats in red_by_service(&spans, 60.0) {
             assert!(
                 (0.0..=1.0).contains(&stats.error_ratio),

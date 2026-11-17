@@ -1,11 +1,21 @@
-use telorama_scene::{Span, SpanKind, critical_path, percentile_nanos, red_by_service, waterfall_rows};
 use std::collections::BTreeMap;
+use telorama_scene::{
+    Span, SpanKind, critical_path, percentile_nanos, red_by_service, waterfall_rows,
+};
 
 fn ms(v: i64) -> i64 {
     v * 1_000_000
 }
 
-fn span(id: &str, parent: Option<&str>, service: &str, kind: SpanKind, start: i64, end: i64, error: bool) -> Span {
+fn span(
+    id: &str,
+    parent: Option<&str>,
+    service: &str,
+    kind: SpanKind,
+    start: i64,
+    end: i64,
+    error: bool,
+) -> Span {
     Span {
         trace_id: "t1".to_string(),
         span_id: id.to_string(),
@@ -26,13 +36,69 @@ fn span(id: &str, parent: Option<&str>, service: &str, kind: SpanKind, start: i6
 fn checkout_spans() -> Vec<Span> {
     vec![
         span("01", None, "frontend", SpanKind::Server, 0, 420, false),
-        span("02", Some("01"), "checkout", SpanKind::Server, 10, 400, false),
-        span("03", Some("02"), "product-catalog", SpanKind::Server, 20, 60, false),
-        span("04", Some("02"), "currency", SpanKind::Server, 65, 85, false),
-        span("05", Some("02"), "checkout", SpanKind::Client, 88, 262, false),
-        span("06", Some("05"), "payment", SpanKind::Server, 90, 260, false),
-        span("07", Some("02"), "inventory", SpanKind::Server, 100, 180, false),
-        span("08", Some("02"), "shipping", SpanKind::Server, 270, 380, false),
+        span(
+            "02",
+            Some("01"),
+            "checkout",
+            SpanKind::Server,
+            10,
+            400,
+            false,
+        ),
+        span(
+            "03",
+            Some("02"),
+            "product-catalog",
+            SpanKind::Server,
+            20,
+            60,
+            false,
+        ),
+        span(
+            "04",
+            Some("02"),
+            "currency",
+            SpanKind::Server,
+            65,
+            85,
+            false,
+        ),
+        span(
+            "05",
+            Some("02"),
+            "checkout",
+            SpanKind::Client,
+            88,
+            262,
+            false,
+        ),
+        span(
+            "06",
+            Some("05"),
+            "payment",
+            SpanKind::Server,
+            90,
+            260,
+            false,
+        ),
+        span(
+            "07",
+            Some("02"),
+            "inventory",
+            SpanKind::Server,
+            100,
+            180,
+            false,
+        ),
+        span(
+            "08",
+            Some("02"),
+            "shipping",
+            SpanKind::Server,
+            270,
+            380,
+            false,
+        ),
         span("09", Some("02"), "email", SpanKind::Server, 385, 398, true),
     ]
 }
@@ -42,7 +108,10 @@ fn waterfall_rows_are_depth_first_with_depths() {
     let spans = checkout_spans();
     let rows = waterfall_rows(&spans, "t1");
     let order: Vec<&str> = rows.iter().map(|r| r.span_id.as_str()).collect();
-    assert_eq!(order, vec!["01", "02", "03", "04", "05", "06", "07", "08", "09"]);
+    assert_eq!(
+        order,
+        vec!["01", "02", "03", "04", "05", "06", "07", "08", "09"]
+    );
     let depths: Vec<usize> = rows.iter().map(|r| r.depth).collect();
     assert_eq!(depths, vec![0, 1, 2, 2, 2, 3, 2, 2, 2]);
 }
@@ -51,7 +120,10 @@ fn waterfall_rows_are_depth_first_with_depths() {
 fn self_time_subtracts_children_coverage() {
     let spans = checkout_spans();
     let rows = waterfall_rows(&spans, "t1");
-    let by_id: BTreeMap<&str, i64> = rows.iter().map(|r| (r.span_id.as_str(), r.self_time_nanos)).collect();
+    let by_id: BTreeMap<&str, i64> = rows
+        .iter()
+        .map(|r| (r.span_id.as_str(), r.self_time_nanos))
+        .collect();
     // Root: 420 minus the checkout span's 390.
     assert_eq!(by_id["01"], ms(30));
     // Checkout: 390 minus children coverage 40+20+174+110+13 = 357.

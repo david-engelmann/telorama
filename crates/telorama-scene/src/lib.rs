@@ -11,7 +11,10 @@ pub mod spec;
 pub mod trace;
 pub mod validate;
 
-pub use derive::{RedStats, WaterfallRow, content_hash, critical_path, percentile_nanos, red_by_service, waterfall_rows};
+pub use derive::{
+    RedStats, WaterfallRow, content_hash, critical_path, percentile_nanos, red_by_service,
+    waterfall_rows,
+};
 pub use schema::{scene_schema, scene_schema_text};
 pub use spec::{
     Context, DataRef, NarrativeItem, Panel, Provenance, SCENE_VERSION, Sampling, Scene, Source,

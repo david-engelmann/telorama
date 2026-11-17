@@ -2,7 +2,9 @@ use std::path::PathBuf;
 use std::process::Command;
 
 fn workspace_file(rel: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..").join(rel)
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join(rel)
 }
 
 fn telorama(args: &[&str]) -> std::process::Output {
@@ -23,28 +25,43 @@ fn inspect_summarizes_the_checkout_fixture() {
     assert!(out.status.success());
     let text = stdout(&out);
     assert!(text.contains("spans: 9"), "got:\n{text}");
-    assert!(text.contains("service email: 1 spans, 1 errors"), "got:\n{text}");
-    assert!(text.contains("service frontend: 1 spans, 0 errors"), "got:\n{text}");
+    assert!(
+        text.contains("service email: 1 spans, 1 errors"),
+        "got:\n{text}"
+    );
+    assert!(
+        text.contains("service frontend: 1 spans, 0 errors"),
+        "got:\n{text}"
+    );
 }
 
 #[test]
 fn validate_accepts_the_fixture_scene() {
     let path = workspace_file("tests/fixtures/scenes/checkout_scene.json");
     let out = telorama(&["validate", path.to_str().unwrap()]);
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     assert!(stdout(&out).contains("valid: Checkout trace 4bf92f35 (3 panels, 1 data sources)"));
 }
 
 #[test]
 fn validate_rejects_an_average_duration_with_the_honesty_message() {
     let bad = workspace_file("tests/fixtures/scenes/checkout_scene.json");
-    let text = std::fs::read_to_string(&bad).unwrap().replace("\"p95\"", "\"average\"");
+    let text = std::fs::read_to_string(&bad)
+        .unwrap()
+        .replace("\"p95\"", "\"average\"");
     let tmp = std::env::temp_dir().join(format!("telorama-bad-scene-{}.json", std::process::id()));
     std::fs::write(&tmp, text).unwrap();
     let out = telorama(&["validate", tmp.to_str().unwrap()]);
     assert!(!out.status.success());
     let stderr = String::from_utf8_lossy(&out.stderr).to_string();
-    assert!(stderr.contains("percentiles, never an average"), "got:\n{stderr}");
+    assert!(
+        stderr.contains("percentiles, never an average"),
+        "got:\n{stderr}"
+    );
     let _ = std::fs::remove_file(&tmp);
 }
 
@@ -63,7 +80,11 @@ fn render_matches_the_golden_file() {
         "--out",
         tmp.to_str().unwrap(),
     ]);
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let rendered = std::fs::read_to_string(&tmp).unwrap();
     let expected = std::fs::read_to_string(&golden).unwrap();
     assert_eq!(rendered, expected);
@@ -75,5 +96,8 @@ fn schema_command_prints_the_scene_schema() {
     let out = telorama(&["schema"]);
     assert!(out.status.success());
     let text = stdout(&out);
-    assert!(text.contains("\"title\": \"telorama scene spec\""), "got:\n{text}");
+    assert!(
+        text.contains("\"title\": \"telorama scene spec\""),
+        "got:\n{text}"
+    );
 }

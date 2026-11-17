@@ -134,7 +134,11 @@ pub fn validate_scene_json(v: &Value) -> Vec<ValidationError> {
     match obj.get("data").and_then(Value::as_array) {
         Some(data) => {
             if data.is_empty() {
-                err(&mut errors, "$.data", "a scene needs at least one data entry");
+                err(
+                    &mut errors,
+                    "$.data",
+                    "a scene needs at least one data entry",
+                );
             }
             for (i, entry) in data.iter().enumerate() {
                 let base = format!("$.data[{i}]");
@@ -214,7 +218,11 @@ pub fn validate_scene_json(v: &Value) -> Vec<ValidationError> {
                         &format!("{base}.data"),
                         format!("panel reads undeclared data id {id:?}"),
                     ),
-                    None => err(&mut errors, &format!("{base}.data"), "panel needs a data id"),
+                    None => err(
+                        &mut errors,
+                        &format!("{base}.data"),
+                        "panel needs a data id",
+                    ),
                 }
                 match ptype {
                     "stat" => {
@@ -303,12 +311,9 @@ pub fn validate_scene_json(v: &Value) -> Vec<ValidationError> {
                         }
                         // Bucket edges live on the referenced data entry.
                         if let Some(id) = non_empty_str(panel, "data") {
-                            let entry = obj
-                                .get("data")
-                                .and_then(Value::as_array)
-                                .and_then(|d| {
-                                    d.iter().find(|e| non_empty_str(e, "id") == Some(id))
-                                });
+                            let entry = obj.get("data").and_then(Value::as_array).and_then(|d| {
+                                d.iter().find(|e| non_empty_str(e, "id") == Some(id))
+                            });
                             let buckets = entry
                                 .and_then(|e| e.get("source"))
                                 .and_then(|s| s.get("buckets"))
@@ -320,8 +325,11 @@ pub fn validate_scene_json(v: &Value) -> Vec<ValidationError> {
                                     if edges.len() != b.len()
                                         || !edges.windows(2).all(|w| w[0] < w[1])
                                     {
-                                        err(&mut errors, &format!("{base}.data"),
-                                            "heatmap bucket edges must be numbers in strictly increasing order: bucket boundaries are data, not style");
+                                        err(
+                                            &mut errors,
+                                            &format!("{base}.data"),
+                                            "heatmap bucket edges must be numbers in strictly increasing order: bucket boundaries are data, not style",
+                                        );
                                     }
                                 }
                                 _ => err(

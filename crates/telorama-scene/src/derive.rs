@@ -85,8 +85,7 @@ fn self_time(span: &Span, children: &[&Span]) -> i64 {
 pub fn waterfall_rows(spans: &[Span], trace_id: &str) -> Vec<WaterfallRow> {
     let owned = trace_spans(spans, trace_id);
     let children = children_map(&owned);
-    let ids: std::collections::BTreeSet<&str> =
-        owned.iter().map(|s| s.span_id.as_str()).collect();
+    let ids: std::collections::BTreeSet<&str> = owned.iter().map(|s| s.span_id.as_str()).collect();
     let roots: Vec<&Span> = owned
         .iter()
         .copied()
@@ -126,8 +125,7 @@ pub fn critical_path(spans: &[Span], trace_id: &str) -> Vec<String> {
         return Vec::new();
     }
     let children = children_map(&owned);
-    let ids: std::collections::BTreeSet<&str> =
-        owned.iter().map(|s| s.span_id.as_str()).collect();
+    let ids: std::collections::BTreeSet<&str> = owned.iter().map(|s| s.span_id.as_str()).collect();
     let root = owned
         .iter()
         .copied()
@@ -203,7 +201,10 @@ pub struct RedStats {
 pub fn red_by_service(spans: &[Span], window_seconds: f64) -> Vec<RedStats> {
     let mut by_service: BTreeMap<&str, Vec<&Span>> = BTreeMap::new();
     for span in spans {
-        by_service.entry(span.service.as_str()).or_default().push(span);
+        by_service
+            .entry(span.service.as_str())
+            .or_default()
+            .push(span);
     }
     let mut out = Vec::with_capacity(by_service.len());
     for (service, group) in by_service {

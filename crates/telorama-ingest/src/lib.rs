@@ -6,10 +6,10 @@
 //! dialect adapters arrive in later milestones behind this same
 //! canonical output.
 
-use telorama_scene::{Span, SpanKind};
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::fmt;
+use telorama_scene::{Span, SpanKind};
 
 /// An ingest failure with a message specific enough to act on.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -178,17 +178,19 @@ fn convert(doc: &ExportRequest, out: &mut Vec<Span>) -> Result<(), IngestError> 
                 })?;
                 let mut attributes = attributes_of(&raw.attributes);
                 for (k, v) in &resource_attrs {
-                    attributes.entry(format!("resource.{k}")).or_insert_with(|| v.clone());
+                    attributes
+                        .entry(format!("resource.{k}"))
+                        .or_insert_with(|| v.clone());
                 }
                 let status_error = raw.status.as_ref().map(|s| s.code) == Some(2);
-                let attr_error = attributes.get("error").map(|v| v == "true").unwrap_or(false);
+                let attr_error = attributes
+                    .get("error")
+                    .map(|v| v == "true")
+                    .unwrap_or(false);
                 out.push(Span {
                     trace_id: raw.trace_id.clone(),
                     span_id: raw.span_id.clone(),
-                    parent_span_id: raw
-                        .parent_span_id
-                        .clone()
-                        .filter(|p| !p.is_empty()),
+                    parent_span_id: raw.parent_span_id.clone().filter(|p| !p.is_empty()),
                     name: raw.name.clone(),
                     kind: kind_from_i32(raw.kind),
                     start_unix_nano: start,

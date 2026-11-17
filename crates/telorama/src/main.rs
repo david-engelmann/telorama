@@ -78,7 +78,10 @@ fn cmd_render(args: &[String]) -> Result<String, String> {
     }
     let (Some(scene_path), Some(traces_path), Some(out_path)) = (scene_path, traces_path, out_path)
     else {
-        return Err(format!("render needs --scene, --traces, and --out\n{}", usage()));
+        return Err(format!(
+            "render needs --scene, --traces, and --out\n{}",
+            usage()
+        ));
     };
     let scene_text = read_file(scene_path)?;
     let scene = telorama_scene::parse_scene(&scene_text).map_err(|errors| {

@@ -1,16 +1,20 @@
-use telorama_scene::Span;
 use std::path::PathBuf;
+use telorama_scene::Span;
 
 fn workspace_file(rel: &str) -> String {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..").join(rel);
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join(rel);
     std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()))
 }
 
 fn load(scene: &str, traces: &str) -> (telorama_scene::Scene, Vec<Span>) {
-    let scene = telorama_scene::parse_scene(&workspace_file(&format!("tests/fixtures/scenes/{scene}")))
-        .expect("fixture scene must validate");
-    let spans = telorama_ingest::parse_otlp_traces(&workspace_file(&format!("tests/fixtures/{traces}")))
-        .expect("fixture traces must parse");
+    let scene =
+        telorama_scene::parse_scene(&workspace_file(&format!("tests/fixtures/scenes/{scene}")))
+            .expect("fixture scene must validate");
+    let spans =
+        telorama_ingest::parse_otlp_traces(&workspace_file(&format!("tests/fixtures/{traces}")))
+            .expect("fixture traces must parse");
     (scene, spans)
 }
 
@@ -34,7 +38,11 @@ fn golden(name: &str, scene: &str, traces: &str) {
 
 #[test]
 fn golden_checkout_scene() {
-    golden("checkout_scene.svg", "checkout_scene.json", "otel-demo-checkout.json");
+    golden(
+        "checkout_scene.svg",
+        "checkout_scene.json",
+        "otel-demo-checkout.json",
+    );
 }
 
 #[test]
@@ -62,7 +70,11 @@ fn unsupported_panel_type_is_a_specific_error() {
         residual: "other".to_string(),
     });
     let err = telorama_svg::render_scene(&scene, &spans).unwrap_err();
-    assert!(err.message.contains("no renderer yet"), "got: {}", err.message);
+    assert!(
+        err.message.contains("no renderer yet"),
+        "got: {}",
+        err.message
+    );
 }
 
 #[test]
@@ -74,6 +86,9 @@ fn formatting_is_canonical() {
     assert_eq!(telorama_svg::fmt_duration(1_500), "1.5 µs");
     assert_eq!(telorama_svg::fmt_duration(420_000_000), "420 ms");
     assert_eq!(telorama_svg::fmt_duration(2_500_000_000), "2.5 s");
-    assert_eq!(telorama_svg::fmt_time_ms(1_794_839_400_000), "2026-11-16T14:30:00Z");
+    assert_eq!(
+        telorama_svg::fmt_time_ms(1_794_839_400_000),
+        "2026-11-16T14:30:00Z"
+    );
     assert_eq!(telorama_svg::fmt_time_ms(0), "1970-01-01T00:00:00Z");
 }

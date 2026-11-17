@@ -9,12 +9,12 @@
 //! crate (fontdb plus harfrust over an embedded subset font) replaces
 //! the fixed label column with measured widths in a later milestone.
 
+use std::collections::BTreeMap;
+use std::fmt;
 use telorama_scene::{
     Panel, Scene, Span, StatKind, Unit, critical_path, percentile_nanos, red_by_service,
     waterfall_rows,
 };
-use std::collections::BTreeMap;
-use std::fmt;
 
 /// Canonical float formatting for emitted geometry: two decimal places,
 /// trailing zeros trimmed. One function, one rounding rule, everywhere.
@@ -463,7 +463,16 @@ fn render_waterfall(
         if span.is_error {
             note.push_str(" · error");
         }
-        text(prims, bar_x + bar_w + 6.0, *y + 12.0, 11.0, MUTED, false, false, note);
+        text(
+            prims,
+            bar_x + bar_w + 6.0,
+            *y + 12.0,
+            11.0,
+            MUTED,
+            false,
+            false,
+            note,
+        );
         *y += row_h;
     }
     text(
@@ -519,10 +528,7 @@ fn render_stat(
                 None => ("-".to_string(), "no spans in the window".to_string()),
             }
         }
-        StatKind::Count => (
-            format!("{calls}"),
-            format!("{calls} spans in the window"),
-        ),
+        StatKind::Count => (format!("{calls}"), format!("{calls} spans in the window")),
         StatKind::Rate => {
             let secs = scene.context.range.seconds();
             let rate = if secs > 0.0 { calls as f64 / secs } else { 0.0 };
@@ -564,7 +570,16 @@ fn render_stat(
     }
     text(prims, MARGIN, *y + 12.0, 12.0, MUTED, false, false, label);
     text(prims, MARGIN, *y + 44.0, 30.0, INK, true, false, value);
-    text(prims, MARGIN, *y + 62.0, 11.0, MUTED, false, false, derivation);
+    text(
+        prims,
+        MARGIN,
+        *y + 62.0,
+        11.0,
+        MUTED,
+        false,
+        false,
+        derivation,
+    );
     *y += 70.0;
     Ok(())
 }
@@ -611,8 +626,26 @@ fn render_red_row(
     }
     *y += 18.0;
     for row in &stats {
-        text(prims, MARGIN, *y + 12.0, 12.0, INK, false, false, row.service.clone());
-        text(prims, 300.0, *y + 12.0, 12.0, INK, false, true, row.calls.to_string());
+        text(
+            prims,
+            MARGIN,
+            *y + 12.0,
+            12.0,
+            INK,
+            false,
+            false,
+            row.service.clone(),
+        );
+        text(
+            prims,
+            300.0,
+            *y + 12.0,
+            12.0,
+            INK,
+            false,
+            true,
+            row.calls.to_string(),
+        );
         text(
             prims,
             380.0,
@@ -623,7 +656,11 @@ fn render_red_row(
             true,
             fmt_num(row.rate_per_sec),
         );
-        let err_fill = if row.error_ratio >= 0.05 { ERROR_COLOR } else { INK };
+        let err_fill = if row.error_ratio >= 0.05 {
+            ERROR_COLOR
+        } else {
+            INK
+        };
         text(
             prims,
             470.0,
@@ -634,9 +671,36 @@ fn render_red_row(
             true,
             format!("{:.1}%", row.error_ratio * 100.0),
         );
-        text(prims, 570.0, *y + 12.0, 12.0, INK, false, true, fmt_duration(row.p50_nanos));
-        text(prims, 680.0, *y + 12.0, 12.0, INK, false, true, fmt_duration(row.p95_nanos));
-        text(prims, 790.0, *y + 12.0, 12.0, INK, false, true, fmt_duration(row.p99_nanos));
+        text(
+            prims,
+            570.0,
+            *y + 12.0,
+            12.0,
+            INK,
+            false,
+            true,
+            fmt_duration(row.p50_nanos),
+        );
+        text(
+            prims,
+            680.0,
+            *y + 12.0,
+            12.0,
+            INK,
+            false,
+            true,
+            fmt_duration(row.p95_nanos),
+        );
+        text(
+            prims,
+            790.0,
+            *y + 12.0,
+            12.0,
+            INK,
+            false,
+            true,
+            fmt_duration(row.p99_nanos),
+        );
         *y += 18.0;
     }
     let bases: std::collections::BTreeSet<&str> = stats.iter().map(|s| s.basis).collect();
@@ -649,7 +713,16 @@ fn render_red_row(
     } else {
         "Counted on server spans where a service has them, all spans otherwise. Duration is percentiles of span duration.".to_string()
     };
-    text(prims, MARGIN, *y + 14.0, 11.0, MUTED, false, false, basis_note);
+    text(
+        prims,
+        MARGIN,
+        *y + 14.0,
+        11.0,
+        MUTED,
+        false,
+        false,
+        basis_note,
+    );
     *y += 22.0;
     Ok(())
 }
@@ -665,9 +738,27 @@ pub fn render_scene(scene: &Scene, spans: &[Span]) -> Result<String, RenderError
     let mut prims: Vec<Prim> = Vec::new();
     let mut y: f64 = 30.0;
 
-    text(&mut prims, MARGIN, y, 20.0, INK, true, false, scene.headline.clone());
+    text(
+        &mut prims,
+        MARGIN,
+        y,
+        20.0,
+        INK,
+        true,
+        false,
+        scene.headline.clone(),
+    );
     y += 20.0;
-    text(&mut prims, MARGIN, y, 12.0, MUTED, false, false, scene.title.clone());
+    text(
+        &mut prims,
+        MARGIN,
+        y,
+        12.0,
+        MUTED,
+        false,
+        false,
+        scene.title.clone(),
+    );
     y += 12.0;
 
     for panel in &scene.panels {
@@ -751,7 +842,10 @@ pub fn render_scene(scene: &Scene, spans: &[Span]) -> Result<String, RenderError
             MUTED,
             false,
             false,
-            format!("Data {} · {} · {} · {}", entry.id, entry.source.kind, source_desc, sampled),
+            format!(
+                "Data {} · {} · {} · {}",
+                entry.id, entry.source.kind, source_desc, sampled
+            ),
         );
         y += 15.0;
     }
