@@ -106,6 +106,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "telorama-mcp"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "telorama-ingest",
+ "telorama-scene",
+ "telorama-svg",
+]
+
+[[package]]
 name = "telorama-scene"
 version = "0.1.0"
 dependencies = [

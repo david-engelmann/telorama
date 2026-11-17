@@ -5,6 +5,7 @@ members = [
     "crates/telorama-ingest",
     "crates/telorama-svg",
     "crates/telorama",
+    "crates/telorama-mcp",
 ]
 
 [workspace.package]
