@@ -84,9 +84,7 @@ pub fn handle_message(line: &str) -> Option<String> {
     };
     let id = msg.get("id").cloned();
     let method = msg.get("method").and_then(Value::as_str).unwrap_or("");
-    if id.is_none() {
-        return None;
-    }
+    id.as_ref()?;
     let id = id.expect("checked above");
     let params = msg.get("params").cloned().unwrap_or(Value::Null);
     let result = match method {
