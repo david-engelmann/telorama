@@ -330,7 +330,7 @@ fn add_step_totals(turn: &mut AgentTurn, step: &AgentStep) {
     }
 }
 
-fn children_of<'a>(children: &BTreeMap<&str, Vec<&'a Span>>, span: &Span) -> &'a [&'a Span] {
+fn children_of<'a>(children: &'a BTreeMap<&str, Vec<&'a Span>>, span: &Span) -> &'a [&'a Span] {
     children
         .get(span.span_id.as_str())
         .map(Vec::as_slice)
