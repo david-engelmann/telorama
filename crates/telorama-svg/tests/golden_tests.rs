@@ -342,3 +342,33 @@ fn html_export_wraps_the_svg_without_external_references() {
     assert!(!html.contains("href="), "no external links");
     assert!(!html.contains("src="), "no external assets");
 }
+
+#[test]
+fn golden_agent_run_codex_unpriced_scene() {
+    let scene = telorama_scene::parse_scene(&workspace_file(
+        "tests/fixtures/scenes/agent_run_codex_unpriced_scene.json",
+    ))
+    .expect("unpriced scene must validate");
+    let logs = workspace_file("tests/fixtures/agents/codex-session-unpriced-logs.json");
+    let run = telorama_ingest::parse_codex_session(&logs, &[]).expect("fixture must adapt");
+    // The split at the run level: one model priced, one named unpriced,
+    // and only the priced call's 0.008875 in the total.
+    let pricing = run.pricing.as_ref().expect("codex runs are priced");
+    assert_eq!(pricing.priced_models, vec!["gpt-5.1-codex".to_string()]);
+    assert_eq!(
+        pricing.unpriced_models,
+        vec!["gpt-unknown-9".to_string()]
+    );
+    assert_eq!(run.turns[0].input_tokens, 5000);
+    assert!((run.turns[0].cost_usd - 0.008875).abs() < 1e-9);
+    let svg = telorama_svg::render_scene_with_data(
+        &scene,
+        &telorama_svg::SceneData {
+            spans: &[],
+            stacks: &[],
+            agent_run: Some(&run),
+        },
+    )
+    .expect("unpriced scene must render");
+    assert_golden("agent_run_codex_unpriced_scene.svg", &svg);
+}
