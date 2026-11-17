@@ -34,10 +34,10 @@ fn children_map<'a>(spans: &[&'a Span]) -> BTreeMap<String, Vec<&'a Span>> {
     let ids: std::collections::BTreeSet<&str> = spans.iter().map(|s| s.span_id.as_str()).collect();
     let mut map: BTreeMap<String, Vec<&Span>> = BTreeMap::new();
     for span in spans {
-        if let Some(parent) = span.parent_span_id.as_deref() {
-            if ids.contains(parent) {
-                map.entry(parent.to_string()).or_default().push(span);
-            }
+        if let Some(parent) = span.parent_span_id.as_deref()
+            && ids.contains(parent)
+        {
+            map.entry(parent.to_string()).or_default().push(span);
         }
     }
     map

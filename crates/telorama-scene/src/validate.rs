@@ -295,7 +295,7 @@ pub fn validate_scene_json(v: &Value) -> Vec<ValidationError> {
                             ),
                             _ => err(
                                 &mut errors,
-                                &format!("{base}"),
+                                &base.to_string(),
                                 "flame panel must declare min_samples (at least 1) and sample_count",
                             ),
                         }
