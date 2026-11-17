@@ -733,6 +733,11 @@ fn render_agent_run(
         ),
     );
     *y += 15.0;
+    let authority = if run.pricing.is_some() {
+        "tokens come from log events, spans counted but not merged in this dialect"
+    } else {
+        "waits and subagents come from spans, tokens and cost from logs"
+    };
     text(
         prims,
         MARGIN,
@@ -742,13 +747,28 @@ fn render_agent_run(
         false,
         false,
         format!(
-            "Coverage · {} · {} · {} · waits and subagents come from spans, tokens and cost from logs",
+            "Coverage · {} · {} · {} · {authority}",
             plural(run.coverage.log_events, "log event", "log events"),
             plural(run.coverage.spans_seen, "span read", "spans read"),
             plural(run.coverage.spans_merged, "span merged", "spans merged")
         ),
     );
-    *y += 22.0;
+    *y += 15.0;
+    if let Some(pricing) = &run.pricing {
+        let mut line = format!(
+            "Cost is an estimate priced by telorama from tokens at the price table dated {}",
+            pricing.table_as_of
+        );
+        if !pricing.unpriced_models.is_empty() {
+            line.push_str(&format!(
+                "; unpriced models excluded: {}",
+                pricing.unpriced_models.join(", ")
+            ));
+        }
+        text(prims, MARGIN, *y + 12.0, 11.0, MUTED, false, false, line);
+        *y += 15.0;
+    }
+    *y += 7.0;
     Ok(())
 }
 

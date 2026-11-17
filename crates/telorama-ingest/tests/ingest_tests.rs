@@ -185,3 +185,83 @@ fn claude_code_session_needs_exactly_one_session() {
     let none = telorama_ingest::parse_claude_code_session("{}", &[]).unwrap_err();
     assert!(none.message.contains("session.id"), "{none}");
 }
+
+#[test]
+fn codex_session_prices_tokens_and_pairs_tools() {
+    use telorama_scene::AgentStep;
+    let logs = fixture_text("tests/fixtures/agents/codex-session-logs.json");
+    let run = telorama_ingest::parse_codex_session(&logs, &[]).expect("codex fixture must adapt");
+    assert_eq!(run.session_id, "conv-2026-1116-demo");
+    assert_eq!(run.dialect, "codex");
+    assert_eq!(run.turns.len(), 2);
+    assert_eq!(run.coverage.log_events, 16);
+    assert_eq!(run.coverage.spans_seen, 0);
+    assert_eq!(run.coverage.spans_merged, 0);
+    let pricing = run.pricing.as_ref().expect("codex runs are priced");
+    assert_eq!(pricing.table_as_of, "2026-11-16");
+    assert_eq!(
+        pricing.priced_models,
+        vec![
+            "gpt-5.1-codex".to_string(),
+            "gpt-5.1-codex-mini".to_string()
+        ]
+    );
+    assert!(pricing.unpriced_models.is_empty());
+
+    let turn1 = &run.turns[0];
+    // Codex reports input gross: 8000 with 6000 cached, then 9500 with
+    // 8000 cached. The model stores non-cache input only.
+    assert_eq!(turn1.input_tokens, 3500);
+    assert_eq!(turn1.output_tokens, 2100);
+    assert_eq!(turn1.cache_read_tokens, 14000);
+    assert!((turn1.cost_usd - 0.027125).abs() < 1e-9, "{}", turn1.cost_usd);
+    assert_eq!(turn1.steps.len(), 3);
+    let AgentStep::ModelCall(first) = &turn1.steps[0] else {
+        panic!("turn 1 step 1 must be the first model call");
+    };
+    assert_eq!(first.ttft_nanos, Some(900_000_000));
+    assert_eq!(first.input_tokens, 2000);
+    assert_eq!(first.cache_read_tokens, 6000);
+    let AgentStep::ToolCall(exec) = &turn1.steps[1] else {
+        panic!("turn 1 step 2 must be the exec_command call");
+    };
+    assert_eq!(exec.name, "exec_command");
+    assert_eq!(exec.decision.as_deref(), Some("approved"));
+    // Codex merges no waits: the span side of this dialect is unproven.
+    assert_eq!(exec.wait_nanos, 0);
+
+    let turn2 = &run.turns[1];
+    assert_eq!(turn2.input_tokens, 2000);
+    assert_eq!(turn2.output_tokens, 600);
+    assert!((turn2.cost_usd - 0.001725).abs() < 1e-9, "{}", turn2.cost_usd);
+    let AgentStep::ModelCall(failed) = &turn2.steps[0] else {
+        panic!("turn 2 step 1 must be the failed model call");
+    };
+    assert!(failed.is_error);
+    let AgentStep::ModelCall(retried) = &turn2.steps[1] else {
+        panic!("turn 2 step 2 must be the retried model call");
+    };
+    assert_eq!(retried.attempts, 2);
+}
+
+#[test]
+fn codex_session_names_unpriced_models() {
+    let logs = r#"{"resourceLogs":[{"scopeLogs":[{"logRecords":[
+      {"timeUnixNano":"1000000000","attributes":[{"key":"event.name","value":{"stringValue":"codex.user_prompt"}},{"key":"conversation.id","value":{"stringValue":"c-1"}},{"key":"turn.id","value":{"stringValue":"t-1"}}]},
+      {"timeUnixNano":"3000000000","attributes":[{"key":"event.name","value":{"stringValue":"codex.api_request"}},{"key":"conversation.id","value":{"stringValue":"c-1"}},{"key":"turn.id","value":{"stringValue":"t-1"}},{"key":"model","value":{"stringValue":"gpt-unknown-9"}},{"key":"duration_ms","value":{"intValue":"2000"}},{"key":"status","value":{"stringValue":"success"}}]},
+      {"timeUnixNano":"3000000000","attributes":[{"key":"event.name","value":{"stringValue":"codex.sse_event"}},{"key":"conversation.id","value":{"stringValue":"c-1"}},{"key":"turn.id","value":{"stringValue":"t-1"}},{"key":"kind","value":{"stringValue":"response.completed"}},{"key":"input_tokens","value":{"intValue":"100"}},{"key":"output_tokens","value":{"intValue":"10"}}]}
+    ]}]}]}"#;
+    let run = telorama_ingest::parse_codex_session(logs, &[]).expect("must adapt");
+    let pricing = run.pricing.as_ref().expect("codex runs are priced");
+    assert_eq!(pricing.unpriced_models, vec!["gpt-unknown-9".to_string()]);
+    assert!(pricing.priced_models.is_empty());
+    // The tokens are in the run; only the cost is excluded.
+    assert_eq!(run.turns[0].input_tokens, 100);
+    assert_eq!(run.turns[0].cost_usd, 0.0);
+}
+
+#[test]
+fn codex_session_needs_exactly_one_conversation() {
+    let none = telorama_ingest::parse_codex_session("{}", &[]).unwrap_err();
+    assert!(none.message.contains("conversation.id"), "{none}");
+}

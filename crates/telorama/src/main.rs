@@ -10,7 +10,7 @@
 use std::process::ExitCode;
 
 fn usage() -> &'static str {
-    "usage:\n  telorama inspect <traces.json>\n  telorama validate <scene.json>\n  telorama render --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] --out <scene.svg>\n  telorama session --logs <logs.json> [--spans <spans.json>]\n  telorama schema"
+    "usage:\n  telorama inspect <traces.json>\n  telorama validate <scene.json>\n  telorama render --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] --out <scene.svg>\n  telorama session --logs <logs.json> [--spans <spans.json>] [--dialect <dialect>]\n  telorama schema"
 }
 
 fn read_file(path: &str) -> Result<String, String> {
@@ -72,14 +72,39 @@ fn flag<'a>(args: &'a [String], name: &str) -> Result<Option<&'a str>, String> {
     Ok(value)
 }
 
-const RENDER_FLAGS: [&str; 6] = [
+const RENDER_FLAGS: [&str; 7] = [
     "--scene",
     "--traces",
     "--profile",
     "--session-logs",
     "--session-spans",
+    "--dialect",
     "--out",
 ];
+
+/// Build an agent run from a session export in the named dialect.
+fn parse_session(
+    logs_path: &str,
+    spans_path: Option<&str>,
+    dialect: &str,
+) -> Result<telorama_scene::AgentRun, String> {
+    let spans = match spans_path {
+        Some(path) => {
+            telorama_ingest::parse_otlp_traces(&read_file(path)?).map_err(|e| e.to_string())?
+        }
+        None => Vec::new(),
+    };
+    let logs = read_file(logs_path)?;
+    match dialect {
+        "claude_code" => {
+            telorama_ingest::parse_claude_code_session(&logs, &spans).map_err(|e| e.to_string())
+        }
+        "codex" => telorama_ingest::parse_codex_session(&logs, &spans).map_err(|e| e.to_string()),
+        other => Err(format!(
+            "unknown dialect {other:?}: expected claude_code or codex"
+        )),
+    }
+}
 
 fn cmd_render(args: &[String]) -> Result<String, String> {
     let mut i = 0;
@@ -118,17 +143,11 @@ fn cmd_render(args: &[String]) -> Result<String, String> {
         None => Vec::new(),
     };
     let run = match flag(args, "--session-logs")? {
-        Some(path) => {
-            let fusion_spans = match flag(args, "--session-spans")? {
-                Some(spans_path) => telorama_ingest::parse_otlp_traces(&read_file(spans_path)?)
-                    .map_err(|e| e.to_string())?,
-                None => Vec::new(),
-            };
-            Some(
-                telorama_ingest::parse_claude_code_session(&read_file(path)?, &fusion_spans)
-                    .map_err(|e| e.to_string())?,
-            )
-        }
+        Some(path) => Some(parse_session(
+            path,
+            flag(args, "--session-spans")?,
+            flag(args, "--dialect")?.unwrap_or("claude_code"),
+        )?),
         None => None,
     };
     let data = telorama_svg::SceneData {
@@ -150,7 +169,7 @@ fn cmd_session(args: &[String]) -> Result<String, String> {
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
-            "--logs" | "--spans" => i += 2,
+            "--logs" | "--spans" | "--dialect" => i += 2,
             other => {
                 return Err(format!("unknown session argument {other:?}\n{}", usage()));
             }
@@ -159,14 +178,11 @@ fn cmd_session(args: &[String]) -> Result<String, String> {
     let Some(logs_path) = flag(args, "--logs")? else {
         return Err(format!("session needs --logs\n{}", usage()));
     };
-    let spans = match flag(args, "--spans")? {
-        Some(path) => {
-            telorama_ingest::parse_otlp_traces(&read_file(path)?).map_err(|e| e.to_string())?
-        }
-        None => Vec::new(),
-    };
-    let run = telorama_ingest::parse_claude_code_session(&read_file(logs_path)?, &spans)
-        .map_err(|e| e.to_string())?;
+    let run = parse_session(
+        logs_path,
+        flag(args, "--spans")?,
+        flag(args, "--dialect")?.unwrap_or("claude_code"),
+    )?;
     let mut out = serde_json::to_string_pretty(&run).map_err(|e| e.to_string())?;
     out.push('\n');
     Ok(out)

@@ -7,6 +7,8 @@
 //! canonical output.
 
 pub mod claude_code;
+pub mod codex;
+pub(crate) mod events;
 
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -14,6 +16,7 @@ use std::fmt;
 use telorama_scene::{Span, SpanKind, StackSample};
 
 pub use claude_code::parse_claude_code_session;
+pub use codex::parse_codex_session;
 
 /// An ingest failure with a message specific enough to act on.
 #[derive(Debug, Clone, PartialEq, Eq)]

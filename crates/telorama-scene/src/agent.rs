@@ -16,6 +16,25 @@ pub struct AgentRun {
     pub dialect: String,
     pub turns: Vec<AgentTurn>,
     pub coverage: Coverage,
+    /// Renderer-side pricing, present when the dialect exports tokens
+    /// but no cost (Codex). The run's cost figures are then estimates
+    /// from a price table the renderer owns, and the render says so.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pricing: Option<Pricing>,
+}
+
+/// The price table a run's costs were estimated from.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Pricing {
+    /// The date the table was compiled, as an ISO date. A price table
+    /// rots; the date rides on the run so a reader can judge it.
+    pub table_as_of: String,
+    /// Models the table priced, sorted.
+    pub priced_models: Vec<String>,
+    /// Models the session used that the table does not price, sorted.
+    /// Their tokens are in the run and their cost is excluded from
+    /// every total, never silently counted as zero-cost usage.
+    pub unpriced_models: Vec<String>,
 }
 
 /// How much of the run each source proved. Log events are

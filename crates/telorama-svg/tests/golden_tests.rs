@@ -299,3 +299,23 @@ fn service_map_layout_layers_follow_longest_path() {
         last_y = y;
     }
 }
+
+#[test]
+fn golden_agent_run_codex_scene() {
+    let scene = telorama_scene::parse_scene(&workspace_file(
+        "tests/fixtures/scenes/agent_run_codex_scene.json",
+    ))
+    .expect("codex scene must validate");
+    let logs = workspace_file("tests/fixtures/agents/codex-session-logs.json");
+    let run = telorama_ingest::parse_codex_session(&logs, &[]).expect("codex fixture must adapt");
+    let svg = telorama_svg::render_scene_with_data(
+        &scene,
+        &telorama_svg::SceneData {
+            spans: &[],
+            stacks: &[],
+            agent_run: Some(&run),
+        },
+    )
+    .expect("codex scene must render");
+    assert_golden("agent_run_codex_scene.svg", &svg);
+}
