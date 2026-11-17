@@ -11,6 +11,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.100.0
       - name: Generate goldens and lockfile
         run: |
+          mkdir -p tests/golden
           UPDATE_GOLDENS=1 cargo test -p telorama-svg --test golden_tests
           cargo generate-lockfile
           echo "===LOCKFILE_B64_BEGIN==="
