@@ -76,7 +76,18 @@ pub fn scene_schema() -> Value {
                     "required": ["type", "data"],
                     "properties": {
                         "type": { "enum": ["waterfall", "stat", "red_row", "sankey", "flame", "heatmap"] },
-                        "data": { "type": "string", "minLength": 1 }
+                        "data": { "type": "string", "minLength": 1 },
+                        "thresholds": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": ["above", "color"],
+                                "properties": {
+                                    "above": { "type": "number" },
+                                    "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" }
+                                }
+                            }
+                        }
                     }
                 }
             },

@@ -6,6 +6,7 @@
 //! inputs.
 
 pub mod derive;
+pub mod field;
 pub mod schema;
 pub mod spec;
 pub mod trace;
@@ -14,6 +15,10 @@ pub mod validate;
 pub use derive::{
     RedStats, WaterfallRow, content_hash, critical_path, percentile_nanos, red_by_service,
     waterfall_rows,
+};
+pub use field::{
+    ThresholdStep, Thresholds, format_bytes, format_duration_nanos, format_number, format_ratio,
+    format_value,
 };
 pub use schema::{scene_schema, scene_schema_text};
 pub use spec::{

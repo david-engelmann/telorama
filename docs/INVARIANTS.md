@@ -104,6 +104,28 @@ later milestones are marked as validator-side.
   (golden_tests golden_checkout_scene), which records the rendered
   result byte for byte.
 
+## Field system (telorama-scene, field.rs)
+
+- INV-24. One formatting language. Every value a scene prints passes
+  through the field formatters in telorama-scene; the svg crate's
+  formatting functions are re-exports of them, not copies, so an axis,
+  a stat, a table cell, and a caption can never disagree.
+  Enforced by field_tests format_value_duration_scales_by_magnitude,
+  format_value_ratio_is_a_one_decimal_percent, and
+  format_value_count_bytes_and_rate, and by the golden corpus.
+- INV-25. Threshold steps are strictly increasing in `above` and carry
+  #RRGGBB colors, and a value takes the color of the highest step at or
+  below it. Threshold `above` values are in the field's own scale, the
+  same scale format_value takes.
+  Enforced by validator_tests thresholds_must_increase_and_carry_hex_colors
+  and field_tests thresholds_pick_the_highest_step_at_or_below_the_value.
+- INV-26. A red_row panel with no thresholds of its own renders with
+  the standing M1 verdict: an error ratio at or above five percent is
+  vermillion. Scenes written before thresholds existed render
+  byte-identical.
+  Enforced by field_tests error_ratio_default_matches_the_m1_rule and
+  the golden corpus.
+
 ## Schema and CLI (telorama)
 
 - INV-22. The JSON Schema the CLI prints is the shape contract for spec

@@ -167,6 +167,44 @@ fn backward_window_is_rejected() {
 }
 
 #[test]
+fn thresholds_must_increase_and_carry_hex_colors() {
+    let mut scene = valid_scene();
+    scene["panels"][1]["thresholds"] = json!([
+        {"above": 500000000, "color": "#E69F00"},
+        {"above": 400000000, "color": "#D55E00"}
+    ]);
+    let errors = validate_scene_json(&scene);
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("strictly increasing")),
+        "expected the ordering rule to fire, got: {}",
+        messages(&errors)
+    );
+
+    let mut scene = valid_scene();
+    scene["panels"][1]["thresholds"] = json!([{"above": 1, "color": "red"}]);
+    let errors = validate_scene_json(&scene);
+    assert!(
+        errors.iter().any(|e| e.message.contains("#RRGGBB")),
+        "expected the color rule to fire, got: {}",
+        messages(&errors)
+    );
+
+    let mut scene = valid_scene();
+    scene["panels"][1]["thresholds"] = json!([
+        {"above": 300000000, "color": "#E69F00"},
+        {"above": 500000000, "color": "#D55E00"}
+    ]);
+    let errors = validate_scene_json(&scene);
+    assert!(
+        errors.is_empty(),
+        "unexpected errors: {}",
+        messages(&errors)
+    );
+}
+
+#[test]
 fn source_without_query_or_trace_is_rejected() {
     let mut scene = valid_scene();
     scene["data"][0]["source"]

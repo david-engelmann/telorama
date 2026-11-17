@@ -16,6 +16,8 @@
 //! - duration statistics are percentiles or distributions, never an
 //!   average or a mean
 //! - stat and heatmap panels declare a known unit
+//! - threshold steps on stat and red_row panels are strictly increasing
+//!   in `above` and carry #RRGGBB hex colors
 //! - sankey panels name an explicit residual bucket
 //! - flame panels declare a sample type and a sample count at or above
 //!   their stated floor
@@ -51,6 +53,45 @@ fn err(errors: &mut Vec<ValidationError>, path: &str, message: impl Into<String>
 
 fn non_empty_str<'a>(v: &'a Value, key: &str) -> Option<&'a str> {
     v.get(key).and_then(Value::as_str).filter(|s| !s.is_empty())
+}
+
+fn is_hex_color(s: &str) -> bool {
+    s.len() == 7 && s.starts_with('#') && s[1..].chars().all(|c| c.is_ascii_hexdigit())
+}
+
+/// Threshold steps, when a panel declares them, must be usable as a
+/// verdict scale: numeric, strictly increasing, with real colors.
+fn validate_thresholds(panel: &Value, base: &str, errors: &mut Vec<ValidationError>) {
+    let Some(steps) = panel.get("thresholds").and_then(Value::as_array) else {
+        return;
+    };
+    let mut prev: Option<f64> = None;
+    for (j, step) in steps.iter().enumerate() {
+        let spath = format!("{base}.thresholds[{j}]");
+        match step.get("above").and_then(Value::as_f64) {
+            Some(a) => {
+                if let Some(p) = prev
+                    && a <= p
+                {
+                    err(
+                        errors,
+                        &spath,
+                        "threshold steps must be strictly increasing in above: a later step must sit above every earlier one",
+                    );
+                }
+                prev = Some(a);
+            }
+            None => err(errors, &spath, "threshold step needs a numeric above"),
+        }
+        match step.get("color").and_then(Value::as_str) {
+            Some(c) if is_hex_color(c) => {}
+            _ => err(
+                errors,
+                &format!("{spath}.color"),
+                "threshold color must be a #RRGGBB hex color",
+            ),
+        }
+    }
 }
 
 const PANEL_TYPES: [&str; 6] = ["waterfall", "stat", "red_row", "sankey", "flame", "heatmap"];
@@ -223,6 +264,9 @@ pub fn validate_scene_json(v: &Value) -> Vec<ValidationError> {
                         &format!("{base}.data"),
                         "panel needs a data id",
                     ),
+                }
+                if matches!(ptype, "stat" | "red_row") {
+                    validate_thresholds(panel, &base, &mut errors);
                 }
                 match ptype {
                     "stat" => {

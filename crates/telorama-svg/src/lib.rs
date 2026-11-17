@@ -12,45 +12,25 @@
 use std::collections::BTreeMap;
 use std::fmt;
 use telorama_scene::{
-    Panel, Scene, Span, StatKind, Unit, critical_path, percentile_nanos, red_by_service,
+    Panel, Scene, Span, StatKind, Thresholds, Unit, critical_path, percentile_nanos, red_by_service,
     waterfall_rows,
 };
 
-/// Canonical float formatting for emitted geometry: two decimal places,
-/// trailing zeros trimmed. One function, one rounding rule, everywhere.
+/// Canonical float formatting for emitted geometry. The implementation
+/// lives in telorama-scene's field system, so every surface formats a
+/// value the same way; these are the renderer's handles on it.
 pub fn fmt_num(v: f64) -> String {
-    let raw = format!("{v:.2}");
-    if raw.contains('.') {
-        raw.trim_end_matches('0').trim_end_matches('.').to_string()
-    } else {
-        raw
-    }
+    telorama_scene::format_number(v)
 }
 
 /// Format a nanosecond duration with automatic magnitude scaling.
 pub fn fmt_duration(nanos: i64) -> String {
-    let ns = nanos.max(0) as f64;
-    if ns < 1_000.0 {
-        format!("{} ns", nanos.max(0))
-    } else if ns < 1_000_000.0 {
-        format!("{} µs", fmt_num(ns / 1_000.0))
-    } else if ns < 1_000_000_000.0 {
-        format!("{} ms", fmt_num(ns / 1_000_000.0))
-    } else {
-        format!("{} s", fmt_num(ns / 1_000_000_000.0))
-    }
+    telorama_scene::format_duration_nanos(nanos)
 }
 
 /// Format a byte count with automatic magnitude scaling.
 pub fn fmt_bytes(bytes: i64) -> String {
-    let b = bytes.max(0) as f64;
-    if b < 1024.0 {
-        format!("{} B", bytes.max(0))
-    } else if b < 1024.0 * 1024.0 {
-        format!("{} KiB", fmt_num(b / 1024.0))
-    } else {
-        format!("{} MiB", fmt_num(b / (1024.0 * 1024.0)))
-    }
+    telorama_scene::format_bytes(bytes)
 }
 
 fn civil_from_days(z_in: i64) -> (i64, u32, u32) {
@@ -266,8 +246,9 @@ fn fail(message: impl Into<String>) -> RenderError {
 
 /// Okabe-Ito categorical palette, ordered for bar use. Assignment is by
 /// sorted service name, so a service keeps its color across panels and
-/// across re-renders of the same data. Contrast filtering against the
-/// theme background arrives with the field system in M2.
+/// across re-renders of the same data. Verdict colors (a value crossing
+/// its threshold, an error span) come from the field system's
+/// thresholds, not from this palette.
 pub const SERVICE_PALETTE: [&str; 8] = [
     "#0072B2", "#E69F00", "#009E73", "#D55E00", "#56B4E9", "#CC79A7", "#F0E442", "#000000",
 ];
@@ -513,6 +494,7 @@ fn render_stat(
         stat,
         unit,
         service,
+        thresholds,
     } = panel
     else {
         return Err(fail("render_stat called on a non-stat panel"));
@@ -525,24 +507,34 @@ fn render_stat(
     let calls = set.len() as u64;
     let errors = set.iter().filter(|s| s.is_error).count() as u64;
 
-    let (value, derivation) = match stat {
+    let (value, derivation, raw) = match stat {
         StatKind::P50 | StatKind::P95 | StatKind::P99 => {
             let p = stat.percentile().unwrap_or(95);
             match percentile_nanos(&durations, p) {
                 Some(v) => (
                     format_by_unit(v, *unit),
                     format!("{} of {} span durations in the window", stat.name(), calls),
+                    Some(v as f64),
                 ),
-                None => ("-".to_string(), "no spans in the window".to_string()),
+                None => (
+                    "-".to_string(),
+                    "no spans in the window".to_string(),
+                    None,
+                ),
             }
         }
-        StatKind::Count => (format!("{calls}"), format!("{calls} spans in the window")),
+        StatKind::Count => (
+            format!("{calls}"),
+            format!("{calls} spans in the window"),
+            Some(calls as f64),
+        ),
         StatKind::Rate => {
             let secs = scene.context.range.seconds();
             let rate = if secs > 0.0 { calls as f64 / secs } else { 0.0 };
             (
                 fmt_num(rate),
                 format!("{calls} spans over a {} s window", fmt_num(secs)),
+                Some(rate),
             )
         }
         StatKind::ErrorRatio => {
@@ -552,8 +544,9 @@ fn render_stat(
                 errors as f64 / calls as f64
             };
             (
-                format!("{:.1}%", ratio * 100.0),
+                telorama_scene::format_ratio(ratio),
                 format!("{errors} errors of {calls} calls"),
+                Some(ratio),
             )
         }
         StatKind::Last => {
@@ -566,8 +559,13 @@ fn render_stat(
                 Some(span) => (
                     format_by_unit(span.duration_nanos(), *unit),
                     "duration of the last span to finish".to_string(),
+                    Some(span.duration_nanos() as f64),
                 ),
-                None => ("-".to_string(), "no spans in the window".to_string()),
+                None => (
+                    "-".to_string(),
+                    "no spans in the window".to_string(),
+                    None,
+                ),
             }
         }
     };
@@ -577,7 +575,20 @@ fn render_stat(
         label.push_str(&format!(" · {s}"));
     }
     text(prims, MARGIN, *y + 12.0, 12.0, MUTED, false, false, label);
-    text(prims, MARGIN, *y + 44.0, 30.0, INK, true, false, value);
+    let value_fill = match raw {
+        Some(v) if !thresholds.is_empty() => thresholds.color_for(v, INK),
+        _ => INK.to_string(),
+    };
+    text(
+        prims,
+        MARGIN,
+        *y + 44.0,
+        30.0,
+        &value_fill,
+        true,
+        false,
+        value,
+    );
     text(
         prims,
         MARGIN,
@@ -609,8 +620,18 @@ fn render_red_row(
     prims: &mut Vec<Prim>,
     y: &mut f64,
 ) -> Result<(), RenderError> {
-    let Panel::RedRow { data, service } = panel else {
+    let Panel::RedRow {
+        data,
+        service,
+        thresholds,
+    } = panel
+    else {
         return Err(fail("render_red_row called on a non-red panel"));
+    };
+    let verdicts = if thresholds.is_empty() {
+        Thresholds::error_ratio()
+    } else {
+        thresholds.clone()
     };
     let set_owned: Vec<Span> = dataset(scene, spans, data).into_iter().cloned().collect();
     let mut stats = red_by_service(&set_owned, scene.context.range.seconds());
@@ -664,20 +685,16 @@ fn render_red_row(
             true,
             fmt_num(row.rate_per_sec),
         );
-        let err_fill = if row.error_ratio >= 0.05 {
-            ERROR_COLOR
-        } else {
-            INK
-        };
+        let err_fill = verdicts.color_for(row.error_ratio, INK);
         text(
             prims,
             470.0,
             *y + 12.0,
             12.0,
-            err_fill,
+            &err_fill,
             false,
             true,
-            format!("{:.1}%", row.error_ratio * 100.0),
+            telorama_scene::format_ratio(row.error_ratio),
         );
         text(
             prims,

@@ -5,6 +5,7 @@
 //! references, panel choices, and thresholds with meaning. Geometry,
 //! formatting, and layout belong to the renderer and never appear here.
 
+use crate::field::Thresholds;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -113,11 +114,20 @@ pub enum Panel {
         unit: Unit,
         #[serde(default)]
         service: Option<String>,
+        /// Optional verdict thresholds for the reported value, in the
+        /// field's own scale (nanoseconds for durations, a fraction for
+        /// ratios). Empty means the value renders without a verdict.
+        #[serde(default)]
+        thresholds: Thresholds,
     },
     RedRow {
         data: String,
         #[serde(default)]
         service: Option<String>,
+        /// Optional verdict thresholds for the error ratio. Empty means
+        /// the standing rule applies: vermillion at five percent.
+        #[serde(default)]
+        thresholds: Thresholds,
     },
     Sankey {
         data: String,
