@@ -77,10 +77,9 @@ fn golden_heatmap_scene() {
 
 #[test]
 fn golden_flame_scene() {
-    let scene = telorama_scene::parse_scene(&workspace_file(
-        "tests/fixtures/scenes/flame_scene.json",
-    ))
-    .expect("flame scene must validate");
+    let scene =
+        telorama_scene::parse_scene(&workspace_file("tests/fixtures/scenes/flame_scene.json"))
+            .expect("flame scene must validate");
     let stacks = telorama_ingest::parse_folded_stacks(&workspace_file(
         "tests/fixtures/profiles/checkout-cpu.txt",
     ))

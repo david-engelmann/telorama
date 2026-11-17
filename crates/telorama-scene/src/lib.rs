@@ -18,11 +18,11 @@ pub use derive::{
     critical_path, flame_from_spans, flame_tree, heatmap_grid, percentile_nanos, red_by_service,
     waterfall_rows,
 };
-pub use profile::StackSample;
 pub use field::{
     ThresholdStep, Thresholds, format_bytes, format_duration_nanos, format_number, format_ratio,
     format_value,
 };
+pub use profile::StackSample;
 pub use schema::{scene_schema, scene_schema_text};
 pub use spec::{
     Context, DataRef, NarrativeItem, Panel, Provenance, SCENE_VERSION, Sampling, Scene, Source,

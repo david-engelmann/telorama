@@ -1142,13 +1142,7 @@ pub struct SceneData<'a> {
 /// Scenes whose flame panels read profile data need
 /// [`render_scene_with_data`].
 pub fn render_scene(scene: &Scene, spans: &[Span]) -> Result<String, RenderError> {
-    render_scene_with_data(
-        scene,
-        &SceneData {
-            spans,
-            stacks: &[],
-        },
-    )
+    render_scene_with_data(scene, &SceneData { spans, stacks: &[] })
 }
 
 /// Render a scene over a full data set to a deterministic SVG document.

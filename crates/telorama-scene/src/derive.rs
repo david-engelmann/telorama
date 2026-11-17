@@ -424,8 +424,11 @@ impl FlameBuilder {
     }
 
     fn freeze(self) -> FlameNode {
-        let mut children: Vec<FlameNode> =
-            self.children.into_values().map(FlameBuilder::freeze).collect();
+        let mut children: Vec<FlameNode> = self
+            .children
+            .into_values()
+            .map(FlameBuilder::freeze)
+            .collect();
         sort_flame_children(&mut children);
         FlameNode {
             name: self.name,
@@ -464,8 +467,7 @@ pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
     }
     let trace = trace_spans(spans, trace_id);
     let children = children_map(&trace);
-    let ids: std::collections::BTreeSet<&str> =
-        trace.iter().map(|s| s.span_id.as_str()).collect();
+    let ids: std::collections::BTreeSet<&str> = trace.iter().map(|s| s.span_id.as_str()).collect();
     let mut root = FlameNode {
         name: "trace".to_string(),
         value: 0,
