@@ -167,3 +167,29 @@ The live observability addendum stays a milestone of its own after the
 static core and was not pulled into M2. M3 is next on the milestone
 list: the MCP server with the triple output contract, the MCP Apps
 view, the Codex dialect adapter, and HTML export.
+
+## Gate verdict, 2026-11-17. M2 approved, M3 opened
+
+Main Muse audited the M2 gate independently and approved it. The
+audit verified both green runs on their exact heads with identical
+code under them, the 61-test inventory matched per crate, the
+53-blob tree with all six goldens, both M1 goldens byte-identical at
+the M2 head by blob SHA, both M1 Minor closures present in the test
+files, and the heatmap band totals, the full flame percentage set,
+and the agent-run session totals recomputed independently, all
+matching.
+
+Two Minors and one nit carry into M3 as hardening, and the M3
+opening pass lands them. INV-30's declared-count mismatch path was
+implemented but untested; it gains a dedicated render-error test.
+INV-31's fallback note and INV-33's layout rested on the golden
+corpus; each gains a dedicated assertion test. INVARIANTS.md listed
+its M2 sections out of numeric order; the sections now run in
+invariant number order end to end.
+
+M3 opens as scoped in the milestone list above: the MCP server with
+the triple output contract (concise text, compact structured
+content, and the view), the MCP Apps view, the Codex dialect adapter
+with renderer-side token pricing, and standalone HTML export for
+terminal hosts. The live observability addendum stays fenced as its
+own milestone after the static core.

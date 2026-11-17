@@ -196,3 +196,93 @@ fn formatting_is_canonical() {
     );
     assert_eq!(telorama_svg::fmt_time_ms(0), "1970-01-01T00:00:00Z");
 }
+
+#[test]
+fn flame_declared_count_mismatch_is_a_render_error() {
+    let text = workspace_file("tests/fixtures/scenes/flame_scene.json")
+        .replace("\"sample_count\":970", "\"sample_count\":971");
+    let scene = telorama_scene::parse_scene(&text).expect("scene must validate");
+    let stacks = telorama_ingest::parse_folded_stacks(&workspace_file(
+        "tests/fixtures/profiles/checkout-cpu.txt",
+    ))
+    .expect("profile fixture must parse");
+    let err = telorama_svg::render_scene_with_data(
+        &scene,
+        &telorama_svg::SceneData {
+            spans: &[],
+            stacks: &stacks,
+            agent_run: None,
+        },
+    )
+    .unwrap_err();
+    assert!(
+        err.message
+            .contains("declared sample count 971 does not match the profile data total 970"),
+        "got: {}",
+        err.message
+    );
+}
+
+#[test]
+fn flame_span_fallback_is_labelled_on_its_face() {
+    let text = "{\"context\":{\"filter\":{\"env\":\"prod\"},\"provenance\":{\"generated_by\":\"test\",\"question\":\"Where does checkout time go?\"},\"range\":{\"from_unix_ms\":1794839400000,\"to_unix_ms\":1794839401000}},\"data\":[{\"id\":\"trace\",\"sampled\":\"unknown\",\"source\":{\"kind\":\"otlp_file\",\"trace_id\":\"4bf92f3577b34da6a3ce929d0e0e4736\"}}],\"headline\":\"Checkout flame derived from spans\",\"narrative\":[],\"panels\":[{\"data\":\"trace\",\"min_samples\":1,\"sample_count\":1,\"sample_type\":\"cpu\",\"type\":\"flame\"}],\"scene\":\"0.1\",\"title\":\"Checkout span flame\"}";
+    let scene = telorama_scene::parse_scene(text).expect("fallback scene must validate");
+    let spans = telorama_ingest::parse_otlp_traces(&workspace_file(
+        "tests/fixtures/otel-demo-checkout.json",
+    ))
+    .expect("checkout fixture must parse");
+    let svg = telorama_svg::render_scene(&scene, &spans).expect("fallback must render");
+    assert!(
+        svg.contains(
+            "Derived from span self time, not sampled profiles. The trace holds 500 ms of self time across its spans."
+        ),
+        "the fallback must label itself on its face"
+    );
+}
+
+/// Position of a service map node label in the rendered SVG.
+fn node_pos(svg: &str, name: &str) -> (f64, f64) {
+    let needle = format!(">{name}<");
+    let at = svg.find(&needle).expect("node label must render");
+    let start = svg[..at].rfind("<text").expect("label must be a text prim");
+    let tag = &svg[start..at];
+    let coord = |attr: &str| -> f64 {
+        let key = format!("{attr}=\"");
+        let from = tag.find(&key).expect("coord must exist") + key.len();
+        tag[from..]
+            .find('"')
+            .map(|end| tag[from..from + end].parse::<f64>().expect("coord is a number"))
+            .expect("coord must terminate")
+    };
+    (coord("x"), coord("y"))
+}
+
+#[test]
+fn service_map_layout_layers_follow_longest_path() {
+    let (scene, spans) = load("service_map_scene.json", "otel-demo-checkout.json");
+    let svg = telorama_svg::render_scene(&scene, &spans).expect("map must render");
+    let (fx, _) = node_pos(&svg, "frontend");
+    let (cx, _) = node_pos(&svg, "checkout");
+    let (ux, _) = node_pos(&svg, "currency");
+    assert!(fx < cx, "frontend is layer 0, left of checkout");
+    assert!(cx < ux, "checkout is layer 1, left of its callees");
+    for name in ["email", "inventory", "payment", "product-catalog", "shipping"] {
+        let (x, _) = node_pos(&svg, name);
+        assert_eq!(x, ux, "{name} shares the layer 2 column");
+    }
+    // Within layer 2 every service has the same single predecessor, so
+    // the barycenter ties and the order falls to names.
+    let mut last_y = f64::MIN;
+    for name in [
+        "currency",
+        "email",
+        "inventory",
+        "payment",
+        "product-catalog",
+        "shipping",
+    ] {
+        let (_, y) = node_pos(&svg, name);
+        assert!(y > last_y, "{name} must sit below its predecessor in name order");
+        last_y = y;
+    }
+}

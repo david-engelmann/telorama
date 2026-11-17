@@ -2,7 +2,7 @@
 
 The invariants telorama holds, each traced one to one to the test or
 record that enforces it. An invariant without a named enforcement is a
-wish, and wishes do not ship. Milestone 1 invariants are listed first.
+wish, and wishes do not ship. Sections run in invariant number order.
 Rules the validator already enforces for panels whose renderers land in
 later milestones are marked as validator-side.
 
@@ -104,72 +104,14 @@ later milestones are marked as validator-side.
   (golden_tests golden_checkout_scene), which records the rendered
   result byte for byte.
 
-## Agent runs (telorama-scene agent.rs, telorama-ingest claude_code.rs, telorama-svg)
+## Schema and CLI (telorama)
 
-- INV-34. Fusion authority is fixed: tokens and cost come only from
-  log events, permission waits and subagent structure only from
-  spans. The run's coverage counts (events read, spans read, spans
-  merged) print in every agent_run render. Nothing is merged
-  silently, and a fact from the weaker source never overrides the
-  stronger one.
-  Enforced by ingest_tests claude_code_session_fuses_logs_and_spans
-  and the golden corpus (golden_tests golden_agent_run_scene).
-- INV-35. A subagent exists in the model only where a span carries
-  an agent_id. A log step joins a subagent only when the step's
-  midpoint falls inside that span's window. Log events alone never
-  invent a subagent.
-  Enforced by ingest_tests claude_code_session_fuses_logs_and_spans
-  (the haiku call nests under agent-7; nothing else moves).
-
-## Service map (telorama-scene derive.rs, telorama-svg)
-
-- INV-32. A service map edge exists only on span-tree evidence: a
-  span whose parent, in the same trace, belongs to another service.
-  The child span is counted once, with its duration and error state.
-  No edge is inferred from naming, configuration, or co-occurrence.
-  Enforced by derive_tests service_graph_edges_come_from_span_parents.
-- INV-33. Map layout is a pure function of the span set: layers by
-  longest path from a root service (bounded relaxation, so cycles
-  terminate), barycenter of predecessors then name within a layer.
-  The same spans render the same map, byte for byte.
-  Enforced by the golden corpus (golden_tests
-  golden_service_map_scene).
-
-## Flame (telorama-scene derive.rs, telorama-ingest, telorama-svg)
-
-- INV-30. A flame panel over profile data renders only when the
-  folded stacks total exactly the sample count the scene declares.
-  A scene must not state a count its data does not carry; a mismatch
-  is a render error, never a footnote.
-  Enforced by the golden corpus (golden_tests golden_flame_scene,
-  whose fixture declares 970 and whose stacks total 970) and by
-  ingest_tests folded_stacks_reject_bad_lines for the parse side.
-- INV-31. The span fallback is labelled on its face: a flame derived
-  from a trace states that it is derived from span self time and is
-  not a sampled profile, and its weights are self time in
-  nanoseconds. A derived flame is never presented as a profile.
-  Enforced by derive_tests flame_from_spans_weights_self_time and
-  the renderer's fallback note in render_flame.
-
-## Heatmap (telorama-scene derive.rs, telorama-svg)
-
-- INV-27. Heatmap bucketing is the Prometheus `le` rule over the
-  declared edges: a span lands in the first bucket whose edge is at or
-  above its duration, or in the overflow row above the top edge. Rows
-  are the declared buckets and nothing else; no surface is
-  interpolated.
-  Enforced by derive_tests heatmap_buckets_by_duration_and_start.
-- INV-28. The heatmap exemplar is a real span from the rendered set,
-  chosen by a stated rule (the longest span in the busiest cell, rows
-  scanned in ascending bucket order, columns left to right, span id as
-  tie-break), and it is named in the render with its trace id. An
-  exemplar is never invented.
-  Enforced by derive_tests heatmap_buckets_by_duration_and_start and
-  the golden corpus (golden_tests golden_heatmap_scene).
-- INV-29. Spans starting outside the scene window are excluded from
-  the grid and counted; the render states the count when it is not
-  zero. Nothing is silently dropped.
-  Enforced by derive_tests heatmap_counts_spans_outside_the_window.
+- INV-22. The JSON Schema the CLI prints is the shape contract for spec
+  version 0.1, generated from the same crate that validates.
+  Enforced by cli_tests schema_command_prints_the_scene_schema.
+- INV-23. The CLI render path and the library render path produce the
+  same bytes for the same inputs.
+  Enforced by cli_tests render_matches_the_golden_file.
 
 ## Field system (telorama-scene, field.rs)
 
@@ -193,11 +135,73 @@ later milestones are marked as validator-side.
   Enforced by field_tests error_ratio_default_matches_the_m1_rule and
   the golden corpus.
 
-## Schema and CLI (telorama)
+## Heatmap (telorama-scene derive.rs, telorama-svg)
 
-- INV-22. The JSON Schema the CLI prints is the shape contract for spec
-  version 0.1, generated from the same crate that validates.
-  Enforced by cli_tests schema_command_prints_the_scene_schema.
-- INV-23. The CLI render path and the library render path produce the
-  same bytes for the same inputs.
-  Enforced by cli_tests render_matches_the_golden_file.
+- INV-27. Heatmap bucketing is the Prometheus `le` rule over the
+  declared edges: a span lands in the first bucket whose edge is at or
+  above its duration, or in the overflow row above the top edge. Rows
+  are the declared buckets and nothing else; no surface is
+  interpolated.
+  Enforced by derive_tests heatmap_buckets_by_duration_and_start.
+- INV-28. The heatmap exemplar is a real span from the rendered set,
+  chosen by a stated rule (the longest span in the busiest cell, rows
+  scanned in ascending bucket order, columns left to right, span id as
+  tie-break), and it is named in the render with its trace id. An
+  exemplar is never invented.
+  Enforced by derive_tests heatmap_buckets_by_duration_and_start and
+  the golden corpus (golden_tests golden_heatmap_scene).
+- INV-29. Spans starting outside the scene window are excluded from
+  the grid and counted; the render states the count when it is not
+  zero. Nothing is silently dropped.
+  Enforced by derive_tests heatmap_counts_spans_outside_the_window.
+
+## Flame (telorama-scene derive.rs, telorama-ingest, telorama-svg)
+
+- INV-30. A flame panel over profile data renders only when the
+  folded stacks total exactly the sample count the scene declares.
+  A scene must not state a count its data does not carry; a mismatch
+  is a render error, never a footnote.
+  Enforced by golden_tests flame_declared_count_mismatch_is_a_render_error,
+  whose scene declares 971 against stacks totalling 970, and by
+  ingest_tests folded_stacks_reject_bad_lines for the parse side. The
+  matching-count render is recorded by golden_tests golden_flame_scene.
+- INV-31. The span fallback is labelled on its face: a flame derived
+  from a trace states that it is derived from span self time and is
+  not a sampled profile, and its weights are self time in
+  nanoseconds. A derived flame is never presented as a profile.
+  Enforced by derive_tests flame_from_spans_weights_self_time and
+  golden_tests flame_span_fallback_is_labelled_on_its_face, which
+  asserts the note text in the rendered SVG.
+
+## Service map (telorama-scene derive.rs, telorama-svg)
+
+- INV-32. A service map edge exists only on span-tree evidence: a
+  span whose parent, in the same trace, belongs to another service.
+  The child span is counted once, with its duration and error state.
+  No edge is inferred from naming, configuration, or co-occurrence.
+  Enforced by derive_tests service_graph_edges_come_from_span_parents.
+- INV-33. Map layout is a pure function of the span set: layers by
+  longest path from a root service (bounded relaxation, so cycles
+  terminate), barycenter of predecessors then name within a layer.
+  The same spans render the same map, byte for byte.
+  Enforced by golden_tests service_map_layout_layers_follow_longest_path,
+  which asserts the layer columns and the within-layer order in the
+  rendered map, and by the golden corpus (golden_tests
+  golden_service_map_scene).
+
+## Agent runs (telorama-scene agent.rs, telorama-ingest claude_code.rs, telorama-svg)
+
+- INV-34. Fusion authority is fixed: tokens and cost come only from
+  log events, permission waits and subagent structure only from
+  spans. The run's coverage counts (events read, spans read, spans
+  merged) print in every agent_run render. Nothing is merged
+  silently, and a fact from the weaker source never overrides the
+  stronger one.
+  Enforced by ingest_tests claude_code_session_fuses_logs_and_spans
+  and the golden corpus (golden_tests golden_agent_run_scene).
+- INV-35. A subagent exists in the model only where a span carries
+  an agent_id. A log step joins a subagent only when the step's
+  midpoint falls inside that span's window. Log events alone never
+  invent a subagent.
+  Enforced by ingest_tests claude_code_session_fuses_logs_and_spans
+  (the haiku call nests under agent-7; nothing else moves).
