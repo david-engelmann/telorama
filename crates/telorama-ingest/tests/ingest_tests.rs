@@ -299,11 +299,7 @@ fn genai_session_maps_spans_to_a_run() {
     assert_eq!(turn.input_tokens, 6200);
     assert_eq!(turn.output_tokens, 1500);
     assert_eq!(turn.cache_read_tokens, 3000);
-    assert!(
-        (turn.cost_usd - 0.023125).abs() < 1e-9,
-        "{}",
-        turn.cost_usd
-    );
+    assert!((turn.cost_usd - 0.023125).abs() < 1e-9, "{}", turn.cost_usd);
     let AgentStep::ToolCall(tool) = &turn.steps[1] else {
         panic!("step 2 must be the web_search tool call");
     };

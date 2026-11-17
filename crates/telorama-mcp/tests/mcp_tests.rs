@@ -214,10 +214,7 @@ fn session_run_tool_maps_genai_spans() {
     );
     assert_eq!(result["isError"], false);
     assert_eq!(result["structuredContent"]["dialect"], "genai");
-    assert_eq!(
-        result["structuredContent"]["session_id"],
-        "conv-genai-demo"
-    );
+    assert_eq!(result["structuredContent"]["session_id"], "conv-genai-demo");
     let text = result["content"][0]["text"].as_str().expect("text");
     assert!(text.contains("conv-genai-demo"), "{text}");
     assert!(text.contains("estimate"), "{text}");

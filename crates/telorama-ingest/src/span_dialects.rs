@@ -136,7 +136,9 @@ fn oi_classify(span: &Span) -> Role {
 }
 
 fn oi_model(span: &Span) -> String {
-    attr(span, "llm.model_name").unwrap_or("unknown").to_string()
+    attr(span, "llm.model_name")
+        .unwrap_or("unknown")
+        .to_string()
 }
 
 fn oi_tokens(span: &Span) -> Tokens {
@@ -216,7 +218,10 @@ fn build_run(spans: &[Span], dialect: &Dialect) -> Result<AgentRun, IngestError>
     };
     let mut by_trace: BTreeMap<&str, Vec<&Span>> = BTreeMap::new();
     for span in spans {
-        by_trace.entry(span.trace_id.as_str()).or_default().push(span);
+        by_trace
+            .entry(span.trace_id.as_str())
+            .or_default()
+            .push(span);
     }
     let mut priced: BTreeSet<String> = BTreeSet::new();
     let mut unpriced: BTreeSet<String> = BTreeSet::new();

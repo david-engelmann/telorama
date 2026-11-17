@@ -101,8 +101,9 @@ fn parse_session(
             }
             match dialect {
                 "genai" => telorama_ingest::parse_genai_session(&spans).map_err(|e| e.to_string()),
-                _ => telorama_ingest::parse_openinference_session(&spans)
-                    .map_err(|e| e.to_string()),
+                _ => {
+                    telorama_ingest::parse_openinference_session(&spans).map_err(|e| e.to_string())
+                }
             }
         }
         "claude_code" | "codex" => {
@@ -113,8 +114,7 @@ fn parse_session(
             match dialect {
                 "claude_code" => telorama_ingest::parse_claude_code_session(&logs, &spans)
                     .map_err(|e| e.to_string()),
-                _ => telorama_ingest::parse_codex_session(&logs, &spans)
-                    .map_err(|e| e.to_string()),
+                _ => telorama_ingest::parse_codex_session(&logs, &spans).map_err(|e| e.to_string()),
             }
         }
         other => Err(format!(

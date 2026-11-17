@@ -8,9 +8,9 @@
 
 pub mod claude_code;
 pub mod codex;
+pub(crate) mod events;
 mod pricing;
 pub mod span_dialects;
-pub(crate) mod events;
 
 use serde::Deserialize;
 use std::collections::BTreeMap;
