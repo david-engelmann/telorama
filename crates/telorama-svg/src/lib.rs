@@ -12,8 +12,8 @@
 use std::collections::BTreeMap;
 use std::fmt;
 use telorama_scene::{
-    Panel, Scene, Span, StatKind, Thresholds, Unit, critical_path, percentile_nanos, red_by_service,
-    waterfall_rows,
+    Panel, Scene, Span, StatKind, Thresholds, Unit, critical_path, percentile_nanos,
+    red_by_service, waterfall_rows,
 };
 
 /// Canonical float formatting for emitted geometry. The implementation
@@ -516,11 +516,7 @@ fn render_stat(
                     format!("{} of {} span durations in the window", stat.name(), calls),
                     Some(v as f64),
                 ),
-                None => (
-                    "-".to_string(),
-                    "no spans in the window".to_string(),
-                    None,
-                ),
+                None => ("-".to_string(), "no spans in the window".to_string(), None),
             }
         }
         StatKind::Count => (
@@ -561,11 +557,7 @@ fn render_stat(
                     "duration of the last span to finish".to_string(),
                     Some(span.duration_nanos() as f64),
                 ),
-                None => (
-                    "-".to_string(),
-                    "no spans in the window".to_string(),
-                    None,
-                ),
+                None => ("-".to_string(), "no spans in the window".to_string(), None),
             }
         }
     };
