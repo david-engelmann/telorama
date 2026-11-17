@@ -228,3 +228,28 @@ The live observability addendum stays a milestone of its own after
 the static core and was not pulled into M3. M4 is next on the
 milestone list: incident composition, GenAI and OpenInference
 mapping, plugin and Agent Skills packaging, and crates.io readiness.
+
+## Gate verdict, 2026-11-17. M3 approved, M4 opened
+
+Main Muse audited the M3 gate independently and approved it. The
+audit verified both green runs on their exact heads with identical
+code under them, the 80-test inventory matched per suite, the
+62-blob tree with all seven goldens, both M2 Minors discharged as
+dedicated tests and the section-order nit fixed, the Codex turn
+costs and session total recomputed exactly from the fixture and the
+in-code pricing table, the MCP _meta SVG proven byte-equal to the
+golden by direct string equality, and the README codepoint scan
+clean.
+
+One Minor carries into M4 as hardening. The unpriced-model
+disclosure is proven at the run level by the ingest test, but no
+golden exercises the priced and unpriced split as printed output;
+M4 adds an unpriced-model golden.
+
+M4 opens as scoped in the milestone list above: incident scene
+composition across traces, metrics, and logs; GenAI dialect
+generations and OpenInference mapping; Claude Code plugin plus
+Agent Skills packaging; docs, examples, and crates.io readiness;
+and the A2UI emitter spike behind its watch-item fence. The live
+observability addendum stays fenced as its own milestone after the
+static core.
