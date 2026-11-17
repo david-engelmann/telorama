@@ -502,7 +502,7 @@ pub struct MapEdge {
 
 /// The derived service map over a span set: every service as a node
 /// with its RED rollup, and the evidenced edges between them.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ServiceGraph {
     pub nodes: Vec<RedStats>,
     pub edges: Vec<MapEdge>,
@@ -548,8 +548,8 @@ pub fn service_graph(spans: &[Span], window_seconds: f64) -> ServiceGraph {
                 to,
                 calls: evidence.len() as u64,
                 errors: evidence.iter().filter(|s| s.is_error).count() as u64,
-                p50_nanos: percentile_nanos(&durations, 50.0),
-                p99_nanos: percentile_nanos(&durations, 99.0),
+                p50_nanos: percentile_nanos(&durations, 50).unwrap_or(0),
+                p99_nanos: percentile_nanos(&durations, 99).unwrap_or(0),
             }
         })
         .collect();
