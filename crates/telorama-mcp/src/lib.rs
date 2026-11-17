@@ -521,7 +521,7 @@ fn tool_incident(args: &Value) -> Value {
         svg.len(),
         telorama_scene::content_hash(svg.as_bytes())
     );
-    tool_ok(text, structured, Some(svg))
+    tool_ok(text, structured, Some(json!({"telorama/svg": svg})))
 }
 
 fn tool_detail(args: &Value) -> Value {
