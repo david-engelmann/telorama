@@ -399,8 +399,8 @@ fn golden_incident_checkout_scene() {
         "tests/fixtures/otel-demo-checkout.json",
     ))
     .expect("checkout fixture must parse");
-    let scene = telorama_scene::incident_scene(&spans, None, "agent")
-        .expect("composition must succeed");
+    let scene =
+        telorama_scene::incident_scene(&spans, None, "agent").expect("composition must succeed");
     assert_eq!(scene.title, "Incident: email errors");
     let svg = telorama_svg::render_scene_with_data(
         &scene,

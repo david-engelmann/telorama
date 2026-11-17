@@ -230,14 +230,13 @@ fn incident_scene_tool_composes_and_renders() {
     );
     assert_eq!(result["isError"], false);
     let text = result["content"][0]["text"].as_str().expect("text");
-    assert!(
-        text.contains("email is failing at 100.0%"),
-        "{text}"
-    );
+    assert!(text.contains("email is failing at 100.0%"), "{text}");
     assert_eq!(
         result["structuredContent"]["scene"]["title"],
         "Incident: email errors"
     );
-    let svg = result["_meta"]["telorama/svg"].as_str().expect("view payload");
+    let svg = result["_meta"]["telorama/svg"]
+        .as_str()
+        .expect("view payload");
     assert!(svg.contains("<svg"), "the view payload is the render");
 }

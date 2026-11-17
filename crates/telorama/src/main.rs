@@ -213,7 +213,11 @@ fn cmd_incident(args: &[String]) -> Result<String, String> {
         if INCIDENT_FLAGS.contains(&args[i].as_str()) {
             i += 2;
         } else {
-            return Err(format!("unknown incident argument {:?}\n{}", args[i], usage()));
+            return Err(format!(
+                "unknown incident argument {:?}\n{}",
+                args[i],
+                usage()
+            ));
         }
     }
     let Some(traces_path) = flag(args, "--traces")? else {
@@ -247,8 +251,7 @@ fn cmd_incident(args: &[String]) -> Result<String, String> {
                 agent_run: run.as_ref(),
             },
         )?;
-        std::fs::write(render_path, svg)
-            .map_err(|e| format!("cannot write {render_path}: {e}"))?;
+        std::fs::write(render_path, svg).map_err(|e| format!("cannot write {render_path}: {e}"))?;
     }
     Ok(text)
 }

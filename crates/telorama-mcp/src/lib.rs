@@ -496,18 +496,17 @@ fn tool_incident(args: &Value) -> Value {
     if inputs.spans.is_empty() {
         return tool_error("incident_scene needs traces");
     }
-    let scene = match telorama_scene::incident_scene(&inputs.spans, inputs.run.as_ref(), "telorama-mcp")
-    {
-        Ok(s) => s,
-        Err(m) => return tool_error(&m),
-    };
+    let scene =
+        match telorama_scene::incident_scene(&inputs.spans, inputs.run.as_ref(), "telorama-mcp") {
+            Ok(s) => s,
+            Err(m) => return tool_error(&m),
+        };
     let svg = match telorama_svg::render_scene_with_data(&scene, &inputs.data()) {
         Ok(s) => s,
         Err(m) => return tool_error(&m),
     };
     let mut structured = scene_summary(&scene, &inputs, &svg);
-    structured["scene"] =
-        serde_json::to_value(&scene).expect("the composed scene must serialize");
+    structured["scene"] = serde_json::to_value(&scene).expect("the composed scene must serialize");
     let types: Vec<&str> = scene.panels.iter().map(|p| p.type_name()).collect();
     let text = format!(
         "{}. {} Panels: {}. SVG {} bytes, fnv1a64 {}.",

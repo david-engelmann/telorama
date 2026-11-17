@@ -24,8 +24,8 @@ use crate::agent::AgentRun;
 use crate::derive::red_by_service;
 use crate::field::Thresholds;
 use crate::spec::{
-    Context, DataRef, NarrativeItem, Panel, Provenance, Sampling, Scene, Source, TimeRange, Unit,
-    SCENE_VERSION,
+    Context, DataRef, NarrativeItem, Panel, Provenance, SCENE_VERSION, Sampling, Scene, Source,
+    TimeRange, Unit,
 };
 use crate::trace::Span;
 
@@ -42,7 +42,12 @@ pub fn incident_scene(
     if spans.is_empty() {
         return Err("no spans: nothing to compose an incident from".to_string());
     }
-    let from_ms = spans.iter().map(|s| s.start_unix_nano).min().expect("spans") / 1_000_000;
+    let from_ms = spans
+        .iter()
+        .map(|s| s.start_unix_nano)
+        .min()
+        .expect("spans")
+        / 1_000_000;
     let max_end = spans.iter().map(|s| s.end_unix_nano).max().expect("spans");
     let to_ms = ((max_end + 999_999) / 1_000_000).max(from_ms + 1);
     let range = TimeRange {
@@ -50,16 +55,13 @@ pub fn incident_scene(
         to_unix_ms: to_ms,
     };
     let red = red_by_service(spans, range.seconds());
-    let worst = red
-        .iter()
-        .filter(|r| r.errors > 0)
-        .max_by(|a, b| {
-            a.error_ratio
-                .partial_cmp(&b.error_ratio)
-                .unwrap_or(std::cmp::Ordering::Equal)
-                .then_with(|| a.errors.cmp(&b.errors))
-                .then_with(|| b.service.cmp(&a.service))
-        });
+    let worst = red.iter().filter(|r| r.errors > 0).max_by(|a, b| {
+        a.error_ratio
+            .partial_cmp(&b.error_ratio)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.errors.cmp(&b.errors))
+            .then_with(|| b.service.cmp(&a.service))
+    });
     let exemplar = exemplar_trace(spans, true)
         .or_else(|| exemplar_trace(spans, false))
         .expect("a non-empty span set has an exemplar trace");
@@ -84,16 +86,13 @@ pub fn incident_scene(
         ),
         None => (
             "Incident: no failing service".to_string(),
-            "No service is erroring in the window; the slowest trace carries the scene"
-                .to_string(),
+            "No service is erroring in the window; the slowest trace carries the scene".to_string(),
             "No service recorded an error in the window; the RED row stands as the evidence."
                 .to_string(),
         ),
     };
     let waterfall_note = if worst.is_some() {
-        format!(
-            "The exemplar trace {exemplar} is the longest trace with an error in the window."
-        )
+        format!("The exemplar trace {exemplar} is the longest trace with an error in the window.")
     } else {
         format!("The exemplar trace {exemplar} is the longest trace in the window.")
     };
@@ -175,7 +174,9 @@ pub fn incident_scene(
         });
         narrative.push(NarrativeItem {
             panel: 4,
-            text: "The agent session overlapping this window is attached below the telemetry panels.".to_string(),
+            text:
+                "The agent session overlapping this window is attached below the telemetry panels."
+                    .to_string(),
         });
     }
 
@@ -203,7 +204,10 @@ pub fn incident_scene(
 fn exemplar_trace(spans: &[Span], errors_only: bool) -> Option<String> {
     let mut by_trace: BTreeMap<&str, Vec<&Span>> = BTreeMap::new();
     for span in spans {
-        by_trace.entry(span.trace_id.as_str()).or_default().push(span);
+        by_trace
+            .entry(span.trace_id.as_str())
+            .or_default()
+            .push(span);
     }
     let mut best: Option<(&str, i64)> = None;
     for (trace_id, trace_spans) in &by_trace {
