@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="392" viewBox="0 0 960 392" role="img">
+<title>Codex session run</title>
+<desc>Two turns, one retry, and a cost telorama priced itself</desc>
+<rect x="0" y="0" width="960" height="392" fill="#FFFFFF"/>
+<text x="24" y="30" font-family="system-ui, sans-serif" font-size="20" fill="#1A1A1A" text-anchor="start" font-weight="700">Two turns, one retry, and a cost telorama priced itself</text>
+<text x="24" y="50" font-family="system-ui, sans-serif" font-size="12" fill="#5A5A5A" text-anchor="start">Codex session run</text>
+<text x="24" y="80" font-family="system-ui, sans-serif" font-size="14" fill="#1A1A1A" text-anchor="start" font-weight="700">Agent run</text>
+<line x1="200" y1="92" x2="936" y2="92" stroke="#CCCCCC" stroke-width="1"/>
+<line x1="200" y1="92" x2="200" y2="96" stroke="#CCCCCC" stroke-width="1"/>
+<text x="200" y="88" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">0 ns</text>
+<line x1="384" y1="92" x2="384" y2="96" stroke="#CCCCCC" stroke-width="1"/>
+<text x="384" y="88" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">10 s</text>
+<line x1="568" y1="92" x2="568" y2="96" stroke="#CCCCCC" stroke-width="1"/>
+<text x="568" y="88" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">20 s</text>
+<line x1="752" y1="92" x2="752" y2="96" stroke="#CCCCCC" stroke-width="1"/>
+<text x="752" y="88" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">30 s</text>
+<line x1="936" y1="92" x2="936" y2="96" stroke="#CCCCCC" stroke-width="1"/>
+<text x="936" y="88" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">40 s</text>
+<text x="24" y="122" font-family="system-ui, sans-serif" font-size="12" fill="#1A1A1A" text-anchor="start" font-weight="700">Turn 1 · 3500 in · 2100 out · 14000 cache read · $0.0271</text>
+<text x="24" y="141" font-family="system-ui, sans-serif" font-size="11" fill="#1A1A1A" text-anchor="start">model gpt-5.1-codex</text>
+<rect x="200" y="130" width="110.4" height="12" fill="#0072B2"/>
+<text x="316.4" y="141" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">6 s · ttft 900 ms</text>
+<text x="24" y="159" font-family="system-ui, sans-serif" font-size="11" fill="#1A1A1A" text-anchor="start">tool exec_command</text>
+<rect x="319.6" y="148" width="55.2" height="12" fill="#009E73"/>
+<text x="380.8" y="159" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">3 s · decision approved</text>
+<text x="24" y="177" font-family="system-ui, sans-serif" font-size="11" fill="#1A1A1A" text-anchor="start">model gpt-5.1-codex</text>
+<rect x="384" y="166" width="92" height="12" fill="#0072B2"/>
+<text x="482" y="177" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">5 s · ttft 700 ms</text>
+<text x="24" y="202" font-family="system-ui, sans-serif" font-size="12" fill="#1A1A1A" text-anchor="start" font-weight="700">Turn 2 · 2000 in · 600 out · 1000 cache read · $0.0017</text>
+<text x="24" y="221" font-family="system-ui, sans-serif" font-size="11" fill="#1A1A1A" text-anchor="start">model gpt-5.1-codex-mini</text>
+<rect x="568" y="210" width="55.2" height="12" fill="#0072B2"/>
+<text x="629.2" y="221" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">3 s</text>
+<text x="653.35" y="221" font-family="system-ui, sans-serif" font-size="11" fill="#D55E00" text-anchor="start" font-weight="700">· error</text>
+<text x="24" y="239" font-family="system-ui, sans-serif" font-size="11" fill="#1A1A1A" text-anchor="start">model gpt-5.1-codex-mini</text>
+<rect x="632.4" y="228" width="82.8" height="12" fill="#0072B2"/>
+<text x="721.2" y="239" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">4.5 s · 2 attempts</text>
+<text x="24" y="257" font-family="system-ui, sans-serif" font-size="11" fill="#1A1A1A" text-anchor="start">tool apply_patch</text>
+<rect x="722.56" y="246" width="29.44" height="12" fill="#009E73"/>
+<text x="758" y="257" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">1.6 s · decision approved</text>
+<text x="24" y="282" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Session conv-2026-1116-demo · 2 turns · 5500 in · 2700 out · 15000 cache read · $0.0289</text>
+<text x="24" y="297" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Coverage · 16 log events · 0 spans read · 0 spans merged · tokens come from log events, spans counted but not merged in this dialect</text>
+<text x="24" y="312" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Cost is an estimate priced by telorama from tokens at the price table dated 2026-11-16</text>
+<line x1="24" y1="332" x2="936" y2="332" stroke="#CCCCCC" stroke-width="1"/>
+<text x="24" y="348" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Window 2026-11-16T16:00:00Z to 2026-11-16T16:00:40Z</text>
+<text x="24" y="363" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Data session · codex_session · query codex session conv-2026-1116-demo otlp logs export · unsampled</text>
+<text x="24" y="378" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Generated by agent · Question: What did the agent do in this session, and what did it cost?</text>
+</svg>
