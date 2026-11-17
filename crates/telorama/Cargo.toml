@@ -1,0 +1,17 @@
+[package]
+name = "telorama"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Command line front end for the telorama visualization engine"
+
+[[bin]]
+name = "telorama"
+path = "src/main.rs"
+
+[dependencies]
+serde_json = { workspace = true }
+telorama-scene = { workspace = true }
+telorama-ingest = { workspace = true }
+telorama-svg = { workspace = true }

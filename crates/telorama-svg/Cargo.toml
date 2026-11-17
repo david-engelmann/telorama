@@ -1,0 +1,13 @@
+[package]
+name = "telorama-svg"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Deterministic DisplayList and SVG rendering for the telorama visualization engine"
+
+[dependencies]
+telorama-scene = { workspace = true }
+
+[dev-dependencies]
+telorama-ingest = { workspace = true }
