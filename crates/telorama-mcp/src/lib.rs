@@ -491,7 +491,7 @@ fn dataset(scene: &Scene, spans: &[Span], data_id: &str) -> Vec<Span> {
     }
 }
 
-fn trace_id_of(scene: &Scene, data_id: &str) -> Option<&str> {
+fn trace_id_of<'a>(scene: &'a Scene, data_id: &str) -> Option<&'a str> {
     scene
         .data
         .iter()
@@ -601,7 +601,7 @@ fn panel_summary(scene: &Scene, inputs: &Inputs, panel: &Panel) -> Value {
     }
 }
 
-fn bucket_edges(scene: &Scene, data_id: &str) -> &[f64] {
+fn bucket_edges<'a>(scene: &'a Scene, data_id: &str) -> &'a [f64] {
     scene
         .data
         .iter()
