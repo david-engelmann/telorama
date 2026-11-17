@@ -259,3 +259,54 @@ later milestones are marked as validator-side.
   summaries, so the view and the picture never disagree.
   Enforced by mcp_tests tools_list_links_the_view_and_hides_the_drilldown
   and mcp_tests panel_detail_drills_into_one_panel.
+
+## Span dialects (telorama-ingest span_dialects)
+
+- INV-43. Span-dialect runs derive structure and tokens from span
+  attributes alone. Coverage for a span dialect reports log events
+  zero and spans merged equal to spans seen, so the run never
+  claims a fusion it did not perform.
+  Enforced by ingest_tests genai_session_maps_spans_to_a_run and
+  openinference_session_maps_span_kinds.
+- INV-44. The GenAI mapping reads the union of the attribute
+  shapes across the convention's generations. The response model
+  wins over the request model when a span carries both, and the
+  request model alone suffices. Cache read and cache creation
+  are each read under both of their attribute names and are
+  optional in every generation. The provider attribute is not
+  part of the canonical run and is not read.
+  Enforced by ingest_tests genai_session_maps_spans_to_a_run.
+- INV-45. Span dialects state one session per export. Two distinct
+  conversation or session ids in one export are refused rather
+  than merged, and an export with no session id falls back to its
+  single trace id and refuses a multi-trace export.
+  Enforced by ingest_tests genai_session_refuses_two_conversations.
+
+## Incident composition (telorama-scene compose)
+
+- INV-46. Incident composition is a pure function of its inputs.
+  The same span set composes the same scene, and the choice rules
+  are fixed. The failing service holds the highest error ratio
+  among services with errors, ties on more errors then name. The
+  exemplar is the longest erroring trace, else the longest trace,
+  ties on trace id.
+  Enforced by compose_tests
+  incident_scene_names_the_failing_service_and_exemplar and
+  incident_scene_without_errors_takes_the_slowest_trace.
+- INV-47. A composed scene passes the same validator as a hand
+  authored scene, and its headline and narrative derive from the
+  RED numbers of its own window. An attached run adds exactly one
+  panel and one data entry.
+  Enforced by compose_tests
+  incident_scene_names_the_failing_service_and_exemplar (validator
+  round trip), incident_scene_attaches_a_run_as_the_last_panel,
+  and golden_tests golden_incident_checkout_scene.
+
+## Plugin packaging (plugin/)
+
+- INV-48. The plugin manifest, the MCP registration, and the
+  skill describe the same product. The manifest names telorama
+  at the workspace version, the registration starts the
+  telorama-mcp binary, and the skill names all six tools and all
+  four dialects.
+  Enforced by cli_tests plugin_packaging_is_wellformed.

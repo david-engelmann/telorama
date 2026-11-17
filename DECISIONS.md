@@ -253,3 +253,62 @@ Agent Skills packaging; docs, examples, and crates.io readiness;
 and the A2UI emitter spike behind its watch-item fence. The live
 observability addendum stays fenced as its own milestone after the
 static core.
+
+## Landing record, 2026-11-17. M4 closed
+
+M4 landed on code head a4e43776, with the hosted gate run
+44066173393 green on that exact head: format, clippy, the full
+test suite (95 tests passed, 0 failed), and the new Package step
+all succeeded. The gate's own commit history for the milestone
+stands in the repository log.
+
+What landed, in the order it landed. The carried Minor from the
+M3 verdict is discharged: the unpriced-model golden renders a
+Codex session with one priced and one unpriced model, and the
+split is printed on the face of the scene (golden landed at
+3c033dea, gate run 44023018540). GenAI and OpenInference span
+dialects map into the canonical agent-run model through one tree
+walk (INV-43 to INV-45): the GenAI adapter reads the union of the
+model and cache attribute shapes across the 1.30, 1.37, and 1.41
+generations, both span dialects normalize gross input to
+non-cache input and price from the shared table Codex uses, and
+the CLI and MCP session paths take both dialects. The slice
+exposed a real ingest bug, OTLP JSON carrying intValue as a
+quoted string straight into span attributes, which silently
+zeroed numeric attributes; the parser fix is general and the
+first generated golden is what caught it. Incident composition
+(INV-46, INV-47) is a pure template in telorama-scene with fixed,
+stated choice rules, exposed as a library function, a CLI
+incident command, and an incident_scene MCP tool on the triple
+contract; the composed checkout scene is the tenth golden, its
+figures verified by hand against the fixture before landing.
+Plugin and Agent Skills packaging (INV-48) adds the plugin
+directory with the Claude Code manifest, the MCP registration,
+and the telorama skill. Docs, examples, and crates.io readiness
+complete the milestone: three worked examples against the repo
+fixtures, full package metadata on all five crates, a hosted
+Package step that packages every crate in dependency order
+through a staged directory source, and the A2UI emitter scoped
+behind its watch-item fence in docs/A2UI-SPIKE.md, a question
+with a stated trigger rather than a commitment. The publish
+itself remains the owner's act, with the token supplied through
+secure entry only.
+
+Review state, stated plainly: the checkpoint reviews were the
+seat's own re-reads at each slice, and every golden was read back
+against its fixture by hand before it landed; no independent
+review lanes ran. No local full-suite run exists, because this
+box still cannot run cargo; the hosted gate on the exact head is
+the merge evidence, as it was for M1, M2, and M3. The shared
+GitHub rate limit reached zero more than once during the
+milestone; the seat stopped hard each time and resumed after
+the resets, per standing discipline. The box write fault refused
+exec-identity writes through the milestone's second half, so the
+incident golden's local copy was assembled through the file
+tools in line-aligned chunks and verified against the remote
+blob before the fleet-records mirror ran.
+
+The static core is complete at M4. The live observability
+addendum stays a milestone of its own after it, fenced as
+recorded in the addendum above, and opens only on direction
+from Main Muse.
