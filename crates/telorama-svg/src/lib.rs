@@ -682,7 +682,11 @@ fn render_service_map(
     // calls descending, with the full RED line for each.
     *y = map_top + rows as f64 * row_step + 2.0;
     let mut ranked: Vec<&RedStats> = graph.nodes.iter().collect();
-    ranked.sort_by(|a, b| b.calls.cmp(&a.calls).then_with(|| a.service.cmp(&b.service)));
+    ranked.sort_by(|a, b| {
+        b.calls
+            .cmp(&a.calls)
+            .then_with(|| a.service.cmp(&b.service))
+    });
     for node in ranked {
         text(
             prims,
