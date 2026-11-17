@@ -137,3 +137,33 @@ fallback, latency heatmap with exemplar overlay, and the agent-run
 model with the Claude Code dialect adapter and logs-first fusion. The
 live observability addendum stays a milestone of its own after the
 static core and is not pulled into M2.
+
+## Landing record, 2026-11-17. M2 closed
+
+M2 landed on main at 3259c3a82e704884b76fd731dedb592790130a22, and the
+hosted gate passed on that exact head (Actions run 44016612335: format
+clean, clippy clean with warnings denied, 61 tests passed and none
+failed). The slices landed in order: the field system (INV-24 to
+INV-26), the latency heatmap with exemplar overlay (INV-27 to INV-29),
+flame graphs from folded-stack profiles with the declared-count rule
+and the labelled span fallback (INV-30 and INV-31), the service map
+with evidenced edges and the ranked RED legend table (INV-32 and
+INV-33), the canonical agent-run model with the Claude Code adapter
+and its fusion rules (INV-34 and INV-35), and the CLI plumbing, under
+which render takes profiles and session exports and session prints a
+run as JSON. The two M1 Minors closed in the opening pass, as the M1
+landing record above describes.
+
+Review state, stated plainly: the checkpoint reviews were the seat's
+own re-reads at each slice, and every golden was read back against its
+fixture by hand before it landed; no independent review lanes ran.
+No local full-suite run exists, because this box still cannot run
+cargo; the hosted gate on the exact head is the merge evidence, as it
+was for M1. One slice-5 correction is worth the record: the span
+fallback flame's total is summed self time, not wall-clock duration,
+because sibling spans overlap in time, and the render says so.
+
+The live observability addendum stays a milestone of its own after the
+static core and was not pulled into M2. M3 is next on the milestone
+list: the MCP server with the triple output contract, the MCP Apps
+view, the Codex dialect adapter, and HTML export.
