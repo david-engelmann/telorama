@@ -586,7 +586,7 @@ fn render_flame(
             return Err(fail(format!("no spans found for trace {trace_id}")));
         }
         let note = format!(
-            "Derived from the trace's span self time, not sampled profiles. Weights are self time, totalling {}.",
+            "Derived from span self time, not sampled profiles. The trace holds {} of self time across its spans.",
             fmt_duration(tree.value as i64)
         );
         (tree, note)

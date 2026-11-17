@@ -261,10 +261,15 @@ fn flame_tree_folds_stacks_and_orders_children() {
 fn flame_from_spans_weights_self_time() {
     let spans = checkout_spans();
     let tree = flame_from_spans(&spans, "t1");
-    // Self time plus children values rebuilds each span's duration:
-    // the root of the tree carries the whole 420 ms trace.
-    assert_eq!(tree.value, ms(420) as u64);
+    // The tree's total is the sum of every span's self time: 500 ms.
+    // That is more than the 420 ms wall clock, because the inventory
+    // span runs inside the payment span's window: parallel work holds
+    // self time the wall clock counts once. Self time is the honest
+    // weight for a span-derived flame, and the render labels it.
+    assert_eq!(tree.value, ms(500) as u64);
     assert_eq!(tree.children.len(), 1);
-    assert_eq!(tree.children[0].value, ms(420) as u64);
-    assert_eq!(tree.children[0].children[0].value, ms(390) as u64);
+    assert_eq!(tree.children[0].value, ms(500) as u64);
+    // The checkout span: 33 ms of self time plus 437 ms of child
+    // values, the children again overlapping each other.
+    assert_eq!(tree.children[0].children[0].value, ms(470) as u64);
 }
