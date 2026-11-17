@@ -240,7 +240,11 @@ fn session_with_genai_dialect_reads_spans() {
         "--dialect",
         "genai",
     ]);
-    assert!(out.status.success(), "stderr: {}", stderr(&out));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let text = stdout(&out);
     assert!(text.contains("\"dialect\": \"genai\""), "{text}");
     assert!(
