@@ -6,10 +6,14 @@
 //! dialect adapters arrive in later milestones behind this same
 //! canonical output.
 
+pub mod claude_code;
+
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::fmt;
 use telorama_scene::{Span, SpanKind, StackSample};
+
+pub use claude_code::parse_claude_code_session;
 
 /// An ingest failure with a message specific enough to act on.
 #[derive(Debug, Clone, PartialEq, Eq)]

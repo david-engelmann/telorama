@@ -12,9 +12,9 @@
 use std::collections::BTreeMap;
 use std::fmt;
 use telorama_scene::{
-    FlameNode, Panel, RedStats, Scene, ServiceGraph, Span, StackSample, StatKind, Thresholds, Unit,
-    critical_path, flame_from_spans, flame_tree, heatmap_grid, percentile_nanos, red_by_service,
-    service_graph, waterfall_rows,
+    AgentRun, AgentStep, FlameNode, Panel, RedStats, Scene, ServiceGraph, Span, StackSample,
+    StatKind, Thresholds, Unit, critical_path, flame_from_spans, flame_tree, heatmap_grid,
+    percentile_nanos, red_by_service, service_graph, waterfall_rows,
 };
 
 /// Canonical float formatting for emitted geometry. The implementation
@@ -477,6 +477,275 @@ fn render_waterfall(
             "{} spans, {} on the critical path. Self time is computed per span in the scene data.",
             rows.len(),
             critical.len()
+        ),
+    );
+    *y += 22.0;
+    Ok(())
+}
+
+/// A USD cost at the precision agent telemetry reports: four
+/// decimals, trailing zeros trimmed, never fewer than two decimals.
+fn fmt_cost(value: f64) -> String {
+    let mut text = format!("{value:.4}");
+    while text.ends_with('0') {
+        text.pop();
+    }
+    if text.ends_with('.') {
+        text.push_str("00");
+    }
+    format!("${text}")
+}
+
+#[allow(clippy::too_many_arguments)]
+fn layout_agent_step(
+    prims: &mut Vec<Prim>,
+    step: &AgentStep,
+    depth: usize,
+    from_nano: i64,
+    window_nano: i64,
+    y: &mut f64,
+) {
+    let plot_x0 = 200.0;
+    let plot_x1 = WIDTH - MARGIN;
+    let x_of =
+        |t: i64| plot_x0 + ((t - from_nano) as f64 / window_nano as f64) * (plot_x1 - plot_x0);
+    let start = step.start_unix_nano();
+    let end = step.end_unix_nano();
+    let x1 = x_of(start);
+    let x2 = x_of(end).max(x1 + 1.5);
+    let label_x = MARGIN + depth as f64 * 14.0;
+    let (label, fill) = match step {
+        AgentStep::ModelCall(call) => (format!("model {}", call.model), "#0072B2"),
+        AgentStep::ToolCall(tool) => (format!("tool {}", tool.name), "#009E73"),
+        AgentStep::Subagent(sub) => (format!("subagent {}", sub.agent_id), "#E69F00"),
+    };
+    text(
+        prims,
+        label_x,
+        *y + 11.0,
+        11.0,
+        INK,
+        false,
+        false,
+        truncate_label(&label, ((plot_x0 - label_x - 8.0) / 6.0) as usize),
+    );
+    if let AgentStep::ToolCall(tool) = step
+        && tool.wait_nanos > 0
+    {
+        // The permission wait in grey at the head of the bar, the
+        // execution in the tool color behind it.
+        let wait_end = x_of(start + tool.wait_nanos).min(x2);
+        prims.push(Prim::Rect {
+            x: x1,
+            y: *y,
+            w: (wait_end - x1).max(0.0),
+            h: 12.0,
+            fill: "#BBBBBB".to_string(),
+            opacity: None,
+            stroke: None,
+        });
+        prims.push(Prim::Rect {
+            x: wait_end,
+            y: *y,
+            w: (x2 - wait_end).max(0.0),
+            h: 12.0,
+            fill: fill.to_string(),
+            opacity: None,
+            stroke: None,
+        });
+    } else {
+        prims.push(Prim::Rect {
+            x: x1,
+            y: *y,
+            w: x2 - x1,
+            h: 12.0,
+            fill: fill.to_string(),
+            opacity: None,
+            stroke: None,
+        });
+    }
+    let mut detail = fmt_duration(end - start);
+    let mut is_error = false;
+    match step {
+        AgentStep::ModelCall(call) => {
+            if let Some(ttft) = call.ttft_nanos {
+                detail.push_str(&format!(" · ttft {}", fmt_duration(ttft)));
+            }
+            if call.attempts > 1 {
+                detail.push_str(&format!(" · {} attempts", call.attempts));
+            }
+            is_error = call.is_error;
+        }
+        AgentStep::ToolCall(tool) => {
+            if tool.wait_nanos > 0 {
+                detail.push_str(&format!(
+                    " · waited {} on permission",
+                    fmt_duration(tool.wait_nanos)
+                ));
+            }
+            if let Some(decision) = &tool.decision {
+                detail.push_str(&format!(" · decision {decision}"));
+            }
+            is_error = tool.is_error;
+        }
+        AgentStep::Subagent(_) => {}
+    }
+    text(
+        prims,
+        x2 + 6.0,
+        *y + 11.0,
+        11.0,
+        MUTED,
+        false,
+        false,
+        detail.clone(),
+    );
+    if is_error {
+        text(
+            prims,
+            x2 + 12.0 + detail.chars().count() as f64 * 6.05,
+            *y + 11.0,
+            11.0,
+            ERROR_COLOR,
+            true,
+            false,
+            "· error".to_string(),
+        );
+    }
+    *y += 18.0;
+    if let AgentStep::Subagent(sub) = step {
+        for child in &sub.steps {
+            layout_agent_step(prims, child, depth + 1, from_nano, window_nano, y);
+        }
+    }
+}
+
+fn render_agent_run(
+    scene: &Scene,
+    data: &SceneData,
+    panel: &Panel,
+    prims: &mut Vec<Prim>,
+    y: &mut f64,
+) -> Result<(), RenderError> {
+    let Panel::AgentRun { data: data_id } = panel else {
+        return Err(fail("render_agent_run called on a non-agent-run panel"));
+    };
+    if !scene.data.iter().any(|d| d.id == *data_id) {
+        return Err(fail(format!(
+            "agent_run reads undeclared data id {data_id:?}"
+        )));
+    }
+    let run = data.agent_run.ok_or_else(|| {
+        fail("agent_run panel needs an agent run: supply a session export for its data entry")
+    })?;
+    if run.turns.is_empty() {
+        return Err(fail("the agent run has no turns"));
+    }
+    let from_nano = scene.context.range.from_unix_ms * 1_000_000;
+    let window_nano =
+        ((scene.context.range.to_unix_ms - scene.context.range.from_unix_ms) * 1_000_000).max(1);
+
+    // Time axis, the same five ticks the waterfall uses.
+    let plot_x0 = 200.0;
+    let plot_x1 = WIDTH - MARGIN;
+    let axis_y = *y + 4.0;
+    prims.push(Prim::Line {
+        x1: plot_x0,
+        y1: axis_y,
+        x2: plot_x1,
+        y2: axis_y,
+        stroke: "#CCCCCC".to_string(),
+        width: 1.0,
+    });
+    for step_i in 0..=4 {
+        let frac = f64::from(step_i) / 4.0;
+        let tx = plot_x0 + frac * (plot_x1 - plot_x0);
+        prims.push(Prim::Line {
+            x1: tx,
+            y1: axis_y,
+            x2: tx,
+            y2: axis_y + 4.0,
+            stroke: "#CCCCCC".to_string(),
+            width: 1.0,
+        });
+        prims.push(Prim::Text {
+            x: tx,
+            y: axis_y - 4.0,
+            size: 10.0,
+            fill: MUTED.to_string(),
+            bold: false,
+            mono: false,
+            anchor: "middle",
+            content: fmt_duration((frac * window_nano as f64) as i64),
+        });
+    }
+    *y += 22.0;
+
+    let count = |v: u64| telorama_scene::format_value(Unit::Count, v as f64);
+    let mut total_in = 0u64;
+    let mut total_out = 0u64;
+    let mut total_cache = 0u64;
+    let mut total_cost = 0.0f64;
+    for (i, turn) in run.turns.iter().enumerate() {
+        total_in += turn.input_tokens;
+        total_out += turn.output_tokens;
+        total_cache += turn.cache_read_tokens;
+        total_cost += turn.cost_usd;
+        text(
+            prims,
+            MARGIN,
+            *y + 12.0,
+            12.0,
+            INK,
+            true,
+            false,
+            format!(
+                "Turn {} · {} in · {} out · {} cache read · {}",
+                i + 1,
+                count(turn.input_tokens),
+                count(turn.output_tokens),
+                count(turn.cache_read_tokens),
+                fmt_cost(turn.cost_usd)
+            ),
+        );
+        *y += 20.0;
+        for step in &turn.steps {
+            layout_agent_step(prims, step, 0, from_nano, window_nano, y);
+        }
+        *y += 6.0;
+    }
+    text(
+        prims,
+        MARGIN,
+        *y + 12.0,
+        11.0,
+        MUTED,
+        false,
+        false,
+        format!(
+            "Session {} · {} · {} in · {} out · {} cache read · {}",
+            run.session_id,
+            plural(run.turns.len() as u64, "turn", "turns"),
+            count(total_in),
+            count(total_out),
+            count(total_cache),
+            fmt_cost(total_cost)
+        ),
+    );
+    *y += 15.0;
+    text(
+        prims,
+        MARGIN,
+        *y + 12.0,
+        11.0,
+        MUTED,
+        false,
+        false,
+        format!(
+            "Coverage · {} · {} · {} · waits and subagents come from spans, tokens and cost from logs",
+            plural(run.coverage.log_events, "log event", "log events"),
+            plural(run.coverage.spans_seen, "span read", "spans read"),
+            plural(run.coverage.spans_merged, "span merged", "spans merged")
         ),
     );
     *y += 22.0;
@@ -1361,18 +1630,26 @@ fn render_red_row(
     Ok(())
 }
 
-/// Everything a scene can read: the span set, and the folded stacks
-/// for flame panels. Later milestones add the agent-run model here.
+/// Everything a scene can read: the span set, the folded stacks for
+/// flame panels, and the agent run for agent_run panels.
 pub struct SceneData<'a> {
     pub spans: &'a [Span],
     pub stacks: &'a [StackSample],
+    pub agent_run: Option<&'a AgentRun>,
 }
 
 /// Render a scene over a span set to a deterministic SVG document.
 /// Scenes whose flame panels read profile data need
 /// [`render_scene_with_data`].
 pub fn render_scene(scene: &Scene, spans: &[Span]) -> Result<String, RenderError> {
-    render_scene_with_data(scene, &SceneData { spans, stacks: &[] })
+    render_scene_with_data(
+        scene,
+        &SceneData {
+            spans,
+            stacks: &[],
+            agent_run: None,
+        },
+    )
 }
 
 /// Render a scene over a full data set to a deterministic SVG document.
@@ -1419,6 +1696,7 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
             Panel::Heatmap { .. } => "Latency heatmap",
             Panel::Flame { .. } => "Flame graph",
             Panel::ServiceMap { .. } => "Service map",
+            Panel::AgentRun { .. } => "Agent run",
             other => {
                 return Err(fail(format!(
                     "panel type {} is in the spec but has no renderer yet: it lands in a later milestone",
@@ -1450,6 +1728,7 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
             Panel::ServiceMap { .. } => {
                 render_service_map(scene, spans, panel, &colors, &mut prims, &mut y)?
             }
+            Panel::AgentRun { .. } => render_agent_run(scene, data, panel, &mut prims, &mut y)?,
             _ => unreachable!("heading match already returned for unsupported panels"),
         }
     }

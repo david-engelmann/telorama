@@ -110,3 +110,78 @@ fn folded_stacks_reject_bad_lines() {
     let empty = telorama_ingest::parse_folded_stacks("  \n").unwrap_err();
     assert!(empty.message.contains("empty"), "{empty}");
 }
+
+fn fixture_text(rel: &str) -> String {
+    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join(rel);
+    std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()))
+}
+
+#[test]
+fn claude_code_session_fuses_logs_and_spans() {
+    use telorama_scene::AgentStep;
+    let logs = fixture_text("tests/fixtures/agents/claude-code-session-logs.json");
+    let spans = telorama_ingest::parse_otlp_traces(&fixture_text(
+        "tests/fixtures/agents/claude-code-session-spans.json",
+    ))
+    .expect("span fixture must parse");
+    let run = telorama_ingest::parse_claude_code_session(&logs, &spans)
+        .expect("session fixture must adapt");
+    assert_eq!(run.session_id, "sess-2026-1116-demo");
+    assert_eq!(run.dialect, "claude_code");
+    assert_eq!(run.turns.len(), 2);
+    assert_eq!(run.coverage.log_events, 11);
+    assert_eq!(run.coverage.spans_seen, 6);
+    // The blocked_on_user span and the agent span entered the model.
+    assert_eq!(run.coverage.spans_merged, 2);
+
+    let turn1 = &run.turns[0];
+    assert_eq!(turn1.input_tokens, 3000);
+    assert_eq!(turn1.output_tokens, 750);
+    assert_eq!(turn1.cache_read_tokens, 11200);
+    assert!((turn1.cost_usd - 0.027).abs() < 1e-9, "{}", turn1.cost_usd);
+    assert_eq!(turn1.steps.len(), 3);
+    let AgentStep::ToolCall(bash) = &turn1.steps[1] else {
+        panic!("turn 1 step 2 must be the Bash call");
+    };
+    assert_eq!(bash.name, "Bash");
+    // The wait comes from the span, not the logs: 1.2 s of the 2 s.
+    assert_eq!(bash.wait_nanos, 1_200_000_000);
+    assert_eq!(bash.decision.as_deref(), Some("accept"));
+
+    let turn2 = &run.turns[1];
+    assert_eq!(turn2.input_tokens, 3000);
+    assert_eq!(turn2.output_tokens, 580);
+    assert!((turn2.cost_usd - 0.016).abs() < 1e-9, "{}", turn2.cost_usd);
+    assert_eq!(turn2.steps.len(), 4);
+    let AgentStep::ModelCall(failed) = &turn2.steps[0] else {
+        panic!("turn 2 step 1 must be the failed model call");
+    };
+    assert!(failed.is_error);
+    let AgentStep::ModelCall(retried) = &turn2.steps[1] else {
+        panic!("turn 2 step 2 must be the retried model call");
+    };
+    assert_eq!(retried.attempts, 2);
+    let AgentStep::Subagent(sub) = &turn2.steps[3] else {
+        panic!("turn 2 step 4 must be the subagent");
+    };
+    assert_eq!(sub.agent_id, "agent-7");
+    assert_eq!(sub.steps.len(), 1);
+    let AgentStep::ModelCall(inner) = &sub.steps[0] else {
+        panic!("the subagent's step must be its model call");
+    };
+    assert_eq!(inner.model, "claude-haiku-4-5");
+}
+
+#[test]
+fn claude_code_session_needs_exactly_one_session() {
+    let two = r#"{"resourceLogs":[{"scopeLogs":[{"logRecords":[
+      {"timeUnixNano":"1000000000","attributes":[{"key":"event.name","value":{"stringValue":"claude_code.user_prompt"}},{"key":"session.id","value":{"stringValue":"s-1"}},{"key":"prompt.id","value":{"stringValue":"p-1"}}]},
+      {"timeUnixNano":"2000000000","attributes":[{"key":"event.name","value":{"stringValue":"claude_code.user_prompt"}},{"key":"session.id","value":{"stringValue":"s-2"}},{"key":"prompt.id","value":{"stringValue":"p-1"}}]}
+    ]}]}]}"#;
+    let err = telorama_ingest::parse_claude_code_session(two, &[]).unwrap_err();
+    assert!(err.message.contains("2 sessions"), "{err}");
+    let none = telorama_ingest::parse_claude_code_session("{}", &[]).unwrap_err();
+    assert!(none.message.contains("session.id"), "{none}");
+}

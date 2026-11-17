@@ -85,6 +85,30 @@ fn golden_service_map_scene() {
 }
 
 #[test]
+fn golden_agent_run_scene() {
+    let scene =
+        telorama_scene::parse_scene(&workspace_file("tests/fixtures/scenes/agent_run_scene.json"))
+            .expect("agent run scene must validate");
+    let logs = workspace_file("tests/fixtures/agents/claude-code-session-logs.json");
+    let spans = telorama_ingest::parse_otlp_traces(&workspace_file(
+        "tests/fixtures/agents/claude-code-session-spans.json",
+    ))
+    .expect("session spans must parse");
+    let run = telorama_ingest::parse_claude_code_session(&logs, &spans)
+        .expect("session fixture must adapt");
+    let svg = telorama_svg::render_scene_with_data(
+        &scene,
+        &telorama_svg::SceneData {
+            spans: &[],
+            stacks: &[],
+            agent_run: Some(&run),
+        },
+    )
+    .expect("agent run scene must render");
+    assert_golden("agent_run_scene.svg", &svg);
+}
+
+#[test]
 fn golden_flame_scene() {
     let scene =
         telorama_scene::parse_scene(&workspace_file("tests/fixtures/scenes/flame_scene.json"))
@@ -98,6 +122,7 @@ fn golden_flame_scene() {
         &telorama_svg::SceneData {
             spans: &[],
             stacks: &stacks,
+            agent_run: None,
         },
     )
     .expect("flame scene must render");

@@ -104,6 +104,23 @@ later milestones are marked as validator-side.
   (golden_tests golden_checkout_scene), which records the rendered
   result byte for byte.
 
+## Agent runs (telorama-scene agent.rs, telorama-ingest claude_code.rs, telorama-svg)
+
+- INV-34. Fusion authority is fixed: tokens and cost come only from
+  log events, permission waits and subagent structure only from
+  spans. The run's coverage counts (events read, spans read, spans
+  merged) print in every agent_run render. Nothing is merged
+  silently, and a fact from the weaker source never overrides the
+  stronger one.
+  Enforced by ingest_tests claude_code_session_fuses_logs_and_spans
+  and the golden corpus (golden_tests golden_agent_run_scene).
+- INV-35. A subagent exists in the model only where a span carries
+  an agent_id. A log step joins a subagent only when the step's
+  midpoint falls inside that span's window. Log events alone never
+  invent a subagent.
+  Enforced by ingest_tests claude_code_session_fuses_logs_and_spans
+  (the haiku call nests under agent-7; nothing else moves).
+
 ## Service map (telorama-scene derive.rs, telorama-svg)
 
 - INV-32. A service map edge exists only on span-tree evidence: a
