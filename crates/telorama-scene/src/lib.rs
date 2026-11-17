@@ -14,7 +14,9 @@ pub mod spec;
 pub mod trace;
 pub mod validate;
 
-pub use agent::{AgentRun, AgentStep, AgentTurn, Coverage, ModelCall, SubagentRun, ToolCall};
+pub use agent::{
+    AgentRun, AgentStep, AgentTurn, Coverage, ModelCall, Pricing, SubagentRun, ToolCall,
+};
 pub use derive::{
     Exemplar, FlameNode, HeatmapGrid, HeatmapRow, MapEdge, RedStats, ServiceGraph, WaterfallRow,
     content_hash, critical_path, flame_from_spans, flame_tree, heatmap_grid, percentile_nanos,
