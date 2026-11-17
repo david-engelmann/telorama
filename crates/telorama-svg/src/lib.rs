@@ -296,6 +296,9 @@ fn service_colors(spans: &[Span]) -> BTreeMap<String, String> {
         .collect()
 }
 
+// A text call is position, size, color, weight, family, and content: the
+// argument list is the interface, so the count lint is allowed here.
+#[allow(clippy::too_many_arguments)]
 fn text(
     prims: &mut Vec<Prim>,
     x: f64,
@@ -337,6 +340,10 @@ fn dataset<'a>(scene: &Scene, spans: &'a [Span], data_id: &str) -> Vec<&'a Span>
     }
 }
 
+// The waterfall renderer takes the scene, its data, its two highlight
+// switches, the color map, and the shared layout cursor: one call, one
+// panel, so the count lint is allowed here.
+#[allow(clippy::too_many_arguments)]
 fn render_waterfall(
     scene: &Scene,
     spans: &[Span],
