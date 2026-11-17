@@ -228,7 +228,8 @@ impl DisplayList {
                         fmt_num(*y),
                         family,
                         fmt_num(*size),
-                        escape_xml(fill)
+                        escape_xml(fill),
+                        anchor
                     ));
                     if *bold {
                         out.push_str(" font-weight=\"700\"");
