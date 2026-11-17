@@ -6,6 +6,7 @@
 //! inputs.
 
 pub mod agent;
+pub mod compose;
 pub mod derive;
 pub mod field;
 pub mod profile;
@@ -26,6 +27,7 @@ pub use field::{
     ThresholdStep, Thresholds, format_bytes, format_duration_nanos, format_number, format_ratio,
     format_value,
 };
+pub use compose::incident_scene;
 pub use profile::StackSample;
 pub use schema::{scene_schema, scene_schema_text};
 pub use spec::{

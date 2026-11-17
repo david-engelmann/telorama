@@ -66,7 +66,8 @@ fn tools_list_links_the_view_and_hides_the_drilldown() {
             "inspect_traces",
             "render_scene",
             "session_run",
-            "scene_panel_detail"
+            "scene_panel_detail",
+            "incident_scene"
         ]
     );
     let render = tools.iter().find(|t| t["name"] == "render_scene").unwrap();
@@ -218,4 +219,25 @@ fn session_run_tool_maps_genai_spans() {
     let text = result["content"][0]["text"].as_str().expect("text");
     assert!(text.contains("conv-genai-demo"), "{text}");
     assert!(text.contains("estimate"), "{text}");
+}
+
+#[test]
+fn incident_scene_tool_composes_and_renders() {
+    let result = call_tool(
+        11,
+        "incident_scene",
+        json!({"traces": workspace_file("tests/fixtures/otel-demo-checkout.json")}),
+    );
+    assert_eq!(result["isError"], false);
+    let text = result["content"][0]["text"].as_str().expect("text");
+    assert!(
+        text.contains("email is failing at 100.0%"),
+        "{text}"
+    );
+    assert_eq!(
+        result["structuredContent"]["scene"]["title"],
+        "Incident: email errors"
+    );
+    let svg = result["_meta"]["telorama/svg"].as_str().expect("view payload");
+    assert!(svg.contains("<svg"), "the view payload is the render");
 }

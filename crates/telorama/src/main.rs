@@ -10,7 +10,7 @@
 use std::process::ExitCode;
 
 fn usage() -> &'static str {
-    "usage:\n  telorama inspect <traces.json>\n  telorama validate <scene.json>\n  telorama render --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] --out <scene.svg>\n  telorama render-html --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] --out <scene.html>\n  telorama session [--logs <logs.json>] [--spans <spans.json>] [--dialect <dialect>]\n  telorama schema"
+    "usage:\n  telorama inspect <traces.json>\n  telorama validate <scene.json>\n  telorama render --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] --out <scene.svg>\n  telorama render-html --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] --out <scene.html>\n  telorama session [--logs <logs.json>] [--spans <spans.json>] [--dialect <dialect>]\n  telorama incident --traces <traces.json> [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] [--out <scene.json>] [--render <scene.svg>]\n  telorama schema"
 }
 
 fn read_file(path: &str) -> Result<String, String> {
@@ -198,6 +198,61 @@ fn cmd_render_like(args: &[String], html: bool) -> Result<String, String> {
     ))
 }
 
+const INCIDENT_FLAGS: [&str; 6] = [
+    "--traces",
+    "--session-logs",
+    "--session-spans",
+    "--dialect",
+    "--out",
+    "--render",
+];
+
+fn cmd_incident(args: &[String]) -> Result<String, String> {
+    let mut i = 0;
+    while i < args.len() {
+        if INCIDENT_FLAGS.contains(&args[i].as_str()) {
+            i += 2;
+        } else {
+            return Err(format!("unknown incident argument {:?}\n{}", args[i], usage()));
+        }
+    }
+    let Some(traces_path) = flag(args, "--traces")? else {
+        return Err(format!("incident needs --traces\n{}", usage()));
+    };
+    let spans =
+        telorama_ingest::parse_otlp_traces(&read_file(traces_path)?).map_err(|e| e.to_string())?;
+    let logs_flag = flag(args, "--session-logs")?;
+    let spans_flag = flag(args, "--session-spans")?;
+    let run = if logs_flag.is_some() || spans_flag.is_some() {
+        Some(parse_session(
+            logs_flag,
+            spans_flag,
+            flag(args, "--dialect")?.unwrap_or("claude_code"),
+        )?)
+    } else {
+        None
+    };
+    let scene = telorama_scene::incident_scene(&spans, run.as_ref(), "telorama-cli")?;
+    let mut text = serde_json::to_string_pretty(&scene).map_err(|e| e.to_string())?;
+    text.push('\n');
+    if let Some(out_path) = flag(args, "--out")? {
+        std::fs::write(out_path, &text).map_err(|e| format!("cannot write {out_path}: {e}"))?;
+    }
+    if let Some(render_path) = flag(args, "--render")? {
+        let svg = telorama_svg::render_scene_with_data(
+            &scene,
+            &telorama_svg::SceneData {
+                spans: &spans,
+                stacks: &[],
+                agent_run: run.as_ref(),
+            },
+        )?;
+        std::fs::write(render_path, svg)
+            .map_err(|e| format!("cannot write {render_path}: {e}"))?;
+    }
+    Ok(text)
+}
+
 fn cmd_session(args: &[String]) -> Result<String, String> {
     let mut i = 0;
     while i < args.len() {
@@ -226,6 +281,7 @@ fn run() -> Result<String, String> {
         Some("render") => cmd_render(&args[1..]),
         Some("render-html") => cmd_render_html(&args[1..]),
         Some("session") => cmd_session(&args[1..]),
+        Some("incident") => cmd_incident(&args[1..]),
         Some("schema") if args.len() == 1 => Ok(telorama_scene::scene_schema_text()),
         _ => Err(usage().to_string()),
     }

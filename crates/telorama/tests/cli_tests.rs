@@ -252,3 +252,21 @@ fn session_with_genai_dialect_reads_spans() {
         "{text}"
     );
 }
+
+#[test]
+fn incident_composes_a_scene_from_the_checkout_fixture() {
+    let traces = workspace_file("tests/fixtures/otel-demo-checkout.json");
+    let out = telorama(&["incident", "--traces", traces.to_str().expect("path is utf8")]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let text = stdout(&out);
+    assert!(
+        text.contains("\"title\": \"Incident: email errors\""),
+        "{text}"
+    );
+    assert!(text.contains("\"type\": \"service_map\""), "{text}");
+    assert!(text.contains("\"type\": \"heatmap\""), "{text}");
+}

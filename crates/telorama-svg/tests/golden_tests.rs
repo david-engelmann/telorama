@@ -392,3 +392,24 @@ fn golden_agent_run_genai_scene() {
     .expect("genai scene must render");
     assert_golden("agent_run_genai_scene.svg", &svg);
 }
+
+#[test]
+fn golden_incident_checkout_scene() {
+    let spans = telorama_ingest::parse_otlp_traces(&workspace_file(
+        "tests/fixtures/otel-demo-checkout.json",
+    ))
+    .expect("checkout fixture must parse");
+    let scene = telorama_scene::incident_scene(&spans, None, "agent")
+        .expect("composition must succeed");
+    assert_eq!(scene.title, "Incident: email errors");
+    let svg = telorama_svg::render_scene_with_data(
+        &scene,
+        &telorama_svg::SceneData {
+            spans: &spans,
+            stacks: &[],
+            agent_run: None,
+        },
+    )
+    .expect("incident scene must render");
+    assert_golden("incident_checkout_scene.svg", &svg);
+}

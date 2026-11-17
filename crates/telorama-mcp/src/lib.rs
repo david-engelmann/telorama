@@ -212,6 +212,16 @@ fn tool_definitions() -> Value {
                 "required": ["scene", "panel_index"]
             },
             "_meta": {"ui": {"visibility": ["app"]}}
+        },
+        {
+            "name": "incident_scene",
+            "description": "Compose the incident template from a trace export: service map, RED row, exemplar waterfall, and latency heatmap, with the headline and narrative derived from the data. Returns the triple contract and the composed scene spec.",
+            "inputSchema": {
+                "type": "object",
+                "properties": detail_props,
+                "required": ["traces"]
+            },
+            "_meta": {"ui": {"resourceUri": VIEW_URI}}
         }
     ])
 }
@@ -285,6 +295,7 @@ fn call_tool(params: &Value) -> Value {
         "render_scene" => tool_render(&args),
         "session_run" => tool_session(&args),
         "scene_panel_detail" => tool_detail(&args),
+        "incident_scene" => tool_incident(&args),
         _ => tool_error(&format!("unknown tool: {name}")),
     }
 }
@@ -475,6 +486,38 @@ fn tool_session(args: &Value) -> Value {
     }
     let structured = serde_json::to_value(&run).expect("the run model must serialize");
     tool_ok(text, structured, None)
+}
+
+fn tool_incident(args: &Value) -> Value {
+    let inputs = match build_inputs(args) {
+        Ok(i) => i,
+        Err(m) => return tool_error(&m),
+    };
+    if inputs.spans.is_empty() {
+        return tool_error("incident_scene needs traces");
+    }
+    let scene = match telorama_scene::incident_scene(&inputs.spans, inputs.run.as_ref(), "telorama-mcp")
+    {
+        Ok(s) => s,
+        Err(m) => return tool_error(&m),
+    };
+    let svg = match telorama_svg::render_scene_with_data(&scene, &inputs.data()) {
+        Ok(s) => s,
+        Err(m) => return tool_error(&m),
+    };
+    let mut structured = scene_summary(&scene, &inputs, &svg);
+    structured["scene"] =
+        serde_json::to_value(&scene).expect("the composed scene must serialize");
+    let types: Vec<&str> = scene.panels.iter().map(|p| p.type_name()).collect();
+    let text = format!(
+        "{}. {} Panels: {}. SVG {} bytes, fnv1a64 {}.",
+        scene.title,
+        scene.headline,
+        types.join(", "),
+        svg.len(),
+        telorama_scene::content_hash(svg.as_bytes())
+    );
+    tool_ok(text, structured, Some(svg))
 }
 
 fn tool_detail(args: &Value) -> Value {
