@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="563" viewBox="0 0 960 563" role="img">
+<title>Checkout service map</title>
+<desc>Checkout fans out to six services, and the email send fails</desc>
+<rect x="0" y="0" width="960" height="563" fill="#FFFFFF"/>
+<text x="24" y="30" font-family="system-ui, sans-serif" font-size="20" fill="#1A1A1A" text-anchor="start" font-weight="700">Checkout fans out to six services, and the email send fails</text>
+<text x="24" y="50" font-family="system-ui, sans-serif" font-size="12" fill="#5A5A5A" text-anchor="start">Checkout service map</text>
+<text x="24" y="80" font-family="system-ui, sans-serif" font-size="14" fill="#1A1A1A" text-anchor="start" font-weight="700">Service map</text>
+<line x1="493" y1="104" x2="637" y2="104" stroke="#888888" stroke-width="4"/>
+<text x="565" y="100" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">1 call · p99 20 ms</text>
+<line x1="493" y1="104" x2="637" y2="150" stroke="#D55E00" stroke-width="4"/>
+<text x="565" y="123" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">1 call · p99 13 ms</text>
+<line x1="493" y1="104" x2="637" y2="196" stroke="#888888" stroke-width="4"/>
+<text x="565" y="146" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">1 call · p99 80 ms</text>
+<line x1="493" y1="104" x2="637" y2="242" stroke="#888888" stroke-width="4"/>
+<text x="565" y="169" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">1 call · p99 170 ms</text>
+<line x1="493" y1="104" x2="637" y2="288" stroke="#888888" stroke-width="4"/>
+<text x="565" y="192" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">1 call · p99 40 ms</text>
+<line x1="493" y1="104" x2="637" y2="334" stroke="#888888" stroke-width="4"/>
+<text x="565" y="215" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">1 call · p99 110 ms</text>
+<line x1="189" y1="104" x2="333" y2="104" stroke="#888888" stroke-width="4"/>
+<text x="261" y="100" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">1 call · p99 390 ms</text>
+<rect x="333" y="88" width="160" height="32" fill="#0072B2"/>
+<text x="341" y="102" font-family="system-ui, sans-serif" font-size="11" fill="#FFFFFF" text-anchor="start" font-weight="700">checkout</text>
+<text x="341" y="115" font-family="system-ui, sans-serif" font-size="10" fill="#FFFFFF" text-anchor="start">1 call · 0 errors</text>
+<rect x="637" y="88" width="160" height="32" fill="#E69F00"/>
+<text x="645" y="102" font-family="system-ui, sans-serif" font-size="11" fill="#1A1A1A" text-anchor="start" font-weight="700">currency</text>
+<text x="645" y="115" font-family="system-ui, sans-serif" font-size="10" fill="#1A1A1A" text-anchor="start">1 call · 0 errors</text>
+<rect x="637" y="134" width="160" height="32" fill="#009E73"/>
+<text x="645" y="148" font-family="system-ui, sans-serif" font-size="11" fill="#FFFFFF" text-anchor="start" font-weight="700">email</text>
+<text x="645" y="161" font-family="system-ui, sans-serif" font-size="10" fill="#FFFFFF" text-anchor="start">1 call · 1 error</text>
+<rect x="29" y="88" width="160" height="32" fill="#D55E00"/>
+<text x="37" y="102" font-family="system-ui, sans-serif" font-size="11" fill="#FFFFFF" text-anchor="start" font-weight="700">frontend</text>
+<text x="37" y="115" font-family="system-ui, sans-serif" font-size="10" fill="#FFFFFF" text-anchor="start">1 call · 0 errors</text>
+<rect x="637" y="180" width="160" height="32" fill="#56B4E9"/>
+<text x="645" y="194" font-family="system-ui, sans-serif" font-size="11" fill="#1A1A1A" text-anchor="start" font-weight="700">inventory</text>
+<text x="645" y="207" font-family="system-ui, sans-serif" font-size="10" fill="#1A1A1A" text-anchor="start">1 call · 0 errors</text>
+<rect x="637" y="226" width="160" height="32" fill="#CC79A7"/>
+<text x="645" y="240" font-family="system-ui, sans-serif" font-size="11" fill="#1A1A1A" text-anchor="start" font-weight="700">payment</text>
+<text x="645" y="253" font-family="system-ui, sans-serif" font-size="10" fill="#1A1A1A" text-anchor="start">1 call · 0 errors</text>
+<rect x="637" y="272" width="160" height="32" fill="#F0E442"/>
+<text x="645" y="286" font-family="system-ui, sans-serif" font-size="11" fill="#1A1A1A" text-anchor="start" font-weight="700">product-catalog</text>
+<text x="645" y="299" font-family="system-ui, sans-serif" font-size="10" fill="#1A1A1A" text-anchor="start">1 call · 0 errors</text>
+<rect x="637" y="318" width="160" height="32" fill="#000000"/>
+<text x="645" y="332" font-family="system-ui, sans-serif" font-size="11" fill="#FFFFFF" text-anchor="start" font-weight="700">shipping</text>
+<text x="645" y="345" font-family="system-ui, sans-serif" font-size="10" fill="#FFFFFF" text-anchor="start">1 call · 0 errors</text>
+<text x="24" y="378" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">checkout · 1 call · 0 errors (0.0%) · p50 390 ms · p99 390 ms</text>
+<text x="24" y="393" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">currency · 1 call · 0 errors (0.0%) · p50 20 ms · p99 20 ms</text>
+<text x="24" y="408" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">email · 1 call · 1 error (100.0%) · p50 13 ms · p99 13 ms</text>
+<text x="24" y="423" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">frontend · 1 call · 0 errors (0.0%) · p50 420 ms · p99 420 ms</text>
+<text x="24" y="438" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">inventory · 1 call · 0 errors (0.0%) · p50 80 ms · p99 80 ms</text>
+<text x="24" y="453" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">payment · 1 call · 0 errors (0.0%) · p50 170 ms · p99 170 ms</text>
+<text x="24" y="468" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">product-catalog · 1 call · 0 errors (0.0%) · p50 40 ms · p99 40 ms</text>
+<text x="24" y="483" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">shipping · 1 call · 0 errors (0.0%) · p50 110 ms · p99 110 ms</text>
+<line x1="24" y1="503" x2="936" y2="503" stroke="#CCCCCC" stroke-width="1"/>
+<text x="24" y="519" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Window 2026-11-16T14:30:00Z to 2026-11-16T14:30:01Z</text>
+<text x="24" y="534" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Data trace · otlp_file · trace 4bf92f3577b34da6a3ce929d0e0e4736 · sampling unknown</text>
+<text x="24" y="549" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Generated by agent · Question: How does the checkout request fan out across services?</text>
+</svg>
