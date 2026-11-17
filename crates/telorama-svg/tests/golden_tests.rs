@@ -86,7 +86,7 @@ fn golden_flame_scene() {
     .expect("profile fixture must parse");
     let svg = telorama_svg::render_scene_with_data(
         &scene,
-        telorama_svg::SceneData {
+        &telorama_svg::SceneData {
             spans: &[],
             stacks: &stacks,
         },
