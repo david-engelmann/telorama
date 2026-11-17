@@ -31,7 +31,7 @@ jobs:
             sum=$(sha256sum "$crate_file" | cut -d' ' -f1)
             rm -rf /tmp/extract && mkdir -p /tmp/extract
             tar -xzf "$crate_file" -C /tmp/extract --strip-components=1
-            mkdir -p "/tmp/staged/$k/0.1.0"
-            cp -r /tmp/extract/. "/tmp/staged/$k/0.1.0/"
-            printf '{"files":{},"package":"%s"}' "$sum" > "/tmp/staged/$k/0.1.0/.cargo-checksum.json"
+            mkdir -p "/tmp/staged/$k"
+            cp -r /tmp/extract/. "/tmp/staged/$k/"
+            printf '{"files":{},"package":"%s"}' "$sum" > "/tmp/staged/$k/.cargo-checksum.json"
           done
