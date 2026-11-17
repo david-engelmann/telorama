@@ -556,15 +556,12 @@ fn panel_summary(scene: &Scene, inputs: &Inputs, panel: &Panel) -> Value {
                 "critical_path_spans": critical_path(&inputs.spans, tid).len()
             })
         }
-        Panel::Stat {
-            stat, service, ..
-        } => json!({"type": "stat", "stat": stat.name(), "service": service}),
+        Panel::Stat { stat, service, .. } => {
+            json!({"type": "stat", "stat": stat.name(), "service": service})
+        }
         Panel::RedRow { data, .. } => {
             let red = red_by_service(&dataset(scene, &inputs.spans, data), window);
-            let worst = red
-                .iter()
-                .map(|r| r.error_ratio)
-                .fold(0.0f64, f64::max);
+            let worst = red.iter().map(|r| r.error_ratio).fold(0.0f64, f64::max);
             json!({"type": "red_row", "services": red.len(), "worst_error_ratio": worst})
         }
         Panel::Sankey { .. } => json!({"type": "sankey", "rendered": false}),
@@ -681,14 +678,17 @@ fn panel_detail(scene: &Scene, inputs: &Inputs, panel: &Panel) -> Value {
                     })
                 }
                 StatKind::Last => {
-                    out["value_nanos"] = json!(set
-                        .iter()
-                        .max_by_key(|s| s.end_unix_nano)
-                        .map(|s| s.duration_nanos()))
+                    out["value_nanos"] = json!(
+                        set.iter()
+                            .max_by_key(|s| s.end_unix_nano)
+                            .map(|s| s.duration_nanos())
+                    )
                 }
                 _ => {
-                    out["value_nanos"] =
-                        json!(percentile_nanos(&durations, stat.percentile().unwrap_or(95)))
+                    out["value_nanos"] = json!(percentile_nanos(
+                        &durations,
+                        stat.percentile().unwrap_or(95)
+                    ))
                 }
             }
             out

@@ -43,9 +43,8 @@ fn initialize_returns_server_info_and_capabilities() {
 
 #[test]
 fn notifications_get_no_reply() {
-    let out = telorama_mcp::handle_message(
-        r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#,
-    );
+    let out =
+        telorama_mcp::handle_message(r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#);
     assert!(out.is_none());
 }
 
@@ -71,17 +70,20 @@ fn tools_list_links_the_view_and_hides_the_drilldown() {
         ]
     );
     let render = tools.iter().find(|t| t["name"] == "render_scene").unwrap();
-    assert_eq!(
-        render["_meta"]["ui"]["resourceUri"],
-        telorama_mcp::VIEW_URI
-    );
+    assert_eq!(render["_meta"]["ui"]["resourceUri"], telorama_mcp::VIEW_URI);
     let detail = tools
         .iter()
         .find(|t| t["name"] == "scene_panel_detail")
         .unwrap();
     assert_eq!(detail["_meta"]["ui"]["visibility"], json!(["app"]));
-    let validate = tools.iter().find(|t| t["name"] == "validate_scene").unwrap();
-    assert!(validate.get("_meta").is_none(), "model tools carry no ui meta");
+    let validate = tools
+        .iter()
+        .find(|t| t["name"] == "validate_scene")
+        .unwrap();
+    assert!(
+        validate.get("_meta").is_none(),
+        "model tools carry no ui meta"
+    );
 }
 
 #[test]
@@ -126,14 +128,19 @@ fn render_scene_returns_the_triple_contract() {
         result["structuredContent"]["svg_fnv1a64"],
         telorama_scene::content_hash(golden.as_bytes())
     );
-    assert_eq!(result["structuredContent"]["panels"][0]["type"], "waterfall");
+    assert_eq!(
+        result["structuredContent"]["panels"][0]["type"],
+        "waterfall"
+    );
     assert_eq!(result["structuredContent"]["panels"][0]["spans"], 9);
     assert_eq!(
         result["structuredContent"]["panels"][0]["critical_path_spans"],
         3
     );
     assert_eq!(
-        result["_meta"]["telorama/svg"].as_str().expect("svg in _meta"),
+        result["_meta"]["telorama/svg"]
+            .as_str()
+            .expect("svg in _meta"),
         golden,
         "the view payload is the byte-identical golden render"
     );
@@ -186,10 +193,7 @@ fn panel_detail_drills_into_one_panel() {
     let detail = &result["structuredContent"];
     assert_eq!(detail["type"], "waterfall");
     assert_eq!(detail["rows"].as_array().expect("rows").len(), 9);
-    assert_eq!(
-        detail["critical_path"].as_array().expect("path").len(),
-        3
-    );
+    assert_eq!(detail["critical_path"].as_array().expect("path").len(), 3);
     let out_of_range = call_tool(
         8,
         "scene_panel_detail",
