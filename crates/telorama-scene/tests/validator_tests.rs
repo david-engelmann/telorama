@@ -143,7 +143,7 @@ fn narrative_anchor_must_exist() {
 }
 
 #[test]
-fn unsupported_version_and_backward_range_are_rejected() {
+fn unsupported_version_is_rejected() {
     let mut scene = valid_scene();
     scene["scene"] = json!("9.9");
     let errors = validate_scene_json(&scene);
@@ -152,7 +152,10 @@ fn unsupported_version_and_backward_range_are_rejected() {
             .iter()
             .any(|e| e.message.contains("unsupported scene version"))
     );
+}
 
+#[test]
+fn backward_window_is_rejected() {
     let mut scene = valid_scene();
     scene["context"]["range"]["to_unix_ms"] = json!(1);
     let errors = validate_scene_json(&scene);

@@ -280,7 +280,7 @@ const MUTED: &str = "#5A5A5A";
 const WIDTH: f64 = 960.0;
 const MARGIN: f64 = 24.0;
 
-fn service_colors(spans: &[Span]) -> BTreeMap<String, String> {
+pub fn service_colors(spans: &[Span]) -> BTreeMap<String, String> {
     let mut services: Vec<&str> = spans.iter().map(|s| s.service.as_str()).collect();
     services.sort_unstable();
     services.dedup();

@@ -115,3 +115,25 @@ working agent is doing and why, with rationale required by validation, so
 the tools force the better behavior they display. This scopes as its own
 milestone after the static core. It changes nothing in M1, and the
 dossier fences hold unchanged.
+
+## Landing record, 2026-11-17. M1 closed, M2 opened
+
+M1 landed on main at 57fc9732054dee7f88e3df090ae7a617609c9282, and the
+hosted gate passed on that exact head (Actions run 44006217699: format
+clean, clippy clean with warnings denied, 37 tests passed and none
+failed). Main Muse audited the gate independently against the remote,
+recomputed the golden render claims from the fixture, and approved M1.
+
+Two Minors from that audit are carried into M2 as hardening work, and
+the M2 opening pass lands them. INV-1 and INV-9 shared one enforcing
+test; they are split into one test each. INV-21 rested on the golden
+corpus; it gains a direct assertion test on the palette assignment.
+The property tests gain a shrinker, so a failing seed reports a minimal
+span set alongside the seed instead of the seed alone.
+
+M2 opens as scoped in the milestone list above: the field system,
+service map with RED table, flame from profiles with labelled span
+fallback, latency heatmap with exemplar overlay, and the agent-run
+model with the Claude Code dialect adapter and logs-first fusion. The
+live observability addendum stays a milestone of its own after the
+static core and is not pulled into M2.

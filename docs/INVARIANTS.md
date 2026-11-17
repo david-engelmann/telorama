@@ -10,7 +10,7 @@ later milestones are marked as validator-side.
 
 - INV-1. A scene whose version is not the supported spec version is
   rejected, never silently reinterpreted.
-  Enforced by validator_tests unsupported_version_and_backward_range_are_rejected.
+  Enforced by validator_tests unsupported_version_is_rejected.
 - INV-2. Duration statistics are percentiles, never averages. A stat
   panel over duration data that asks for an average fails validation
   with the percentile rule named in the message.
@@ -39,7 +39,7 @@ later milestones are marked as validator-side.
   Enforced by validator_tests narrative_anchor_must_exist.
 - INV-9. The scene window runs forward. A range whose end is not after
   its start is rejected.
-  Enforced by validator_tests unsupported_version_and_backward_range_are_rejected.
+  Enforced by validator_tests backward_window_is_rejected.
 
 ## Derivations (telorama-scene, derive.rs)
 
@@ -99,8 +99,10 @@ later milestones are marked as validator-side.
   sorted service name, identical in every panel of a scene. Error spans
   render in vermillion and carry a text marker, so color is never the
   only channel.
-  Enforced by the golden corpus (golden_tests golden_checkout_scene),
-  which records the rendered result byte for byte.
+  Enforced by golden_tests service_colors_follow_sorted_name_order,
+  which asserts the assignment directly, and by the golden corpus
+  (golden_tests golden_checkout_scene), which records the rendered
+  result byte for byte.
 
 ## Schema and CLI (telorama)
 

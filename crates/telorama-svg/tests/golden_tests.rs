@@ -78,6 +78,29 @@ fn unsupported_panel_type_is_a_specific_error() {
 }
 
 #[test]
+fn service_colors_follow_sorted_name_order() {
+    let (_, spans) = load("checkout_scene.json", "otel-demo-checkout.json");
+    let colors = telorama_svg::service_colors(&spans);
+    assert_eq!(colors.len(), 8, "the checkout fixture has eight services");
+    let mut names: Vec<&str> = colors.keys().map(String::as_str).collect();
+    names.sort_unstable();
+    for (i, name) in names.iter().enumerate() {
+        assert_eq!(
+            colors[*name], telorama_svg::SERVICE_PALETTE[i],
+            "service {name} must take palette slot {i} in sorted order"
+        );
+    }
+    // The error channel is text as well as color: an error span's row in
+    // the render carries the marker, so color is never the only signal.
+    let (scene, spans) = load("checkout_scene.json", "otel-demo-checkout.json");
+    let svg = telorama_svg::render_scene(&scene, &spans).unwrap();
+    assert!(
+        svg.contains("· error"),
+        "error spans must carry a text marker in the render"
+    );
+}
+
+#[test]
 fn formatting_is_canonical() {
     assert_eq!(telorama_svg::fmt_num(960.0), "960");
     assert_eq!(telorama_svg::fmt_num(12.5), "12.5");

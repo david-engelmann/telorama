@@ -2,6 +2,11 @@
 //! SplitMix64 generator so every run checks the same thousand cases and
 //! any failure reproduces from its seed alone. No external crates: the
 //! dependency discipline in DECISIONS.md binds tests too.
+//!
+//! Each property is a check function returning a verdict instead of
+//! asserting, so a failure can be shrunk before it is reported: the
+//! shrinker removes spans one at a time while the failure persists and
+//! the panic names the seed and the minimal span set that still fails.
 
 use std::collections::BTreeMap;
 use telorama_scene::{
@@ -57,50 +62,132 @@ fn random_trace(rng: &mut Rng, count: usize) -> Vec<Span> {
     spans
 }
 
+type Check = fn(&[Span]) -> Result<(), String>;
+
+/// Greedy one-span-at-a-time shrink: remove any span whose removal keeps
+/// the check failing, until no single removal does. The derivations
+/// tolerate the dangling parents a removal can leave (a span whose
+/// parent is gone is a root), so every candidate stays well-formed.
+fn shrink(spans: &[Span], check: Check) -> Vec<Span> {
+    let mut current: Vec<Span> = spans.to_vec();
+    let mut i = 0;
+    while i < current.len() {
+        let mut candidate = current.clone();
+        candidate.remove(i);
+        if check(&candidate).is_err() {
+            current = candidate;
+        } else {
+            i += 1;
+        }
+    }
+    current
+}
+
+fn run_property(seed: u64, spans: &[Span], check: Check) {
+    if let Err(message) = check(spans) {
+        let minimal = shrink(spans, check);
+        let ids: Vec<&str> = minimal.iter().map(|s| s.span_id.as_str()).collect();
+        panic!(
+            "seed {seed}: {message}; shrunk to {} span(s): {}",
+            minimal.len(),
+            ids.join(",")
+        );
+    }
+}
+
+fn check_critical_path(spans: &[Span]) -> Result<(), String> {
+    let by_id: BTreeMap<&str, &Span> = spans.iter().map(|s| (s.span_id.as_str(), s)).collect();
+    let path = critical_path(spans, "prop");
+    if spans.is_empty() {
+        return if path.is_empty() {
+            Ok(())
+        } else {
+            Err("empty trace produced a path".to_string())
+        };
+    }
+    if path.is_empty() {
+        return Err("non-empty trace needs a path".to_string());
+    }
+    // Starts at a root.
+    let first = by_id
+        .get(path[0].as_str())
+        .ok_or("path names a span outside the set")?;
+    if !first
+        .parent_span_id
+        .as_deref()
+        .map(|p| !by_id.contains_key(p))
+        .unwrap_or(true)
+    {
+        return Err("path must start at a root".to_string());
+    }
+    // Each step is a parent-to-child step.
+    for pair in path.windows(2) {
+        let child = by_id
+            .get(pair[1].as_str())
+            .ok_or("path names a span outside the set")?;
+        if child.parent_span_id.as_deref() != Some(pair[0].as_str()) {
+            return Err(format!(
+                "path step {} -> {} is not a parent-child step",
+                pair[0], pair[1]
+            ));
+        }
+    }
+    // Ends at a leaf.
+    let last = path[path.len() - 1].as_str();
+    if spans
+        .iter()
+        .any(|s| s.parent_span_id.as_deref() == Some(last))
+    {
+        return Err("path must end at a leaf".to_string());
+    }
+    Ok(())
+}
+
+fn check_self_time(spans: &[Span]) -> Result<(), String> {
+    let by_id: BTreeMap<&str, &Span> = spans.iter().map(|s| (s.span_id.as_str(), s)).collect();
+    for row in waterfall_rows(spans, "prop") {
+        let span = by_id
+            .get(row.span_id.as_str())
+            .ok_or("row names a span outside the set")?;
+        if row.self_time_nanos < 0 || row.self_time_nanos > span.duration_nanos() {
+            return Err(format!(
+                "self time {} outside duration {}",
+                row.self_time_nanos,
+                span.duration_nanos()
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn check_percentiles_and_red(spans: &[Span]) -> Result<(), String> {
+    if spans.is_empty() {
+        return Ok(());
+    }
+    let durations: Vec<i64> = spans.iter().map(|s| s.duration_nanos()).collect();
+    let p50 = percentile_nanos(&durations, 50).ok_or("p50 missing")?;
+    let p95 = percentile_nanos(&durations, 95).ok_or("p95 missing")?;
+    let p99 = percentile_nanos(&durations, 99).ok_or("p99 missing")?;
+    if !(p50 <= p95 && p95 <= p99) {
+        return Err("percentiles out of order".to_string());
+    }
+    for stats in red_by_service(spans, 60.0) {
+        if !(0.0..=1.0).contains(&stats.error_ratio) {
+            return Err(format!("error ratio {} out of bounds", stats.error_ratio));
+        }
+        if !(stats.p50_nanos <= stats.p95_nanos && stats.p95_nanos <= stats.p99_nanos) {
+            return Err("RED percentiles out of order".to_string());
+        }
+    }
+    Ok(())
+}
+
 #[test]
 fn critical_path_is_always_a_root_to_leaf_chain() {
     for seed in 0..1000u64 {
         let mut rng = Rng(seed.wrapping_mul(0x2545F4914F6CDD1D) | 1);
         let spans = random_trace(&mut rng, 1 + (seed % 40) as usize);
-        let by_id: BTreeMap<&str, &Span> = spans.iter().map(|s| (s.span_id.as_str(), s)).collect();
-        let path = critical_path(&spans, "prop");
-        if spans.is_empty() {
-            assert!(path.is_empty());
-            continue;
-        }
-        assert!(
-            !path.is_empty(),
-            "seed {seed}: non-empty trace needs a path"
-        );
-        // Starts at a root.
-        let first = by_id[path[0].as_str()];
-        assert!(
-            first
-                .parent_span_id
-                .as_deref()
-                .map(|p| !by_id.contains_key(p))
-                .unwrap_or(true),
-            "seed {seed}: path must start at a root"
-        );
-        // Each step is a parent-to-child step.
-        for pair in path.windows(2) {
-            let child = by_id[pair[1].as_str()];
-            assert_eq!(
-                child.parent_span_id.as_deref(),
-                Some(pair[0].as_str()),
-                "seed {seed}: path step {} -> {} is not a parent-child step",
-                pair[0],
-                pair[1]
-            );
-        }
-        // Ends at a leaf.
-        let last = path[path.len() - 1].as_str();
-        assert!(
-            !spans
-                .iter()
-                .any(|s| s.parent_span_id.as_deref() == Some(last)),
-            "seed {seed}: path must end at a leaf"
-        );
+        run_property(seed, &spans, check_critical_path);
     }
 }
 
@@ -109,16 +196,7 @@ fn self_time_stays_within_duration() {
     for seed in 0..1000u64 {
         let mut rng = Rng(seed ^ 0xA0761D6478BD642F);
         let spans = random_trace(&mut rng, 1 + (seed % 30) as usize);
-        let by_id: BTreeMap<&str, &Span> = spans.iter().map(|s| (s.span_id.as_str(), s)).collect();
-        for row in waterfall_rows(&spans, "prop") {
-            let span = by_id[row.span_id.as_str()];
-            assert!(
-                row.self_time_nanos >= 0 && row.self_time_nanos <= span.duration_nanos(),
-                "seed {seed}: self time {} outside duration {}",
-                row.self_time_nanos,
-                span.duration_nanos()
-            );
-        }
+        run_property(seed, &spans, check_self_time);
     }
 }
 
@@ -127,21 +205,6 @@ fn percentiles_are_monotone_and_red_ratios_are_bounded() {
     for seed in 0..1000u64 {
         let mut rng = Rng(seed.wrapping_add(0xE7037ED1A0B428DB));
         let spans = random_trace(&mut rng, 1 + (seed % 30) as usize);
-        let durations: Vec<i64> = spans.iter().map(|s| s.duration_nanos()).collect();
-        let p50 = percentile_nanos(&durations, 50).unwrap();
-        let p95 = percentile_nanos(&durations, 95).unwrap();
-        let p99 = percentile_nanos(&durations, 99).unwrap();
-        assert!(
-            p50 <= p95 && p95 <= p99,
-            "seed {seed}: percentiles out of order"
-        );
-        for stats in red_by_service(&spans, 60.0) {
-            assert!(
-                (0.0..=1.0).contains(&stats.error_ratio),
-                "seed {seed}: error ratio {} out of bounds",
-                stats.error_ratio
-            );
-            assert!(stats.p50_nanos <= stats.p95_nanos && stats.p95_nanos <= stats.p99_nanos);
-        }
+        run_property(seed, &spans, check_percentiles_and_red);
     }
 }
