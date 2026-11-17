@@ -93,7 +93,12 @@ impl AnyValue {
             return s.clone();
         }
         if let Some(i) = &self.int_value {
-            return i.to_string();
+            // OTLP JSON encodes intValue as a string; a JSON string's
+            // own text is its contents, not its quoted form.
+            return match i {
+                serde_json::Value::String(s) => s.clone(),
+                other => other.to_string(),
+            };
         }
         if let Some(b) = self.bool_value {
             return b.to_string();

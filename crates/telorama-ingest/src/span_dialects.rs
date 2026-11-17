@@ -257,7 +257,7 @@ fn build_run(spans: &[Span], dialect: &Dialect) -> Result<AgentRun, IngestError>
             ));
         }
     }
-    turns.sort_by(|a, b| a.start_unix_nano.cmp(&b.start_unix_nano));
+    turns.sort_by_key(|a| a.start_unix_nano);
     Ok(AgentRun {
         session_id,
         dialect: dialect.name.to_string(),
