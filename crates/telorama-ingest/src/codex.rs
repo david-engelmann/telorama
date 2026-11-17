@@ -26,8 +26,8 @@ use telorama_scene::{
     AgentRun, AgentStep, AgentTurn, Coverage, ModelCall, Pricing, Span, ToolCall,
 };
 
-use crate::events::{Attr, parse_events};
 use crate::IngestError;
+use crate::events::{Attr, parse_events};
 
 fn fail(message: impl Into<String>) -> IngestError {
     IngestError {
@@ -162,7 +162,8 @@ pub fn parse_codex_session(logs_text: &str, spans: &[Span]) -> Result<AgentRun, 
         let turn = builders.get_mut(&turn_id).expect("builder exists");
         match event.name.as_str() {
             "codex.turn_ttft" => {
-                turn.ttfts.push_back(event.i64_attr("duration_ms") * 1_000_000);
+                turn.ttfts
+                    .push_back(event.i64_attr("duration_ms") * 1_000_000);
             }
             "codex.api_request" => {
                 let duration = event.i64_attr("duration_ms") * 1_000_000;

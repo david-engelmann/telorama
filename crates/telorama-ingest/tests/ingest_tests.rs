@@ -214,7 +214,11 @@ fn codex_session_prices_tokens_and_pairs_tools() {
     assert_eq!(turn1.input_tokens, 3500);
     assert_eq!(turn1.output_tokens, 2100);
     assert_eq!(turn1.cache_read_tokens, 14000);
-    assert!((turn1.cost_usd - 0.027125).abs() < 1e-9, "{}", turn1.cost_usd);
+    assert!(
+        (turn1.cost_usd - 0.027125).abs() < 1e-9,
+        "{}",
+        turn1.cost_usd
+    );
     assert_eq!(turn1.steps.len(), 3);
     let AgentStep::ModelCall(first) = &turn1.steps[0] else {
         panic!("turn 1 step 1 must be the first model call");
@@ -233,7 +237,11 @@ fn codex_session_prices_tokens_and_pairs_tools() {
     let turn2 = &run.turns[1];
     assert_eq!(turn2.input_tokens, 2000);
     assert_eq!(turn2.output_tokens, 600);
-    assert!((turn2.cost_usd - 0.001725).abs() < 1e-9, "{}", turn2.cost_usd);
+    assert!(
+        (turn2.cost_usd - 0.001725).abs() < 1e-9,
+        "{}",
+        turn2.cost_usd
+    );
     let AgentStep::ModelCall(failed) = &turn2.steps[0] else {
         panic!("turn 2 step 1 must be the failed model call");
     };
