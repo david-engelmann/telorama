@@ -501,9 +501,14 @@ fn tool_incident(args: &Value) -> Value {
             Ok(s) => s,
             Err(m) => return tool_error(&m),
         };
-    let svg = match telorama_svg::render_scene_with_data(&scene, &inputs.data()) {
+    let data = telorama_svg::SceneData {
+        spans: &inputs.spans,
+        stacks: &inputs.stacks,
+        agent_run: inputs.run.as_ref(),
+    };
+    let svg = match telorama_svg::render_scene_with_data(&scene, &data) {
         Ok(s) => s,
-        Err(m) => return tool_error(&m),
+        Err(e) => return tool_error(&e.to_string()),
     };
     let mut structured = scene_summary(&scene, &inputs, &svg);
     structured["scene"] = serde_json::to_value(&scene).expect("the composed scene must serialize");

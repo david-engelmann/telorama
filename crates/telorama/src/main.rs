@@ -250,7 +250,8 @@ fn cmd_incident(args: &[String]) -> Result<String, String> {
                 stacks: &[],
                 agent_run: run.as_ref(),
             },
-        )?;
+        )
+        .map_err(|e| e.to_string())?;
         std::fs::write(render_path, svg).map_err(|e| format!("cannot write {render_path}: {e}"))?;
     }
     Ok(text)
