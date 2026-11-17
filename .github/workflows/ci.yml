@@ -21,8 +21,17 @@ jobs:
         run: cargo test --workspace
       - name: Package
         run: |
-          cargo package -p telorama-scene --locked --no-verify
-          cargo package -p telorama-ingest --locked --no-verify
-          cargo package -p telorama-svg --locked --no-verify
-          cargo package -p telorama --locked --no-verify
-          cargo package -p telorama-mcp --locked --no-verify
+          set -e
+          cargo vendor /tmp/staged > /tmp/vendor.toml
+          mkdir -p .cargo
+          cat /tmp/vendor.toml > .cargo/config.toml
+          for k in telorama-scene telorama-ingest telorama-svg telorama telorama-mcp; do
+            cargo package -p "$k" --locked --no-verify --offline
+            crate_file="target/package/$k-0.1.0.crate"
+            sum=$(sha256sum "$crate_file" | cut -d' ' -f1)
+            rm -rf /tmp/extract && mkdir -p /tmp/extract
+            tar -xzf "$crate_file" -C /tmp/extract --strip-components=1
+            mkdir -p "/tmp/staged/$k/0.1.0"
+            cp -r /tmp/extract/. "/tmp/staged/$k/0.1.0/"
+            printf '{"files":{},"package":"%s"}' "$sum" > "/tmp/staged/$k/0.1.0/.cargo-checksum.json"
+          done
