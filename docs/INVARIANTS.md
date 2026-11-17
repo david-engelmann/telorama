@@ -205,3 +205,57 @@ later milestones are marked as validator-side.
   invent a subagent.
   Enforced by ingest_tests claude_code_session_fuses_logs_and_spans
   (the haiku call nests under agent-7; nothing else moves).
+
+## Codex dialect (telorama-ingest codex.rs, telorama-svg)
+
+- INV-36. In the Codex dialect, tokens come only from log events
+  and spans are counted in coverage but never merged: Codex span
+  fusion is unproven, so no wait or subagent is read from a Codex
+  span. The coverage line on the render states the dialect's
+  authority in words.
+  Enforced by ingest_tests codex_session_prices_tokens_and_pairs_tools
+  (spans_merged stays 0) and the golden corpus (golden_tests
+  golden_agent_run_codex_scene).
+- INV-37. Codex reports input tokens gross of cache reads. The
+  canonical model stores non-cache input only (reported input minus
+  cache read), so a cached token is never counted twice.
+  Enforced by ingest_tests codex_session_prices_tokens_and_pairs_tools
+  (8000 reported with 6000 cached enters the model as 2000).
+- INV-38. Codex exports no cost, so the renderer prices tokens from
+  a table it owns. The run carries the table date and the split of
+  priced and unpriced models, and the render prints the disclosure.
+  An unpriced model's tokens count in the run and its cost is
+  excluded from every total, never silently zeroed.
+  Enforced by ingest_tests codex_session_names_unpriced_models and
+  the golden corpus (golden_tests golden_agent_run_codex_scene).
+
+## HTML export (telorama-svg standalone_html)
+
+- INV-39. The standalone HTML export is deterministic and carries
+  the byte-identical SVG. It contains no scripts and no external
+  references, so the file renders the same offline, anywhere.
+  Enforced by golden_tests
+  html_export_wraps_the_svg_without_external_references and
+  cli_tests render_html_writes_a_standalone_document.
+
+## MCP server and view (telorama-mcp)
+
+- INV-40. The render tool returns the triple output contract:
+  concise text for the model and text-only hosts, compact
+  structuredContent whose figures come from the same derive
+  functions the renderer uses, and the SVG in _meta for the view.
+  The SVG never enters model context.
+  Enforced by mcp_tests render_scene_returns_the_triple_contract
+  (the _meta payload is the byte-identical golden render).
+- INV-41. The render tool's definition links the scene view
+  resource, and the view is a self-contained MCP Apps document: it
+  opens the bridge handshake, renders only the SVG a tool result
+  delivers in its _meta, and fetches nothing.
+  Enforced by mcp_tests tools_list_links_the_view_and_hides_the_drilldown
+  and mcp_tests resources_read_returns_the_app_view.
+- INV-42. The panel drill-down tool is app-only: its definition
+  carries visibility ["app"], so hosts keep it from the model, and
+  its detail is derived by the same functions as the render
+  summaries, so the view and the picture never disagree.
+  Enforced by mcp_tests tools_list_links_the_view_and_hides_the_drilldown
+  and mcp_tests panel_detail_drills_into_one_panel.
