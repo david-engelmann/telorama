@@ -273,3 +273,85 @@ fn codex_session_needs_exactly_one_conversation() {
     let none = telorama_ingest::parse_codex_session("{}", &[]).unwrap_err();
     assert!(none.message.contains("conversation.id"), "{none}");
 }
+
+#[test]
+fn genai_session_maps_spans_to_a_run() {
+    use telorama_scene::AgentStep;
+    let spans = telorama_ingest::parse_otlp_traces(&fixture_text(
+        "tests/fixtures/agents/genai-session-spans.json",
+    ))
+    .expect("genai fixture must parse");
+    let run = telorama_ingest::parse_genai_session(&spans).expect("spans must adapt");
+    assert_eq!(run.session_id, "conv-genai-demo");
+    assert_eq!(run.dialect, "genai");
+    assert_eq!(run.turns.len(), 1);
+    assert_eq!(run.coverage.log_events, 0);
+    assert_eq!(run.coverage.spans_seen, 6);
+    assert_eq!(run.coverage.spans_merged, 6);
+    let pricing = run.pricing.as_ref().expect("span runs are priced");
+    assert_eq!(pricing.priced_models, vec!["gpt-5.1".to_string()]);
+    assert!(pricing.unpriced_models.is_empty());
+
+    let turn = &run.turns[0];
+    assert_eq!(turn.steps.len(), 4);
+    // Gross input 5000 with 2000 cached enters as 3000, and the
+    // subagent's call counts in the turn totals, as in every dialect.
+    assert_eq!(turn.input_tokens, 6200);
+    assert_eq!(turn.output_tokens, 1500);
+    assert_eq!(turn.cache_read_tokens, 3000);
+    assert!(
+        (turn.cost_usd - 0.023125).abs() < 1e-9,
+        "{}",
+        turn.cost_usd
+    );
+    let AgentStep::ToolCall(tool) = &turn.steps[1] else {
+        panic!("step 2 must be the web_search tool call");
+    };
+    assert_eq!(tool.name, "web_search");
+    let AgentStep::Subagent(sub) = &turn.steps[2] else {
+        panic!("step 3 must be the researcher subagent");
+    };
+    assert_eq!(sub.agent_id, "agent-researcher");
+    assert_eq!(sub.steps.len(), 1);
+}
+
+#[test]
+fn genai_session_refuses_two_conversations() {
+    let spans = telorama_ingest::parse_otlp_traces(&fixture_text(
+        "tests/fixtures/agents/genai-session-spans.json",
+    ))
+    .expect("genai fixture must parse");
+    let mut two = spans.clone();
+    for span in two.iter_mut().filter(|s| s.span_id == "00000000000000a4") {
+        span.attributes.insert(
+            "gen_ai.conversation.id".to_string(),
+            "conv-other".to_string(),
+        );
+    }
+    let err = telorama_ingest::parse_genai_session(&two).unwrap_err();
+    assert!(err.message.contains("2 sessions"), "{err}");
+}
+
+#[test]
+fn openinference_session_maps_span_kinds() {
+    use telorama_scene::AgentStep;
+    let spans = telorama_ingest::parse_otlp_traces(&fixture_text(
+        "tests/fixtures/agents/openinference-session-spans.json",
+    ))
+    .expect("openinference fixture must parse");
+    let run = telorama_ingest::parse_openinference_session(&spans).expect("spans must adapt");
+    assert_eq!(run.session_id, "sess-oi-demo");
+    assert_eq!(run.dialect, "openinference");
+    assert_eq!(run.coverage.spans_seen, 5);
+    let turn = &run.turns[0];
+    // The CHAIN span is structure: its LLM child lifts into the turn.
+    assert_eq!(turn.steps.len(), 3);
+    assert_eq!(turn.input_tokens, 2900);
+    assert_eq!(turn.output_tokens, 570);
+    assert_eq!(turn.cache_read_tokens, 600);
+    assert!((turn.cost_usd - 0.0094).abs() < 1e-9, "{}", turn.cost_usd);
+    let AgentStep::ToolCall(tool) = &turn.steps[1] else {
+        panic!("step 2 must be the calculator tool call");
+    };
+    assert_eq!(tool.name, "calculator");
+}

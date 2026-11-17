@@ -733,10 +733,12 @@ fn render_agent_run(
         ),
     );
     *y += 15.0;
-    let authority = if run.pricing.is_some() {
-        "tokens come from log events, spans counted but not merged in this dialect"
-    } else {
-        "waits and subagents come from spans, tokens and cost from logs"
+    let authority = match run.dialect.as_str() {
+        "codex" => "tokens come from log events, spans counted but not merged in this dialect",
+        "genai" | "openinference" => {
+            "tokens and structure come from span attributes in this dialect"
+        }
+        _ => "waits and subagents come from spans, tokens and cost from logs",
     };
     text(
         prims,

@@ -8,6 +8,8 @@
 
 pub mod claude_code;
 pub mod codex;
+mod pricing;
+pub mod span_dialects;
 pub(crate) mod events;
 
 use serde::Deserialize;
@@ -17,6 +19,7 @@ use telorama_scene::{Span, SpanKind, StackSample};
 
 pub use claude_code::parse_claude_code_session;
 pub use codex::parse_codex_session;
+pub use span_dialects::{parse_genai_session, parse_openinference_session};
 
 /// An ingest failure with a message specific enough to act on.
 #[derive(Debug, Clone, PartialEq, Eq)]

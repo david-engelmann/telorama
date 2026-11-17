@@ -229,3 +229,22 @@ fn render_html_writes_a_standalone_document() {
     assert!(written.contains("<svg"));
     assert!(!written.contains("<script"));
 }
+
+#[test]
+fn session_with_genai_dialect_reads_spans() {
+    let spans = workspace_file("tests/fixtures/agents/genai-session-spans.json");
+    let out = telorama(&[
+        "session",
+        "--spans",
+        spans.to_str().expect("path is utf8"),
+        "--dialect",
+        "genai",
+    ]);
+    assert!(out.status.success(), "stderr: {}", stderr(&out));
+    let text = stdout(&out);
+    assert!(text.contains("\"dialect\": \"genai\""), "{text}");
+    assert!(
+        text.contains("\"session_id\": \"conv-genai-demo\""),
+        "{text}"
+    );
+}

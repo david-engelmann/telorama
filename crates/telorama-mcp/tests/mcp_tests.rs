@@ -204,3 +204,21 @@ fn panel_detail_drills_into_one_panel() {
     );
     assert_eq!(out_of_range["isError"], true);
 }
+
+#[test]
+fn session_run_tool_maps_genai_spans() {
+    let result = call_tool(
+        10,
+        "session_run",
+        json!({"spans": workspace_file("tests/fixtures/agents/genai-session-spans.json"), "dialect": "genai"}),
+    );
+    assert_eq!(result["isError"], false);
+    assert_eq!(result["structuredContent"]["dialect"], "genai");
+    assert_eq!(
+        result["structuredContent"]["session_id"],
+        "conv-genai-demo"
+    );
+    let text = result["content"][0]["text"].as_str().expect("text");
+    assert!(text.contains("conv-genai-demo"), "{text}");
+    assert!(text.contains("estimate"), "{text}");
+}

@@ -369,3 +369,26 @@ fn golden_agent_run_codex_unpriced_scene() {
     .expect("unpriced scene must render");
     assert_golden("agent_run_codex_unpriced_scene.svg", &svg);
 }
+
+#[test]
+fn golden_agent_run_genai_scene() {
+    let scene = telorama_scene::parse_scene(&workspace_file(
+        "tests/fixtures/scenes/agent_run_genai_scene.json",
+    ))
+    .expect("genai scene must validate");
+    let spans = telorama_ingest::parse_otlp_traces(&workspace_file(
+        "tests/fixtures/agents/genai-session-spans.json",
+    ))
+    .expect("genai fixture must parse");
+    let run = telorama_ingest::parse_genai_session(&spans).expect("spans must adapt");
+    let svg = telorama_svg::render_scene_with_data(
+        &scene,
+        &telorama_svg::SceneData {
+            spans: &spans,
+            stacks: &[],
+            agent_run: Some(&run),
+        },
+    )
+    .expect("genai scene must render");
+    assert_golden("agent_run_genai_scene.svg", &svg);
+}

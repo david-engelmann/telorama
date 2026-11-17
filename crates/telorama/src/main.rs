@@ -10,7 +10,7 @@
 use std::process::ExitCode;
 
 fn usage() -> &'static str {
-    "usage:\n  telorama inspect <traces.json>\n  telorama validate <scene.json>\n  telorama render --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] --out <scene.svg>\n  telorama render-html --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] --out <scene.html>\n  telorama session --logs <logs.json> [--spans <spans.json>] [--dialect <dialect>]\n  telorama schema"
+    "usage:\n  telorama inspect <traces.json>\n  telorama validate <scene.json>\n  telorama render --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] --out <scene.svg>\n  telorama render-html --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] --out <scene.html>\n  telorama session [--logs <logs.json>] [--spans <spans.json>] [--dialect <dialect>]\n  telorama schema"
 }
 
 fn read_file(path: &str) -> Result<String, String> {
@@ -84,7 +84,7 @@ const RENDER_FLAGS: [&str; 7] = [
 
 /// Build an agent run from a session export in the named dialect.
 fn parse_session(
-    logs_path: &str,
+    logs_path: Option<&str>,
     spans_path: Option<&str>,
     dialect: &str,
 ) -> Result<telorama_scene::AgentRun, String> {
@@ -94,14 +94,31 @@ fn parse_session(
         }
         None => Vec::new(),
     };
-    let logs = read_file(logs_path)?;
     match dialect {
-        "claude_code" => {
-            telorama_ingest::parse_claude_code_session(&logs, &spans).map_err(|e| e.to_string())
+        "genai" | "openinference" => {
+            if spans_path.is_none() {
+                return Err(format!("session --dialect {dialect} needs --spans"));
+            }
+            match dialect {
+                "genai" => telorama_ingest::parse_genai_session(&spans).map_err(|e| e.to_string()),
+                _ => telorama_ingest::parse_openinference_session(&spans)
+                    .map_err(|e| e.to_string()),
+            }
         }
-        "codex" => telorama_ingest::parse_codex_session(&logs, &spans).map_err(|e| e.to_string()),
+        "claude_code" | "codex" => {
+            let Some(path) = logs_path else {
+                return Err("session needs --logs for the log dialects".to_string());
+            };
+            let logs = read_file(path)?;
+            match dialect {
+                "claude_code" => telorama_ingest::parse_claude_code_session(&logs, &spans)
+                    .map_err(|e| e.to_string()),
+                _ => telorama_ingest::parse_codex_session(&logs, &spans)
+                    .map_err(|e| e.to_string()),
+            }
+        }
         other => Err(format!(
-            "unknown dialect {other:?}: expected claude_code or codex"
+            "unknown dialect {other:?}: expected claude_code, codex, genai, or openinference"
         )),
     }
 }
@@ -150,13 +167,16 @@ fn cmd_render_like(args: &[String], html: bool) -> Result<String, String> {
         }
         None => Vec::new(),
     };
-    let run = match flag(args, "--session-logs")? {
-        Some(path) => Some(parse_session(
-            path,
-            flag(args, "--session-spans")?,
+    let logs_flag = flag(args, "--session-logs")?;
+    let spans_flag = flag(args, "--session-spans")?;
+    let run = if logs_flag.is_some() || spans_flag.is_some() {
+        Some(parse_session(
+            logs_flag,
+            spans_flag,
             flag(args, "--dialect")?.unwrap_or("claude_code"),
-        )?),
-        None => None,
+        )?)
+    } else {
+        None
     };
     let data = telorama_svg::SceneData {
         spans: &spans,
@@ -188,11 +208,8 @@ fn cmd_session(args: &[String]) -> Result<String, String> {
             }
         }
     }
-    let Some(logs_path) = flag(args, "--logs")? else {
-        return Err(format!("session needs --logs\n{}", usage()));
-    };
     let run = parse_session(
-        logs_path,
+        flag(args, "--logs")?,
         flag(args, "--spans")?,
         flag(args, "--dialect")?.unwrap_or("claude_code"),
     )?;

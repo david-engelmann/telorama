@@ -148,7 +148,7 @@ fn tool_definitions() -> Value {
         "profile": {"type": "string", "description": "Folded-stack profile text for flame panels"},
         "session_logs": {"type": "string", "description": "OTLP log export text for agent_run panels"},
         "session_spans": {"type": "string", "description": "OTLP trace export text to fuse into the session"},
-        "dialect": {"type": "string", "enum": ["claude_code", "codex"], "description": "Session dialect, default claude_code"}
+        "dialect": {"type": "string", "enum": ["claude_code", "codex", "genai", "openinference"], "description": "Session dialect, default claude_code. The genai and openinference dialects read session_spans."}
     });
     let mut render_props = json!({
         "scene": {"type": "string", "description": "The scene spec JSON text"}
@@ -192,15 +192,15 @@ fn tool_definitions() -> Value {
         },
         {
             "name": "session_run",
-            "description": "Adapt an agent session export (Claude Code or Codex OTLP logs) into the canonical run model and return it as JSON.",
+            "description": "Adapt an agent session export into the canonical run model and return it as JSON. Claude Code and Codex read OTLP logs; the GenAI and OpenInference dialects read OTLP spans.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "logs": {"type": "string", "description": "OTLP log export text"},
-                    "spans": {"type": "string", "description": "OTLP trace export text to fuse, Claude Code dialect only"},
-                    "dialect": {"type": "string", "enum": ["claude_code", "codex"]}
+                    "spans": {"type": "string", "description": "OTLP trace export text: fusion input for the Claude Code dialect, the session itself for the span dialects"},
+                    "dialect": {"type": "string", "enum": ["claude_code", "codex", "genai", "openinference"]}
                 },
-                "required": ["logs"]
+                "required": []
             }
         },
         {
@@ -238,7 +238,24 @@ fn build_inputs(args: &Value) -> Result<Inputs, String> {
     };
     let run = match arg_str(args, "session_logs") {
         Some(text) => Some(parse_session(text, arg_str(args, "session_spans"), args)?),
-        None => None,
+        None => match (
+            arg_str(args, "dialect").unwrap_or("claude_code"),
+            arg_str(args, "session_spans"),
+        ) {
+            ("genai", Some(text)) => Some(
+                telorama_ingest::parse_genai_session(
+                    &telorama_ingest::parse_otlp_traces(text).map_err(|e| e.to_string())?,
+                )
+                .map_err(|e| e.to_string())?,
+            ),
+            ("openinference", Some(text)) => Some(
+                telorama_ingest::parse_openinference_session(
+                    &telorama_ingest::parse_otlp_traces(text).map_err(|e| e.to_string())?,
+                )
+                .map_err(|e| e.to_string())?,
+            ),
+            _ => None,
+        },
     };
     Ok(Inputs { spans, stacks, run })
 }
@@ -406,10 +423,29 @@ fn fmt_cost(value: f64) -> String {
 }
 
 fn tool_session(args: &Value) -> Value {
-    let Some(logs) = arg_str(args, "logs") else {
-        return tool_error("missing required argument: logs");
+    let dialect = arg_str(args, "dialect").unwrap_or("claude_code");
+    let adapted = match dialect {
+        "genai" | "openinference" => {
+            let Some(spans_text) = arg_str(args, "spans") else {
+                return tool_error("missing required argument: spans (span dialects read spans)");
+            };
+            match telorama_ingest::parse_otlp_traces(spans_text) {
+                Ok(spans) => match dialect {
+                    "genai" => telorama_ingest::parse_genai_session(&spans),
+                    _ => telorama_ingest::parse_openinference_session(&spans),
+                }
+                .map_err(|e| e.to_string()),
+                Err(e) => Err(e.to_string()),
+            }
+        }
+        _ => {
+            let Some(logs) = arg_str(args, "logs") else {
+                return tool_error("missing required argument: logs");
+            };
+            parse_session(logs, arg_str(args, "spans"), args)
+        }
     };
-    let run = match parse_session(logs, arg_str(args, "spans"), args) {
+    let run = match adapted {
         Ok(r) => r,
         Err(m) => return tool_error(&m),
     };
