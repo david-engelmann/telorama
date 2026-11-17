@@ -335,7 +335,10 @@ fn html_export_wraps_the_svg_without_external_references() {
     assert!(html.contains("<title>Checkout trace 4bf92f35</title>"));
     let svg = telorama_svg::render_scene(&scene, &spans).expect("svg must render");
     assert!(html.contains(&svg), "the document carries the SVG itself");
-    assert!(!html.contains("<script"), "no scripts in a standalone export");
+    assert!(
+        !html.contains("<script"),
+        "no scripts in a standalone export"
+    );
     assert!(!html.contains("href="), "no external links");
     assert!(!html.contains("src="), "no external assets");
 }
