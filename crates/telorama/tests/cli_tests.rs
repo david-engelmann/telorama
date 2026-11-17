@@ -274,3 +274,37 @@ fn incident_composes_a_scene_from_the_checkout_fixture() {
     assert!(text.contains("\"type\": \"service_map\""), "{text}");
     assert!(text.contains("\"type\": \"heatmap\""), "{text}");
 }
+
+#[test]
+fn plugin_packaging_is_wellformed() {
+    let manifest_text = std::fs::read_to_string(workspace_file("plugin/.claude-plugin/plugin.json"))
+        .expect("plugin manifest must read");
+    let manifest: serde_json::Value =
+        serde_json::from_str(&manifest_text).expect("plugin manifest must parse");
+    assert_eq!(manifest["name"], "telorama");
+    assert_eq!(manifest["version"], "0.1.0");
+    let mcp_text =
+        std::fs::read_to_string(workspace_file("plugin/.mcp.json")).expect("mcp config must read");
+    let mcp: serde_json::Value = serde_json::from_str(&mcp_text).expect("mcp config must parse");
+    assert_eq!(mcp["mcpServers"]["telorama"]["command"], "telorama-mcp");
+    let skill = std::fs::read_to_string(workspace_file("plugin/skills/telorama/SKILL.md"))
+        .expect("skill must read");
+    assert!(
+        skill.starts_with("---\nname: telorama\n"),
+        "the skill opens with its frontmatter"
+    );
+    for needle in [
+        "validate_scene",
+        "inspect_traces",
+        "render_scene",
+        "session_run",
+        "incident_scene",
+        "scene_panel_detail",
+        "Claude Code",
+        "Codex",
+        "GenAI",
+        "OpenInference",
+    ] {
+        assert!(skill.contains(needle), "the skill must mention {needle}");
+    }
+}
