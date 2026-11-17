@@ -13,8 +13,8 @@ pub mod trace;
 pub mod validate;
 
 pub use derive::{
-    RedStats, WaterfallRow, content_hash, critical_path, percentile_nanos, red_by_service,
-    waterfall_rows,
+    Exemplar, HeatmapGrid, HeatmapRow, RedStats, WaterfallRow, content_hash, critical_path,
+    heatmap_grid, percentile_nanos, red_by_service, waterfall_rows,
 };
 pub use field::{
     ThresholdStep, Thresholds, format_bytes, format_duration_nanos, format_number, format_ratio,

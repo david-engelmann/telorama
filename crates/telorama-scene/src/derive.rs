@@ -255,3 +255,130 @@ pub fn content_hash(bytes: &[u8]) -> String {
     }
     format!("{hash:016x}")
 }
+
+/// One row of a latency heatmap: the spans whose duration falls in the
+/// band ending at this row's edge, counted per time column.
+#[derive(Debug, Clone, PartialEq)]
+pub struct HeatmapRow {
+    /// Upper bucket edge in seconds; `None` is the overflow row above
+    /// the highest declared edge.
+    pub upper_edge_seconds: Option<f64>,
+    pub counts: Vec<u64>,
+    pub total: u64,
+}
+
+/// A real span from the rendered set, named as the exemplar of the
+/// busiest cell: the correlation link from a bucket back to one trace
+/// that actually happened.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Exemplar {
+    pub trace_id: String,
+    pub span_id: String,
+    pub service: String,
+    pub name: String,
+    pub duration_nanos: i64,
+    pub row: usize,
+    pub col: usize,
+}
+
+/// The derived heatmap grid over a span set.
+#[derive(Debug, Clone, PartialEq)]
+pub struct HeatmapGrid {
+    /// Rows in ascending bucket order: row 0 is the lowest band and the
+    /// last row is the overflow row.
+    pub rows: Vec<HeatmapRow>,
+    pub columns: usize,
+    pub max_count: u64,
+    pub outside_window: usize,
+    pub exemplar: Option<Exemplar>,
+}
+
+/// Bucket spans by duration against declared edges and by start time
+/// across the window.
+///
+/// A span lands in the first bucket whose edge is at or above its
+/// duration in seconds (the Prometheus `le` convention), or in the
+/// overflow row when it exceeds every edge. Columns are equal divisions
+/// of the window by span start. Spans starting outside the window are
+/// excluded and counted, never silently dropped. The exemplar is the
+/// longest span in the busiest cell, scanning rows in ascending bucket
+/// order and columns left to right, with span id as the final
+/// tie-break: a stated rule, reproducible from the data alone.
+pub fn heatmap_grid(
+    spans: &[Span],
+    range: crate::spec::TimeRange,
+    edges_seconds: &[f64],
+    columns: usize,
+) -> HeatmapGrid {
+    let columns = columns.max(1);
+    let row_count = edges_seconds.len() + 1;
+    let mut counts = vec![vec![0u64; columns]; row_count];
+    let from_nano = range.from_unix_ms * 1_000_000;
+    let window_nano = (range.to_unix_ms - range.from_unix_ms).max(1) * 1_000_000;
+    let mut outside_window = 0usize;
+    // The longest span seen per cell, the exemplar candidates.
+    let mut best: BTreeMap<(usize, usize), &Span> = BTreeMap::new();
+    let mut sorted: Vec<&Span> = spans.iter().collect();
+    sorted.sort_by(|a, b| a.span_id.cmp(&b.span_id));
+    for span in sorted {
+        if span.start_unix_nano < from_nano || span.start_unix_nano >= from_nano + window_nano {
+            outside_window += 1;
+            continue;
+        }
+        let col = (((span.start_unix_nano - from_nano) * columns as i64) / window_nano) as usize;
+        let col = col.min(columns - 1);
+        let duration_seconds = span.duration_nanos() as f64 / 1_000_000_000.0;
+        let row = edges_seconds
+            .iter()
+            .position(|edge| duration_seconds <= *edge)
+            .unwrap_or(edges_seconds.len());
+        counts[row][col] += 1;
+        let entry = best.entry((row, col)).or_insert(span);
+        if span.duration_nanos() > entry.duration_nanos() {
+            *entry = span;
+        }
+    }
+    let mut rows: Vec<HeatmapRow> = Vec::with_capacity(row_count);
+    let mut max_count = 0u64;
+    for (r, row_counts) in counts.iter().enumerate() {
+        let total: u64 = row_counts.iter().sum();
+        if let Some(m) = row_counts.iter().max() {
+            max_count = max_count.max(*m);
+        }
+        rows.push(HeatmapRow {
+            upper_edge_seconds: edges_seconds.get(r).copied(),
+            counts: row_counts.clone(),
+            total,
+        });
+    }
+    let exemplar = if max_count == 0 {
+        None
+    } else {
+        let mut found = None;
+        'scan: for r in 0..row_count {
+            for c in 0..columns {
+                if counts[r][c] == max_count {
+                    let span = best[&(r, c)];
+                    found = Some(Exemplar {
+                        trace_id: span.trace_id.clone(),
+                        span_id: span.span_id.clone(),
+                        service: span.service.clone(),
+                        name: span.name.clone(),
+                        duration_nanos: span.duration_nanos(),
+                        row: r,
+                        col: c,
+                    });
+                    break 'scan;
+                }
+            }
+        }
+        found
+    };
+    HeatmapGrid {
+        rows,
+        columns,
+        max_count,
+        outside_window,
+        exemplar,
+    }
+}

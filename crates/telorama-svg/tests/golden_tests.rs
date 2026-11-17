@@ -51,6 +51,15 @@ fn golden_api_scene() {
 }
 
 #[test]
+fn golden_heatmap_scene() {
+    golden(
+        "heatmap_scene.svg",
+        "heatmap_scene.json",
+        "otel-demo-checkout.json",
+    );
+}
+
+#[test]
 fn rendering_is_byte_identical_across_runs_and_input_orders() {
     let (scene, spans) = load("checkout_scene.json", "otel-demo-checkout.json");
     let first = telorama_svg::render_scene(&scene, &spans).unwrap();

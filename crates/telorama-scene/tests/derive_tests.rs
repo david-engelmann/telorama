@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use telorama_scene::{
-    Span, SpanKind, critical_path, percentile_nanos, red_by_service, waterfall_rows,
+    Span, SpanKind, TimeRange, critical_path, heatmap_grid, percentile_nanos, red_by_service,
+    waterfall_rows,
 };
 
 fn ms(v: i64) -> i64 {
@@ -185,4 +186,41 @@ fn derivations_do_not_depend_on_input_order() {
     spans.reverse();
     assert_eq!(rows_a, waterfall_rows(&spans, "t1"));
     assert_eq!(path_a, critical_path(&spans, "t1"));
+}
+
+#[test]
+fn heatmap_buckets_by_duration_and_start() {
+    let spans = checkout_spans();
+    let range = TimeRange {
+        from_unix_ms: 0,
+        to_unix_ms: 1000,
+    };
+    let grid = heatmap_grid(&spans, range, &[0.01, 0.05, 0.1, 0.25, 0.5], 24);
+    let totals: Vec<u64> = grid.rows.iter().map(|r| r.total).collect();
+    // Bands bottom-up: (0,10ms], (10,50ms], (50,100ms], (100,250ms],
+    // (250,500ms], overflow. The 13, 20, and 40 ms spans share the
+    // second band; the two payment spans and shipping share the fourth.
+    assert_eq!(totals, vec![0, 3, 1, 3, 2, 0]);
+    assert_eq!(grid.max_count, 2);
+    assert_eq!(grid.outside_window, 0);
+    // Two cells tie at two spans; the lower band wins the scan, and in
+    // it the 174 ms client span beats the 170 ms server span.
+    let exemplar = grid.exemplar.expect("a busy grid has an exemplar");
+    assert_eq!(exemplar.span_id, "05");
+    assert_eq!(exemplar.duration_nanos, ms(174));
+    assert_eq!((exemplar.row, exemplar.col), (3, 2));
+}
+
+#[test]
+fn heatmap_counts_spans_outside_the_window() {
+    let spans = checkout_spans();
+    let range = TimeRange {
+        from_unix_ms: 100,
+        to_unix_ms: 200,
+    };
+    let grid = heatmap_grid(&spans, range, &[0.01, 0.05, 0.1, 0.25, 0.5], 24);
+    // Only the inventory span starts inside [100, 200).
+    assert_eq!(grid.outside_window, 8);
+    let total: u64 = grid.rows.iter().map(|r| r.total).sum();
+    assert_eq!(total, 1);
 }

@@ -104,6 +104,26 @@ later milestones are marked as validator-side.
   (golden_tests golden_checkout_scene), which records the rendered
   result byte for byte.
 
+## Heatmap (telorama-scene derive.rs, telorama-svg)
+
+- INV-27. Heatmap bucketing is the Prometheus `le` rule over the
+  declared edges: a span lands in the first bucket whose edge is at or
+  above its duration, or in the overflow row above the top edge. Rows
+  are the declared buckets and nothing else; no surface is
+  interpolated.
+  Enforced by derive_tests heatmap_buckets_by_duration_and_start.
+- INV-28. The heatmap exemplar is a real span from the rendered set,
+  chosen by a stated rule (the longest span in the busiest cell, rows
+  scanned in ascending bucket order, columns left to right, span id as
+  tie-break), and it is named in the render with its trace id. An
+  exemplar is never invented.
+  Enforced by derive_tests heatmap_buckets_by_duration_and_start and
+  the golden corpus (golden_tests golden_heatmap_scene).
+- INV-29. Spans starting outside the scene window are excluded from
+  the grid and counted; the render states the count when it is not
+  zero. Nothing is silently dropped.
+  Enforced by derive_tests heatmap_counts_spans_outside_the_window.
+
 ## Field system (telorama-scene, field.rs)
 
 - INV-24. One formatting language. Every value a scene prints passes

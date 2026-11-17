@@ -12,7 +12,7 @@
 use std::collections::BTreeMap;
 use std::fmt;
 use telorama_scene::{
-    Panel, Scene, Span, StatKind, Thresholds, Unit, critical_path, percentile_nanos,
+    Panel, Scene, Span, StatKind, Thresholds, Unit, critical_path, heatmap_grid, percentile_nanos,
     red_by_service, waterfall_rows,
 };
 
@@ -482,6 +482,244 @@ fn render_waterfall(
     Ok(())
 }
 
+/// The band a heatmap row covers, in words: "up to 10 ms", "10 ms to
+/// 50 ms", "over 500 ms".
+fn band_label(edges: &[f64], row: usize) -> String {
+    let fmt_edge = |s: f64| fmt_duration((s * 1_000_000_000.0).round() as i64);
+    match edges.get(row) {
+        Some(upper) if row == 0 => format!("up to {}", fmt_edge(*upper)),
+        Some(upper) => format!("{} to {}", fmt_edge(edges[row - 1]), fmt_edge(*upper)),
+        None => format!("over {}", fmt_edge(edges[edges.len() - 1])),
+    }
+}
+
+/// Cell shading for a count, in four steps up to the busiest cell.
+/// The full step returns no opacity (solid); an empty cell is drawn by
+/// the caller in the empty grey, never by this function.
+fn cell_shade(count: u64, max: u64) -> Option<f64> {
+    if count == 0 || max == 0 {
+        return None;
+    }
+    let frac = count as f64 / max as f64;
+    if frac <= 0.25 {
+        Some(0.35)
+    } else if frac <= 0.5 {
+        Some(0.55)
+    } else if frac <= 0.75 {
+        Some(0.8)
+    } else {
+        None
+    }
+}
+
+fn render_heatmap(
+    scene: &Scene,
+    spans: &[Span],
+    panel: &Panel,
+    prims: &mut Vec<Prim>,
+    y: &mut f64,
+) -> Result<(), RenderError> {
+    let Panel::Heatmap { data, unit } = panel else {
+        return Err(fail("render_heatmap called on a non-heatmap panel"));
+    };
+    if *unit != Unit::Duration {
+        return Err(fail(
+            "heatmap over spans needs unit duration: other units land with their data sources",
+        ));
+    }
+    let entry = scene
+        .data
+        .iter()
+        .find(|d| d.id == *data)
+        .ok_or_else(|| fail(format!("heatmap reads undeclared data id {data:?}")))?;
+    let edges = entry
+        .source
+        .buckets
+        .clone()
+        .ok_or_else(|| fail("heatmap data entry declares no bucket edges"))?;
+    if edges.len() < 2 {
+        return Err(fail("heatmap bucket edges need at least two edges"));
+    }
+    let set_owned: Vec<Span> = dataset(scene, spans, data).into_iter().cloned().collect();
+    let grid = heatmap_grid(&set_owned, scene.context.range, &edges, 24);
+
+    let plot_x0 = 200.0;
+    let plot_x1 = WIDTH - MARGIN;
+    let col_w = (plot_x1 - plot_x0) / grid.columns as f64;
+    let window_nano = (scene.context.range.to_unix_ms - scene.context.range.from_unix_ms) as f64
+        * 1_000_000.0;
+
+    // Time axis, the same five ticks the waterfall uses.
+    let axis_y = *y + 4.0;
+    prims.push(Prim::Line {
+        x1: plot_x0,
+        y1: axis_y,
+        x2: plot_x1,
+        y2: axis_y,
+        stroke: "#CCCCCC".to_string(),
+        width: 1.0,
+    });
+    for step in 0..=4 {
+        let frac = f64::from(step) / 4.0;
+        let tx = plot_x0 + frac * (plot_x1 - plot_x0);
+        prims.push(Prim::Line {
+            x1: tx,
+            y1: axis_y,
+            x2: tx,
+            y2: axis_y + 4.0,
+            stroke: "#CCCCCC".to_string(),
+            width: 1.0,
+        });
+        prims.push(Prim::Text {
+            x: tx,
+            y: axis_y - 4.0,
+            size: 10.0,
+            fill: MUTED.to_string(),
+            bold: false,
+            mono: false,
+            anchor: "middle",
+            content: fmt_duration((frac * window_nano) as i64),
+        });
+    }
+    *y += 22.0;
+
+    // Grid rows, highest band at the top.
+    let row_h = 15.0;
+    let row_count = grid.rows.len();
+    for display in 0..row_count {
+        let r = row_count - 1 - display;
+        let row = &grid.rows[r];
+        let label = match row.upper_edge_seconds {
+            Some(e) => fmt_duration((e * 1_000_000_000.0).round() as i64),
+            None => "+Inf".to_string(),
+        };
+        prims.push(Prim::Text {
+            x: plot_x0 - 8.0,
+            y: *y + 11.0,
+            size: 11.0,
+            fill: MUTED.to_string(),
+            bold: false,
+            mono: false,
+            anchor: "end",
+            content: label,
+        });
+        for (c, count) in row.counts.iter().enumerate() {
+            let is_exemplar = grid
+                .exemplar
+                .as_ref()
+                .is_some_and(|e| e.row == r && e.col == c);
+            let (fill, opacity) = if *count == 0 {
+                ("#F2F2F2".to_string(), None)
+            } else {
+                ("#56B4E9".to_string(), cell_shade(*count, grid.max_count))
+            };
+            prims.push(Prim::Rect {
+                x: plot_x0 + c as f64 * col_w + 0.5,
+                y: *y,
+                w: col_w - 1.0,
+                h: row_h - 2.0,
+                fill,
+                opacity,
+                stroke: if is_exemplar {
+                    Some((ERROR_COLOR.to_string(), 1.5))
+                } else {
+                    None
+                },
+            });
+        }
+        *y += row_h;
+    }
+
+    // Legend table: one line per band with its total, then the shading
+    // rule, then the exemplar, then anything the window excluded.
+    *y += 6.0;
+    for r in (0..row_count).rev() {
+        let row = &grid.rows[r];
+        let noun = if row.total == 1 { "span" } else { "spans" };
+        text(
+            prims,
+            MARGIN,
+            *y + 12.0,
+            11.0,
+            MUTED,
+            false,
+            false,
+            format!("{} · {} {}", band_label(&edges, r), row.total, noun),
+        );
+        *y += 15.0;
+    }
+    if grid.max_count == 0 {
+        text(
+            prims,
+            MARGIN,
+            *y + 12.0,
+            11.0,
+            MUTED,
+            false,
+            false,
+            "No spans fell in the window.".to_string(),
+        );
+        *y += 15.0;
+    } else {
+        text(
+            prims,
+            MARGIN,
+            *y + 12.0,
+            11.0,
+            MUTED,
+            false,
+            false,
+            format!(
+                "Cell shading is the span count in the cell, in four steps up to the busiest cell at {}.",
+                grid.max_count
+            ),
+        );
+        *y += 15.0;
+    }
+    if let Some(exemplar) = &grid.exemplar {
+        text(
+            prims,
+            MARGIN,
+            *y + 12.0,
+            11.0,
+            MUTED,
+            false,
+            false,
+            format!(
+                "Exemplar trace {} · {} {} · {} · the longest span in the busiest cell, outlined in the grid.",
+                exemplar.trace_id,
+                exemplar.service,
+                exemplar.name,
+                fmt_duration(exemplar.duration_nanos)
+            ),
+        );
+        *y += 15.0;
+    }
+    if grid.outside_window > 0 {
+        let noun = if grid.outside_window == 1 {
+            "span"
+        } else {
+            "spans"
+        };
+        text(
+            prims,
+            MARGIN,
+            *y + 12.0,
+            11.0,
+            MUTED,
+            false,
+            false,
+            format!(
+                "{} {} started outside the window and are not in the grid.",
+                grid.outside_window, noun
+            ),
+        );
+        *y += 15.0;
+    }
+    *y += 7.0;
+    Ok(())
+}
+
 fn render_stat(
     scene: &Scene,
     spans: &[Span],
@@ -784,6 +1022,7 @@ pub fn render_scene(scene: &Scene, spans: &[Span]) -> Result<String, RenderError
             Panel::Waterfall { .. } => "Waterfall",
             Panel::Stat { .. } => "Stat",
             Panel::RedRow { .. } => "Rate, errors, duration by service",
+            Panel::Heatmap { .. } => "Latency heatmap",
             other => {
                 return Err(fail(format!(
                     "panel type {} is in the spec but has no renderer yet: it lands in a later milestone",
@@ -810,6 +1049,7 @@ pub fn render_scene(scene: &Scene, spans: &[Span]) -> Result<String, RenderError
             )?,
             Panel::Stat { .. } => render_stat(scene, spans, panel, &mut prims, &mut y)?,
             Panel::RedRow { .. } => render_red_row(scene, spans, panel, &mut prims, &mut y)?,
+            Panel::Heatmap { .. } => render_heatmap(scene, spans, panel, &mut prims, &mut y)?,
             _ => unreachable!("heading match already returned for unsupported panels"),
         }
     }
