@@ -101,3 +101,82 @@ fn schema_command_prints_the_scene_schema() {
         "got:\n{text}"
     );
 }
+
+#[test]
+fn session_prints_the_run_as_json() {
+    let logs = workspace_file("tests/fixtures/agents/claude-code-session-logs.json");
+    let spans = workspace_file("tests/fixtures/agents/claude-code-session-spans.json");
+    let out = telorama(&[
+        "session",
+        "--logs",
+        logs.to_str().unwrap(),
+        "--spans",
+        spans.to_str().unwrap(),
+    ]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let text = stdout(&out);
+    assert!(
+        text.contains("\"session_id\": \"sess-2026-1116-demo\""),
+        "got:\n{text}"
+    );
+    assert!(text.contains("\"wait_nanos\": 1200000000"), "got:\n{text}");
+    assert!(text.contains("\"agent_id\": \"agent-7\""), "got:\n{text}");
+    assert!(text.contains("\"spans_merged\": 2"), "got:\n{text}");
+}
+
+#[test]
+fn render_flame_scene_from_a_profile() {
+    let scene = workspace_file("tests/fixtures/scenes/flame_scene.json");
+    let profile = workspace_file("tests/fixtures/profiles/checkout-cpu.txt");
+    let out_path = std::env::temp_dir().join("telorama-cli-flame.svg");
+    let out = telorama(&[
+        "render",
+        "--scene",
+        scene.to_str().unwrap(),
+        "--profile",
+        profile.to_str().unwrap(),
+        "--out",
+        out_path.to_str().unwrap(),
+    ]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let written = std::fs::read_to_string(&out_path).expect("the render must be written");
+    let golden =
+        std::fs::read_to_string(workspace_file("tests/golden/flame_scene.svg")).expect("golden");
+    assert_eq!(written, golden);
+}
+
+#[test]
+fn render_agent_run_scene_from_a_session() {
+    let scene = workspace_file("tests/fixtures/scenes/agent_run_scene.json");
+    let logs = workspace_file("tests/fixtures/agents/claude-code-session-logs.json");
+    let spans = workspace_file("tests/fixtures/agents/claude-code-session-spans.json");
+    let out_path = std::env::temp_dir().join("telorama-cli-agent-run.svg");
+    let out = telorama(&[
+        "render",
+        "--scene",
+        scene.to_str().unwrap(),
+        "--session-logs",
+        logs.to_str().unwrap(),
+        "--session-spans",
+        spans.to_str().unwrap(),
+        "--out",
+        out_path.to_str().unwrap(),
+    ]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let written = std::fs::read_to_string(&out_path).expect("the render must be written");
+    let golden = std::fs::read_to_string(workspace_file("tests/golden/agent_run_scene.svg"))
+        .expect("golden");
+    assert_eq!(written, golden);
+}
