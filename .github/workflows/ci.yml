@@ -19,3 +19,10 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Test
         run: cargo test --workspace
+      - name: Package
+        run: |
+          cargo package -p telorama-scene --locked --no-verify
+          cargo package -p telorama-ingest --locked --no-verify
+          cargo package -p telorama-svg --locked --no-verify
+          cargo package -p telorama --locked --no-verify
+          cargo package -p telorama-mcp --locked --no-verify

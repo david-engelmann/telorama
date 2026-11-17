@@ -5,6 +5,11 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 description = "Scene spec, honesty validator, and telemetry derivations for the telorama visualization engine"
+repository = "https://github.com/david-engelmann/telorama"
+homepage = "https://github.com/david-engelmann/telorama"
+readme = "../../README.md"
+keywords = ["opentelemetry", "visualization", "telemetry", "scene", "validation"]
+categories = ["visualization"]
 
 [dependencies]
 serde = { workspace = true }

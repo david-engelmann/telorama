@@ -277,8 +277,9 @@ fn incident_composes_a_scene_from_the_checkout_fixture() {
 
 #[test]
 fn plugin_packaging_is_wellformed() {
-    let manifest_text = std::fs::read_to_string(workspace_file("plugin/.claude-plugin/plugin.json"))
-        .expect("plugin manifest must read");
+    let manifest_text =
+        std::fs::read_to_string(workspace_file("plugin/.claude-plugin/plugin.json"))
+            .expect("plugin manifest must read");
     let manifest: serde_json::Value =
         serde_json::from_str(&manifest_text).expect("plugin manifest must parse");
     assert_eq!(manifest["name"], "telorama");
