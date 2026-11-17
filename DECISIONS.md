@@ -193,3 +193,38 @@ content, and the view), the MCP Apps view, the Codex dialect adapter
 with renderer-side token pricing, and standalone HTML export for
 terminal hosts. The live observability addendum stays fenced as its
 own milestone after the static core.
+
+## Landing record, 2026-11-17. M3 closed
+
+M3 landed on main at bd696474541eb039995f197a08e6791d78d2410b, and
+the hosted gate passed on that exact head (Actions run 44021182295:
+format clean, clippy clean with warnings denied, 80 tests passed and
+none failed). The invariants and README records followed at
+749e4b1f, also green (run 44021469386). The slices landed in order:
+the opening pass, which recorded the M2 verdict, put INVARIANTS.md
+in numeric order, and gave INV-30, INV-31, and INV-33 the dedicated
+assertion tests the M2 audit asked for; the Codex dialect adapter
+(INV-36 to INV-38), which shares the OTLP log reader with the Claude
+Code adapter, normalizes gross input tokens to non-cache input, and
+prices tokens from a table the renderer owns, dated 2026-11-16,
+covering the gpt-5.1 and gpt-5.1-codex families at their published
+rates, with unpriced models named and their cost excluded; the
+standalone HTML export (INV-39); and the MCP server with the MCP
+Apps view (INV-40 to INV-42), a new telorama-mcp crate whose render
+tool returns concise text, compact structured figures from the same
+derive functions the renderer uses, and the SVG in _meta for the
+view, with an app-only drill-down tool for panel detail.
+
+Review state, stated plainly: the checkpoint reviews were the seat's
+own re-reads at each slice, and every golden was read back against
+its fixture by hand before it landed; no independent review lanes
+ran. No local full-suite run exists, because this box still cannot
+run cargo; the hosted gate on the exact head is the merge evidence,
+as it was for M1 and M2. The shared GitHub rate limit reached zero
+once during the Codex golden generation; the seat stopped hard and
+resumed after the reset, per standing discipline.
+
+The live observability addendum stays a milestone of its own after
+the static core and was not pulled into M3. M4 is next on the
+milestone list: incident composition, GenAI and OpenInference
+mapping, plugin and Agent Skills packaging, and crates.io readiness.
