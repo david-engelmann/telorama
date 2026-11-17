@@ -355,10 +355,7 @@ fn golden_agent_run_codex_unpriced_scene() {
     // and only the priced call's 0.008875 in the total.
     let pricing = run.pricing.as_ref().expect("codex runs are priced");
     assert_eq!(pricing.priced_models, vec!["gpt-5.1-codex".to_string()]);
-    assert_eq!(
-        pricing.unpriced_models,
-        vec!["gpt-unknown-9".to_string()]
-    );
+    assert_eq!(pricing.unpriced_models, vec!["gpt-unknown-9".to_string()]);
     assert_eq!(run.turns[0].input_tokens, 5000);
     assert!((run.turns[0].cost_usd - 0.008875).abs() < 1e-9);
     let svg = telorama_svg::render_scene_with_data(
