@@ -204,3 +204,28 @@ fn session_with_codex_dialect_reports_pricing() {
     );
     assert!(text.contains("\"gpt-5.1-codex\""), "got:\n{text}");
 }
+
+#[test]
+fn render_html_writes_a_standalone_document() {
+    let scene = workspace_file("tests/fixtures/scenes/checkout_scene.json");
+    let traces = workspace_file("tests/fixtures/otel-demo-checkout.json");
+    let out_path = std::env::temp_dir().join("telorama-cli-scene.html");
+    let out = telorama(&[
+        "render-html",
+        "--scene",
+        scene.to_str().unwrap(),
+        "--traces",
+        traces.to_str().unwrap(),
+        "--out",
+        out_path.to_str().unwrap(),
+    ]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let written = std::fs::read_to_string(&out_path).expect("the export must be written");
+    assert!(written.starts_with("<!DOCTYPE html>"));
+    assert!(written.contains("<svg"));
+    assert!(!written.contains("<script"));
+}

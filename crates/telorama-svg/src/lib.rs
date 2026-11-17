@@ -1672,6 +1672,24 @@ pub fn render_scene(scene: &Scene, spans: &[Span]) -> Result<String, RenderError
     )
 }
 
+/// Wrap a rendered SVG in a standalone HTML document: no scripts and
+/// no external references, nothing to fetch. This is the export for
+/// hosts that show HTML but do not render MCP Apps, and for saving a
+/// scene as a file a person can open anywhere.
+pub fn standalone_html(title: &str, svg: &str) -> String {
+    format!(
+        "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>{}</title>\n<style>body{{margin:0;background:#FFFFFF;color:#1A1A1A;font-family:system-ui,sans-serif}}main{{max-width:1000px;margin:0 auto;padding:24px}}svg{{width:100%;height:auto}}</style>\n</head>\n<body>\n<main>\n{}</main>\n</body>\n</html>\n",
+        escape_xml(title),
+        svg
+    )
+}
+
+/// Render a scene to a standalone HTML document carrying the SVG.
+pub fn render_scene_html(scene: &Scene, data: &SceneData) -> Result<String, RenderError> {
+    let svg = render_scene_with_data(scene, data)?;
+    Ok(standalone_html(&scene.title, &svg))
+}
+
 /// Render a scene over a full data set to a deterministic SVG document.
 ///
 /// Panels render in spec order under the headline. The provenance

@@ -319,3 +319,23 @@ fn golden_agent_run_codex_scene() {
     .expect("codex scene must render");
     assert_golden("agent_run_codex_scene.svg", &svg);
 }
+
+#[test]
+fn html_export_wraps_the_svg_without_external_references() {
+    let (scene, spans) = load("checkout_scene.json", "otel-demo-checkout.json");
+    let data = telorama_svg::SceneData {
+        spans: &spans,
+        stacks: &[],
+        agent_run: None,
+    };
+    let html = telorama_svg::render_scene_html(&scene, &data).expect("html must render");
+    let again = telorama_svg::render_scene_html(&scene, &data).expect("html must render");
+    assert_eq!(html, again, "the export is deterministic");
+    assert!(html.starts_with("<!DOCTYPE html>"));
+    assert!(html.contains("<title>Checkout trace 4bf92f35</title>"));
+    let svg = telorama_svg::render_scene(&scene, &spans).expect("svg must render");
+    assert!(html.contains(&svg), "the document carries the SVG itself");
+    assert!(!html.contains("<script"), "no scripts in a standalone export");
+    assert!(!html.contains("href="), "no external links");
+    assert!(!html.contains("src="), "no external assets");
+}

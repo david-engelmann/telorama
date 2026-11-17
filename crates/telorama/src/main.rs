@@ -10,7 +10,7 @@
 use std::process::ExitCode;
 
 fn usage() -> &'static str {
-    "usage:\n  telorama inspect <traces.json>\n  telorama validate <scene.json>\n  telorama render --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] --out <scene.svg>\n  telorama session --logs <logs.json> [--spans <spans.json>] [--dialect <dialect>]\n  telorama schema"
+    "usage:\n  telorama inspect <traces.json>\n  telorama validate <scene.json>\n  telorama render --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] --out <scene.svg>\n  telorama render-html --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] --out <scene.html>\n  telorama session --logs <logs.json> [--spans <spans.json>] [--dialect <dialect>]\n  telorama schema"
 }
 
 fn read_file(path: &str) -> Result<String, String> {
@@ -107,6 +107,14 @@ fn parse_session(
 }
 
 fn cmd_render(args: &[String]) -> Result<String, String> {
+    cmd_render_like(args, false)
+}
+
+fn cmd_render_html(args: &[String]) -> Result<String, String> {
+    cmd_render_like(args, true)
+}
+
+fn cmd_render_like(args: &[String], html: bool) -> Result<String, String> {
     let mut i = 0;
     while i < args.len() {
         if RENDER_FLAGS.contains(&args[i].as_str()) {
@@ -156,12 +164,17 @@ fn cmd_render(args: &[String]) -> Result<String, String> {
         agent_run: run.as_ref(),
     };
     let svg = telorama_svg::render_scene_with_data(&scene, &data).map_err(|e| e.to_string())?;
-    std::fs::write(out_path, &svg).map_err(|e| format!("cannot write {out_path}: {e}"))?;
+    let out_text = if html {
+        telorama_svg::standalone_html(&scene.title, &svg)
+    } else {
+        svg
+    };
+    std::fs::write(out_path, &out_text).map_err(|e| format!("cannot write {out_path}: {e}"))?;
     Ok(format!(
         "wrote {} ({} bytes, fnv1a64 {})\n",
         out_path,
-        svg.len(),
-        telorama_scene::content_hash(svg.as_bytes())
+        out_text.len(),
+        telorama_scene::content_hash(out_text.as_bytes())
     ))
 }
 
@@ -194,6 +207,7 @@ fn run() -> Result<String, String> {
         Some("inspect") if args.len() == 2 => cmd_inspect(&args[1]),
         Some("validate") if args.len() == 2 => cmd_validate(&args[1]),
         Some("render") => cmd_render(&args[1..]),
+        Some("render-html") => cmd_render_html(&args[1..]),
         Some("session") => cmd_session(&args[1..]),
         Some("schema") if args.len() == 1 => Ok(telorama_scene::scene_schema_text()),
         _ => Err(usage().to_string()),
