@@ -85,3 +85,28 @@ fn parsing_is_deterministic() {
     let b = parse_otlp_traces(CHECKOUT).unwrap();
     assert_eq!(a, b);
 }
+
+#[test]
+fn folded_stacks_parse_with_counts() {
+    let text = "main;a;b 30\nmain;a 20\n\ngc 10\n";
+    let stacks = telorama_ingest::parse_folded_stacks(text).expect("folded stacks must parse");
+    assert_eq!(stacks.len(), 3);
+    assert_eq!(stacks[0].frames, vec!["main", "a", "b"]);
+    assert_eq!(stacks[0].count, 30);
+    let total: u64 = stacks.iter().map(|s| s.count).sum();
+    assert_eq!(total, 60);
+}
+
+#[test]
+fn folded_stacks_reject_bad_lines() {
+    let no_count = telorama_ingest::parse_folded_stacks("main;a;b").unwrap_err();
+    assert!(no_count.message.contains("no sample count"), "{no_count}");
+    let bad_count = telorama_ingest::parse_folded_stacks("main;a many").unwrap_err();
+    assert!(bad_count.message.contains("non-numeric"), "{bad_count}");
+    let zero = telorama_ingest::parse_folded_stacks("main;a 0").unwrap_err();
+    assert!(zero.message.contains("zero"), "{zero}");
+    let empty_frame = telorama_ingest::parse_folded_stacks("main;;a 5").unwrap_err();
+    assert!(empty_frame.message.contains("empty frame"), "{empty_frame}");
+    let empty = telorama_ingest::parse_folded_stacks("  \n").unwrap_err();
+    assert!(empty.message.contains("empty"), "{empty}");
+}

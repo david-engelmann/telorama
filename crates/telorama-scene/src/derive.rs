@@ -4,6 +4,7 @@
 //! before any aggregation, maps are `BTreeMap`s, and no iteration order
 //! from a hash map can reach an output.
 
+use crate::profile::StackSample;
 use crate::trace::{Span, SpanKind};
 use std::collections::BTreeMap;
 
@@ -381,4 +382,106 @@ pub fn heatmap_grid(
         outside_window,
         exemplar,
     }
+}
+
+/// One node of a flame tree: a frame, the samples that passed through
+/// it (its own samples plus every descendant's), and its children in
+/// display order: samples descending, frame name as the tie-break.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FlameNode {
+    pub name: String,
+    pub value: u64,
+    pub children: Vec<FlameNode>,
+}
+
+fn sort_flame_children(children: &mut [FlameNode]) {
+    children.sort_by(|a, b| b.value.cmp(&a.value).then_with(|| a.name.cmp(&b.name)));
+}
+
+struct FlameBuilder {
+    name: String,
+    value: u64,
+    children: BTreeMap<String, FlameBuilder>,
+}
+
+impl FlameBuilder {
+    fn new(name: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            value: 0,
+            children: BTreeMap::new(),
+        }
+    }
+
+    fn insert(&mut self, frames: &[String], count: u64) {
+        self.value += count;
+        if let Some((first, rest)) = frames.split_first() {
+            self.children
+                .entry(first.clone())
+                .or_insert_with(|| FlameBuilder::new(first))
+                .insert(rest, count);
+        }
+    }
+
+    fn freeze(self) -> FlameNode {
+        let mut children: Vec<FlameNode> =
+            self.children.into_values().map(FlameBuilder::freeze).collect();
+        sort_flame_children(&mut children);
+        FlameNode {
+            name: self.name,
+            value: self.value,
+            children,
+        }
+    }
+}
+
+/// Fold stacks into a flame tree under a synthetic root whose value is
+/// the total sample count.
+pub fn flame_tree(stacks: &[StackSample]) -> FlameNode {
+    let mut root = FlameBuilder::new("root");
+    for stack in stacks {
+        root.insert(&stack.frames, stack.count);
+    }
+    root.freeze()
+}
+
+/// The labelled span fallback: a flame tree built from one trace, where
+/// a span's weight is its self time in nanoseconds and a node's value
+/// is its self time plus its children's values. This is a derivation
+/// from spans, not a sampled profile, and renders must say so.
+pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
+    fn build(span: &Span, children: &BTreeMap<String, Vec<&Span>>) -> FlameNode {
+        let kids: Vec<&Span> = children.get(&span.span_id).cloned().unwrap_or_default();
+        let mut child_nodes: Vec<FlameNode> = kids.iter().map(|k| build(k, children)).collect();
+        sort_flame_children(&mut child_nodes);
+        let self_nanos = self_time(span, &kids).max(0) as u64;
+        let value = self_nanos + child_nodes.iter().map(|c| c.value).sum::<u64>();
+        FlameNode {
+            name: format!("{} · {}", span.service, span.name),
+            value,
+            children: child_nodes,
+        }
+    }
+    let trace = trace_spans(spans, trace_id);
+    let children = children_map(&trace);
+    let ids: std::collections::BTreeSet<&str> =
+        trace.iter().map(|s| s.span_id.as_str()).collect();
+    let mut root = FlameNode {
+        name: "trace".to_string(),
+        value: 0,
+        children: Vec::new(),
+    };
+    for span in &trace {
+        let is_root = span
+            .parent_span_id
+            .as_deref()
+            .is_none_or(|p| !ids.contains(p));
+        if is_root {
+            let node = build(span, &children);
+            root.value += node.value;
+            root.children.push(node);
+        }
+    }
+    sort_flame_children(&mut root.children);
+    root
 }

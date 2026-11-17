@@ -7,15 +7,18 @@
 
 pub mod derive;
 pub mod field;
+pub mod profile;
 pub mod schema;
 pub mod spec;
 pub mod trace;
 pub mod validate;
 
 pub use derive::{
-    Exemplar, HeatmapGrid, HeatmapRow, RedStats, WaterfallRow, content_hash, critical_path,
-    heatmap_grid, percentile_nanos, red_by_service, waterfall_rows,
+    Exemplar, FlameNode, HeatmapGrid, HeatmapRow, RedStats, WaterfallRow, content_hash,
+    critical_path, flame_from_spans, flame_tree, heatmap_grid, percentile_nanos, red_by_service,
+    waterfall_rows,
 };
+pub use profile::StackSample;
 pub use field::{
     ThresholdStep, Thresholds, format_bytes, format_duration_nanos, format_number, format_ratio,
     format_value,

@@ -12,8 +12,8 @@
 use std::collections::BTreeMap;
 use std::fmt;
 use telorama_scene::{
-    Panel, Scene, Span, StatKind, Thresholds, Unit, critical_path, heatmap_grid, percentile_nanos,
-    red_by_service, waterfall_rows,
+    FlameNode, Panel, Scene, Span, StackSample, StatKind, Thresholds, Unit, critical_path,
+    flame_from_spans, flame_tree, heatmap_grid, percentile_nanos, red_by_service, waterfall_rows,
 };
 
 /// Canonical float formatting for emitted geometry. The implementation
@@ -478,6 +478,155 @@ fn render_waterfall(
             critical.len()
         ),
     );
+    *y += 22.0;
+    Ok(())
+}
+
+/// FNV-1a over a frame name, for palette assignment: the same frame
+/// keeps its color wherever it appears in the tree.
+fn name_hash(name: &str) -> usize {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in name.as_bytes() {
+        h ^= u64::from(*b);
+        h = h.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    (h % SERVICE_PALETTE.len() as u64) as usize
+}
+
+fn flame_depth(node: &FlameNode) -> usize {
+    1 + node.children.iter().map(flame_depth).max().unwrap_or(0)
+}
+
+/// Text color for a bar of the given fill: white on dark fills, ink on
+/// light ones, by perceived luminance.
+fn bar_text_fill(fill: &str) -> &'static str {
+    let hex = fill.trim_start_matches('#');
+    if hex.len() != 6 {
+        return INK;
+    }
+    let channel = |i: usize| u32::from_str_radix(&hex[i..i + 2], 16).unwrap_or(0) as f64;
+    let luminance = 0.299 * channel(0) + 0.587 * channel(2) + 0.114 * channel(4);
+    if luminance < 140.0 { "#FFFFFF" } else { INK }
+}
+
+fn layout_flame(
+    prims: &mut Vec<Prim>,
+    node: &FlameNode,
+    x: f64,
+    w: f64,
+    y: f64,
+    total: u64,
+    depth: usize,
+) {
+    let fill = if depth == 0 {
+        "#E8E8E8".to_string()
+    } else {
+        SERVICE_PALETTE[name_hash(&node.name)].to_string()
+    };
+    prims.push(Prim::Rect {
+        x,
+        y,
+        w,
+        h: 14.0,
+        fill: fill.clone(),
+        opacity: None,
+        stroke: Some(("#FFFFFF".to_string(), 0.5)),
+    });
+    if w >= 26.0 && total > 0 {
+        let frac = node.value as f64 / total as f64;
+        let label = truncate_label(
+            &format!("{} · {}", node.name, telorama_scene::format_ratio(frac)),
+            (w / 6.0) as usize,
+        );
+        prims.push(Prim::Text {
+            x: x + 4.0,
+            y: y + 11.0,
+            size: 10.0,
+            fill: bar_text_fill(&fill).to_string(),
+            bold: false,
+            mono: false,
+            anchor: "start",
+            content: label,
+        });
+    }
+    if node.value > 0 {
+        let mut child_x = x;
+        for child in &node.children {
+            let child_w = w * (child.value as f64 / node.value as f64);
+            layout_flame(prims, child, child_x, child_w, y + 16.0, total, depth + 1);
+            child_x += child_w;
+        }
+    }
+}
+
+fn render_flame(
+    scene: &Scene,
+    data: &SceneData,
+    panel: &Panel,
+    prims: &mut Vec<Prim>,
+    y: &mut f64,
+) -> Result<(), RenderError> {
+    let Panel::Flame {
+        data: data_id,
+        sample_type,
+        min_samples,
+        sample_count,
+    } = panel
+    else {
+        return Err(fail("render_flame called on a non-flame panel"));
+    };
+    let entry = scene
+        .data
+        .iter()
+        .find(|d| d.id == *data_id)
+        .ok_or_else(|| fail(format!("flame reads undeclared data id {data_id:?}")))?;
+    let (tree, note) = if let Some(trace_id) = entry.source.trace_id.as_deref() {
+        let tree = flame_from_spans(data.spans, trace_id);
+        if tree.children.is_empty() {
+            return Err(fail(format!("no spans found for trace {trace_id}")));
+        }
+        let note = format!(
+            "Derived from the trace's span self time, not sampled profiles. Weights are self time, totalling {}.",
+            fmt_duration(tree.value as i64)
+        );
+        (tree, note)
+    } else {
+        if data.stacks.is_empty() {
+            return Err(fail(
+                "flame panel has no profile data: supply folded stacks, or point the panel's data at a trace for the span fallback",
+            ));
+        }
+        let tree = flame_tree(data.stacks);
+        if tree.value != *sample_count {
+            return Err(fail(format!(
+                "declared sample count {sample_count} does not match the profile data total {}: a scene must not state a count its data does not carry",
+                tree.value
+            )));
+        }
+        let note = format!(
+            "{} samples of {} from {} folded stacks.",
+            tree.value,
+            sample_type,
+            data.stacks.len()
+        );
+        (tree, note)
+    };
+    if tree.value < *min_samples {
+        return Err(fail(format!(
+            "flame graph has {} samples, below its stated floor of {}",
+            tree.value, min_samples
+        )));
+    }
+    let depth = flame_depth(&tree);
+    if depth > 48 {
+        return Err(fail(format!(
+            "flame tree is {depth} levels deep, beyond the 48-level render limit"
+        )));
+    }
+    let plot_w = WIDTH - 2.0 * MARGIN;
+    layout_flame(prims, &tree, MARGIN, plot_w, *y, tree.value, 0);
+    *y += depth as f64 * 16.0 + 6.0;
+    text(prims, MARGIN, *y + 12.0, 11.0, MUTED, false, false, note);
     *y += 22.0;
     Ok(())
 }
@@ -982,13 +1131,34 @@ fn render_red_row(
     Ok(())
 }
 
+/// Everything a scene can read: the span set, and the folded stacks
+/// for flame panels. Later milestones add the agent-run model here.
+pub struct SceneData<'a> {
+    pub spans: &'a [Span],
+    pub stacks: &'a [StackSample],
+}
+
 /// Render a scene over a span set to a deterministic SVG document.
+/// Scenes whose flame panels read profile data need
+/// [`render_scene_with_data`].
+pub fn render_scene(scene: &Scene, spans: &[Span]) -> Result<String, RenderError> {
+    render_scene_with_data(
+        scene,
+        &SceneData {
+            spans,
+            stacks: &[],
+        },
+    )
+}
+
+/// Render a scene over a full data set to a deterministic SVG document.
 ///
 /// Panels render in spec order under the headline. The provenance
 /// caption at the foot of the scene prints the window, every data
 /// source with its query or trace id and sampling state, and the
 /// generating question, so the picture carries its own evidence.
-pub fn render_scene(scene: &Scene, spans: &[Span]) -> Result<String, RenderError> {
+pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String, RenderError> {
+    let spans = data.spans;
     let colors = service_colors(spans);
     let mut prims: Vec<Prim> = Vec::new();
     let mut y: f64 = 30.0;
@@ -1023,6 +1193,7 @@ pub fn render_scene(scene: &Scene, spans: &[Span]) -> Result<String, RenderError
             Panel::Stat { .. } => "Stat",
             Panel::RedRow { .. } => "Rate, errors, duration by service",
             Panel::Heatmap { .. } => "Latency heatmap",
+            Panel::Flame { .. } => "Flame graph",
             other => {
                 return Err(fail(format!(
                     "panel type {} is in the spec but has no renderer yet: it lands in a later milestone",
@@ -1050,6 +1221,7 @@ pub fn render_scene(scene: &Scene, spans: &[Span]) -> Result<String, RenderError
             Panel::Stat { .. } => render_stat(scene, spans, panel, &mut prims, &mut y)?,
             Panel::RedRow { .. } => render_red_row(scene, spans, panel, &mut prims, &mut y)?,
             Panel::Heatmap { .. } => render_heatmap(scene, spans, panel, &mut prims, &mut y)?,
+            Panel::Flame { .. } => render_flame(scene, data, panel, &mut prims, &mut y)?,
             _ => unreachable!("heading match already returned for unsupported panels"),
         }
     }

@@ -36,6 +36,22 @@ fn golden(name: &str, scene: &str, traces: &str) {
     );
 }
 
+fn assert_golden(name: &str, svg: &str) {
+    let golden_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join(format!("tests/golden/{name}"));
+    if std::env::var_os("UPDATE_GOLDENS").is_some() {
+        std::fs::write(&golden_path, svg).expect("golden must be writable");
+        return;
+    }
+    let expected = std::fs::read_to_string(&golden_path)
+        .unwrap_or_else(|e| panic!("cannot read golden {}: {e}", golden_path.display()));
+    assert_eq!(
+        svg, expected,
+        "rendered SVG differs from the golden file; if the change is intended, rerun with UPDATE_GOLDENS=1 and review the diff"
+    );
+}
+
 #[test]
 fn golden_checkout_scene() {
     golden(
@@ -57,6 +73,27 @@ fn golden_heatmap_scene() {
         "heatmap_scene.json",
         "otel-demo-checkout.json",
     );
+}
+
+#[test]
+fn golden_flame_scene() {
+    let scene = telorama_scene::parse_scene(&workspace_file(
+        "tests/fixtures/scenes/flame_scene.json",
+    ))
+    .expect("flame scene must validate");
+    let stacks = telorama_ingest::parse_folded_stacks(&workspace_file(
+        "tests/fixtures/profiles/checkout-cpu.txt",
+    ))
+    .expect("profile fixture must parse");
+    let svg = telorama_svg::render_scene_with_data(
+        &scene,
+        telorama_svg::SceneData {
+            spans: &[],
+            stacks: &stacks,
+        },
+    )
+    .expect("flame scene must render");
+    assert_golden("flame_scene.svg", &svg);
 }
 
 #[test]

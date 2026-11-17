@@ -1,0 +1,7 @@
+main;checkout.PlaceOrder;payment.Charge;stripe.Post 412
+main;checkout.PlaceOrder;payment.Charge;db.Exec 208
+main;checkout.PlaceOrder;inventory.Reserve;db.Exec 96
+main;checkout.PlaceOrder;shipping.ShipOrder;carrier.FetchRates 64
+main;frontend.Render;template.Execute 120
+main;frontend.Render;json.Marshal 40
+runtime.gc 30

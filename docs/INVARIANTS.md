@@ -104,6 +104,22 @@ later milestones are marked as validator-side.
   (golden_tests golden_checkout_scene), which records the rendered
   result byte for byte.
 
+## Flame (telorama-scene derive.rs, telorama-ingest, telorama-svg)
+
+- INV-30. A flame panel over profile data renders only when the
+  folded stacks total exactly the sample count the scene declares.
+  A scene must not state a count its data does not carry; a mismatch
+  is a render error, never a footnote.
+  Enforced by the golden corpus (golden_tests golden_flame_scene,
+  whose fixture declares 970 and whose stacks total 970) and by
+  ingest_tests folded_stacks_reject_bad_lines for the parse side.
+- INV-31. The span fallback is labelled on its face: a flame derived
+  from a trace states that it is derived from span self time and is
+  not a sampled profile, and its weights are self time in
+  nanoseconds. A derived flame is never presented as a profile.
+  Enforced by derive_tests flame_from_spans_weights_self_time and
+  the renderer's fallback note in render_flame.
+
 ## Heatmap (telorama-scene derive.rs, telorama-svg)
 
 - INV-27. Heatmap bucketing is the Prometheus `le` rule over the

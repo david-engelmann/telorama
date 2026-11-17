@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use telorama_scene::{
-    Span, SpanKind, TimeRange, critical_path, heatmap_grid, percentile_nanos, red_by_service,
-    waterfall_rows,
+    Span, SpanKind, StackSample, TimeRange, critical_path, flame_from_spans, flame_tree,
+    heatmap_grid, percentile_nanos, red_by_service, waterfall_rows,
 };
 
 fn ms(v: i64) -> i64 {
@@ -223,4 +223,48 @@ fn heatmap_counts_spans_outside_the_window() {
     assert_eq!(grid.outside_window, 8);
     let total: u64 = grid.rows.iter().map(|r| r.total).sum();
     assert_eq!(total, 1);
+}
+
+fn stack(frames: &[&str], count: u64) -> StackSample {
+    StackSample {
+        frames: frames.iter().map(|f| f.to_string()).collect(),
+        count,
+    }
+}
+
+#[test]
+fn flame_tree_folds_stacks_and_orders_children() {
+    let stacks = vec![
+        stack(&["main", "a"], 30),
+        stack(&["main", "b"], 50),
+        stack(&["main", "a", "c"], 20),
+        stack(&["gc"], 10),
+    ];
+    let tree = flame_tree(&stacks);
+    assert_eq!(tree.value, 110);
+    assert_eq!(tree.children.len(), 2);
+    assert_eq!(tree.children[0].name, "main");
+    assert_eq!(tree.children[0].value, 100);
+    assert_eq!(tree.children[1].name, "gc");
+    assert_eq!(tree.children[1].value, 10);
+    let main = &tree.children[0];
+    // a carries 30 direct plus 20 through c: 50, tying b at 50, and
+    // the name breaks the tie.
+    assert_eq!(main.children[0].name, "a");
+    assert_eq!(main.children[0].value, 50);
+    assert_eq!(main.children[1].name, "b");
+    assert_eq!(main.children[0].children[0].name, "c");
+    assert_eq!(main.children[0].children[0].value, 20);
+}
+
+#[test]
+fn flame_from_spans_weights_self_time() {
+    let spans = checkout_spans();
+    let tree = flame_from_spans(&spans, "t1");
+    // Self time plus children values rebuilds each span's duration:
+    // the root of the tree carries the whole 420 ms trace.
+    assert_eq!(tree.value, ms(420) as u64);
+    assert_eq!(tree.children.len(), 1);
+    assert_eq!(tree.children[0].value, ms(420) as u64);
+    assert_eq!(tree.children[0].children[0].value, ms(390) as u64);
 }

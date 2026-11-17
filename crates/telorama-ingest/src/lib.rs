@@ -9,7 +9,7 @@
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::fmt;
-use telorama_scene::{Span, SpanKind};
+use telorama_scene::{Span, SpanKind, StackSample};
 
 /// An ingest failure with a message specific enough to act on.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -305,4 +305,48 @@ pub fn summarize(spans: &[Span]) -> Summary {
             })
             .collect(),
     }
+}
+
+/// Parse folded-stack profile text: one stack per line, frames joined
+/// by semicolons from root to leaf, then a space and the sample count.
+/// This is the export shape of `perf script` foldings, Brendan Gregg's
+/// stackcollapse tools, and async-profiler's collapsed output.
+///
+/// Bad lines fail loudly with their line number: a profile with a
+/// silent hole in it would render as a confident lie.
+pub fn parse_folded_stacks(text: &str) -> Result<Vec<StackSample>, IngestError> {
+    let mut out = Vec::new();
+    for (i, raw) in text.lines().enumerate() {
+        let line = raw.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let line_no = i + 1;
+        let Some((stack, count_text)) = line.rsplit_once(' ') else {
+            return Err(fail(format!(
+                "folded stack line {line_no} has no sample count: {line:?}"
+            )));
+        };
+        let count: u64 = count_text.parse().map_err(|_| {
+            fail(format!(
+                "folded stack line {line_no} has a non-numeric sample count: {count_text:?}"
+            ))
+        })?;
+        if count == 0 {
+            return Err(fail(format!(
+                "folded stack line {line_no} has a sample count of zero"
+            )));
+        }
+        let frames: Vec<String> = stack.split(';').map(|f| f.trim().to_string()).collect();
+        if frames.iter().any(|f| f.is_empty()) {
+            return Err(fail(format!(
+                "folded stack line {line_no} has an empty frame name"
+            )));
+        }
+        out.push(StackSample { frames, count });
+    }
+    if out.is_empty() {
+        return Err(fail("no folded stacks found: the input is empty"));
+    }
+    Ok(out)
 }
