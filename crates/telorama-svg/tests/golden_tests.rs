@@ -86,7 +86,8 @@ fn service_colors_follow_sorted_name_order() {
     names.sort_unstable();
     for (i, name) in names.iter().enumerate() {
         assert_eq!(
-            colors[*name], telorama_svg::SERVICE_PALETTE[i],
+            colors[*name],
+            telorama_svg::SERVICE_PALETTE[i],
             "service {name} must take palette slot {i} in sorted order"
         );
     }
