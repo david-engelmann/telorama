@@ -251,7 +251,11 @@ fn node_pos(svg: &str, name: &str) -> (f64, f64) {
         let from = tag.find(&key).expect("coord must exist") + key.len();
         tag[from..]
             .find('"')
-            .map(|end| tag[from..from + end].parse::<f64>().expect("coord is a number"))
+            .map(|end| {
+                tag[from..from + end]
+                    .parse::<f64>()
+                    .expect("coord is a number")
+            })
             .expect("coord must terminate")
     };
     (coord("x"), coord("y"))
@@ -266,7 +270,13 @@ fn service_map_layout_layers_follow_longest_path() {
     let (ux, _) = node_pos(&svg, "currency");
     assert!(fx < cx, "frontend is layer 0, left of checkout");
     assert!(cx < ux, "checkout is layer 1, left of its callees");
-    for name in ["email", "inventory", "payment", "product-catalog", "shipping"] {
+    for name in [
+        "email",
+        "inventory",
+        "payment",
+        "product-catalog",
+        "shipping",
+    ] {
         let (x, _) = node_pos(&svg, name);
         assert_eq!(x, ux, "{name} shares the layer 2 column");
     }
@@ -282,7 +292,10 @@ fn service_map_layout_layers_follow_longest_path() {
         "shipping",
     ] {
         let (_, y) = node_pos(&svg, name);
-        assert!(y > last_y, "{name} must sit below its predecessor in name order");
+        assert!(
+            y > last_y,
+            "{name} must sit below its predecessor in name order"
+        );
         last_y = y;
     }
 }
