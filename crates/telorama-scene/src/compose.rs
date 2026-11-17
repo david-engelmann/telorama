@@ -22,9 +22,10 @@ use std::collections::BTreeMap;
 
 use crate::agent::AgentRun;
 use crate::derive::red_by_service;
+use crate::field::Thresholds;
 use crate::spec::{
-    Context, DataRef, NarrativeItem, Panel, Provenance, Sampling, Scene, Source, Thresholds,
-    TimeRange, Unit, SCENE_VERSION,
+    Context, DataRef, NarrativeItem, Panel, Provenance, Sampling, Scene, Source, TimeRange, Unit,
+    SCENE_VERSION,
 };
 use crate::trace::Span;
 
@@ -231,6 +232,6 @@ fn exemplar_trace(spans: &[Span], errors_only: bool) -> Option<String> {
     best.map(|(id, _)| id.to_string())
 }
 
-fn plural(n: u64, singular: &str, plural_form: &str) -> &'static str {
+fn plural(n: u64, singular: &'static str, plural_form: &'static str) -> &'static str {
     if n == 1 { singular } else { plural_form }
 }
