@@ -86,9 +86,10 @@ fn golden_service_map_scene() {
 
 #[test]
 fn golden_agent_run_scene() {
-    let scene =
-        telorama_scene::parse_scene(&workspace_file("tests/fixtures/scenes/agent_run_scene.json"))
-            .expect("agent run scene must validate");
+    let scene = telorama_scene::parse_scene(&workspace_file(
+        "tests/fixtures/scenes/agent_run_scene.json",
+    ))
+    .expect("agent run scene must validate");
     let logs = workspace_file("tests/fixtures/agents/claude-code-session-logs.json");
     let spans = telorama_ingest::parse_otlp_traces(&workspace_file(
         "tests/fixtures/agents/claude-code-session-spans.json",

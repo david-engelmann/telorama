@@ -228,10 +228,7 @@ impl TurnBuilder {
 /// Build the canonical run for one Claude Code session from its OTLP
 /// log export, fusing already-parsed spans for permission waits and
 /// subagent structure. The export must carry exactly one session.
-pub fn parse_claude_code_session(
-    logs_text: &str,
-    spans: &[Span],
-) -> Result<AgentRun, IngestError> {
+pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<AgentRun, IngestError> {
     let events = parse_events(logs_text)?;
     let mut session_ids: Vec<&str> = events
         .iter()
@@ -270,10 +267,9 @@ pub fn parse_claude_code_session(
             builders.insert(prompt_id.clone(), TurnBuilder::new());
         }
         if event.name == "claude_code.tool_decision" {
-            if let (Some(tool), Some(decision)) = (
-                event.str_attr("tool_name"),
-                event.str_attr("decision"),
-            ) {
+            if let (Some(tool), Some(decision)) =
+                (event.str_attr("tool_name"), event.str_attr("decision"))
+            {
                 decisions.insert((prompt_id.clone(), tool.to_string()), decision.to_string());
             }
             continue;
@@ -435,10 +431,7 @@ pub fn parse_claude_code_session(
                     end_unix_nano: span.end_unix_nano,
                     steps: taken,
                 };
-                kept.insert(
-                    insert_at.unwrap_or(kept.len()),
-                    AgentStep::Subagent(run),
-                );
+                kept.insert(insert_at.unwrap_or(kept.len()), AgentStep::Subagent(run));
                 merged_ids.insert(span.span_id.as_str());
             } else {
                 // No steps captured: place an empty run by start time
