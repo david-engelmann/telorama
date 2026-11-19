@@ -110,8 +110,10 @@ later milestones are marked as validator-side.
   version 0.1, generated from the same crate that validates.
   Enforced by cli_tests schema_command_prints_the_scene_schema.
 - INV-23. The CLI render path and the library render path produce the
-  same bytes for the same inputs.
-  Enforced by cli_tests render_matches_the_golden_file.
+  same scene for the same inputs. Since M5 the surface renders carry
+  the findings strip the library goldens do not (INV-57); the scene
+  content itself is byte-identical.
+  Enforced by cli_tests render_draws_the_golden_scene_with_the_findings_strip.
 
 ## Field system (telorama-scene, field.rs)
 
@@ -386,6 +388,6 @@ later milestones are marked as validator-side.
   automatically. No flag or argument suppresses them, and the
   tool renders therefore differ from the library goldens by the
   findings strip alone.
-  Enforced by cli_tests render_matches_the_golden_file and
+  Enforced by cli_tests render_draws_the_golden_scene_with_the_findings_strip and
   render_agent_run_scene_from_a_session, and mcp_tests
   render_scene_returns_the_triple_contract.

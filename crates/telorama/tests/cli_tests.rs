@@ -66,7 +66,7 @@ fn validate_rejects_an_average_duration_with_the_honesty_message() {
 }
 
 #[test]
-fn render_matches_the_golden_file() {
+fn render_draws_the_golden_scene_with_the_findings_strip() {
     let scene = workspace_file("tests/fixtures/scenes/checkout_scene.json");
     let traces = workspace_file("tests/fixtures/otel-demo-checkout.json");
     let golden = workspace_file("tests/golden/checkout_scene.svg");
