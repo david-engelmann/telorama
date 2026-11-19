@@ -405,10 +405,7 @@ fn frames_command_writes_jsonl_and_a_framebook() {
 fn render_with_state_refuses_a_misbound_agent_state_panel() {
     let scene_path = workspace_file("tests/fixtures/scenes/agent_state_scene.json");
     let text = std::fs::read_to_string(&scene_path).unwrap();
-    let bad = text.replace(
-        "\"kind\":\"agent_state\"",
-        "\"kind\":\"otlp_file\"",
-    );
+    let bad = text.replace("\"kind\":\"agent_state\"", "\"kind\":\"otlp_file\"");
     assert_ne!(bad, text, "the fixture must declare the agent_state kind");
     let tmp = std::env::temp_dir().join(format!("telorama-misbound-{}.json", std::process::id()));
     std::fs::write(&tmp, bad).unwrap();
