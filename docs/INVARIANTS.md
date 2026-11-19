@@ -318,7 +318,10 @@ later milestones are marked as validator-side.
 - INV-49. A finding derives only from the derived truths the
   panels print. Its evidence numbers equal the matching
   derivation's numbers over the same inputs, so the strip can
-  never quote a figure the panels do not.
+  never quote a figure the panels do not. Each finding also
+  carries those numbers as structured evidence beside its
+  statement, formatted by the same formatters, so the agent
+  reader consumes the same evidence the human reads.
   Enforced by investigate_tests
   investigate_ranks_errors_before_latency_and_matches_red and
   investigate_wait_and_cost_findings_from_a_run, and
@@ -387,7 +390,10 @@ later milestones are marked as validator-side.
 - INV-57. The CLI and MCP render paths attach findings
   automatically. No flag or argument suppresses them, and the
   tool renders therefore differ from the library goldens by the
-  findings strip alone.
+  findings strip alone. The MCP session tool attaches the same
+  run-only findings to its payload, so the data path carries
+  the layer too.
   Enforced by cli_tests render_draws_the_golden_scene_with_the_findings_strip and
   render_agent_run_scene_from_a_session, and mcp_tests
-  render_scene_returns_the_triple_contract.
+  render_scene_returns_the_triple_contract and
+  session_run_tool_prices_a_codex_session.

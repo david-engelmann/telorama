@@ -74,7 +74,7 @@ window.addEventListener("message", function (event) {
   if (msg.method === "ui/notifications/tool-result") {
     var meta = (msg.params && msg.params._meta) || {};
     var delivered = meta["telorama/frames"];
-    if (Array.isArray(delivered) && delivered.length > 1) {
+    if (Array.isArray(delivered) && delivered.length > 0) {
       frames = delivered;
       stepperEl.style.display = "flex";
       showFrame(frames.length - 1);

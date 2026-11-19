@@ -75,6 +75,21 @@ fn investigate_ranks_errors_before_latency_and_matches_red() {
         latency.statement
     );
     assert!(latency.statement.contains("on the critical path"));
+    let latency_evidence: Vec<(&str, &str)> = latency
+        .evidence
+        .iter()
+        .map(|e| (e.label.as_str(), e.value.as_str()))
+        .collect();
+    assert_eq!(latency_evidence[0], ("self_time", "80 ms"));
+    assert_eq!(latency_evidence[2].0, "share");
+    let errors_evidence: Vec<(&str, &str)> = errors
+        .evidence
+        .iter()
+        .map(|e| (e.label.as_str(), e.value.as_str()))
+        .collect();
+    assert_eq!(errors_evidence[0], ("service_errors", "2"));
+    assert_eq!(errors_evidence[2], ("error_ratio", "66.7%"));
+    assert_eq!(errors_evidence[4], ("verdict_threshold", "5.0%"));
 }
 
 #[test]
@@ -177,16 +192,44 @@ fn investigate_wait_and_cost_findings_from_a_run() {
     );
     assert!(wait.statement.contains("longest 20 s on shell"));
     assert_eq!(wait.exemplars, vec!["p1".to_string()]);
+    let wait_evidence: Vec<(&str, &str)> = wait
+        .evidence
+        .iter()
+        .map(|e| (e.label.as_str(), e.value.as_str()))
+        .collect();
+    assert_eq!(
+        wait_evidence,
+        vec![
+            ("total_wait", "25 s"),
+            ("longest_wait", "20 s"),
+            ("session_wall", "100 s"),
+            ("share", "25.0%"),
+        ]
+    );
     let cost = &findings[1];
     assert_eq!(cost.kind, "cost");
     assert!(
         cost.statement.contains(
-            "most expensive turn cost $0.5000 (83.3% of the session priced cost $0.6000)"
+            "most expensive turn cost $0.5000 (83.3% of the session priced cost $0.6000) on gpt-test"
         ),
         "{}",
         cost.statement
     );
     assert_eq!(cost.exemplars, vec!["p1".to_string()]);
+    let cost_evidence: Vec<(&str, &str)> = cost
+        .evidence
+        .iter()
+        .map(|e| (e.label.as_str(), e.value.as_str()))
+        .collect();
+    assert_eq!(
+        cost_evidence,
+        vec![
+            ("turn_cost_usd", "$0.5000"),
+            ("session_cost_usd", "$0.6000"),
+            ("share", "83.3%"),
+            ("model", "gpt-test"),
+        ]
+    );
 }
 
 #[test]
