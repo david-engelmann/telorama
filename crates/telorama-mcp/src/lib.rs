@@ -205,6 +205,20 @@ fn tool_definitions() -> Value {
             }
         },
         {
+            "name": "session_frames",
+            "description": "Build the live frame stream for a session export: one complete scene per turn boundary, each a pure function of the session prefix through that turn. The view steps through the frames; the final frame rides telorama/svg and every frame rides telorama/frames.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "logs": {"type": "string", "description": "OTLP log export text"},
+                    "spans": {"type": "string", "description": "OTLP trace export text: fusion input for the Claude Code dialect, the session itself for the span dialects"},
+                    "dialect": {"type": "string", "enum": ["claude_code", "codex", "genai", "openinference"]}
+                },
+                "required": []
+            },
+            "_meta": {"ui": {"resourceUri": VIEW_URI}}
+        },
+        {
             "name": "scene_panel_detail",
             "description": "Derived detail for one panel of a scene, for the view's drill-down. App-only: not shown to the model.",
             "inputSchema": {
@@ -305,6 +319,7 @@ fn call_tool(params: &Value) -> Value {
         "inspect_traces" => tool_inspect(&args),
         "render_scene" => tool_render(&args),
         "session_run" => tool_session(&args),
+        "session_frames" => tool_frames(&args),
         "scene_panel_detail" => tool_detail(&args),
         "incident_scene" => tool_incident(&args),
         _ => tool_error(&format!("unknown tool: {name}")),
@@ -472,30 +487,94 @@ fn fmt_cost(value: f64) -> String {
     format!("${text}")
 }
 
-fn tool_session(args: &Value) -> Value {
+/// Adapt a session export into the canonical run, shared by the
+/// session_run and session_frames tools.
+fn adapt_session(args: &Value) -> Result<AgentRun, String> {
     let dialect = arg_str(args, "dialect").unwrap_or("claude_code");
-    let adapted = match dialect {
+    match dialect {
         "genai" | "openinference" => {
             let Some(spans_text) = arg_str(args, "spans") else {
-                return tool_error("missing required argument: spans (span dialects read spans)");
+                return Err(
+                    "missing required argument: spans (span dialects read spans)".to_string(),
+                );
             };
-            match telorama_ingest::parse_otlp_traces(spans_text) {
-                Ok(spans) => match dialect {
-                    "genai" => telorama_ingest::parse_genai_session(&spans),
-                    _ => telorama_ingest::parse_openinference_session(&spans),
+            let spans =
+                telorama_ingest::parse_otlp_traces(spans_text).map_err(|e| e.to_string())?;
+            match dialect {
+                "genai" => telorama_ingest::parse_genai_session(&spans).map_err(|e| e.to_string()),
+                _ => {
+                    telorama_ingest::parse_openinference_session(&spans).map_err(|e| e.to_string())
                 }
-                .map_err(|e| e.to_string()),
-                Err(e) => Err(e.to_string()),
             }
         }
         _ => {
             let Some(logs) = arg_str(args, "logs") else {
-                return tool_error("missing required argument: logs");
+                return Err("missing required argument: logs".to_string());
             };
             parse_session(logs, arg_str(args, "spans"), args)
         }
+    }
+}
+
+fn tool_frames(args: &Value) -> Value {
+    let run = match adapt_session(args) {
+        Ok(r) => r,
+        Err(m) => return tool_error(&m),
     };
-    let run = match adapted {
+    let frames = telorama_scene::session_frames(&run, "telorama-mcp");
+    if frames.is_empty() {
+        return tool_error("the session has no turns: nothing to frame");
+    }
+    let mut lines = Vec::new();
+    let mut payloads = Vec::new();
+    let mut svgs = Vec::new();
+    for frame in &frames {
+        let data = telorama_svg::SceneData {
+            spans: &[],
+            stacks: &[],
+            agent_run: Some(&frame.run),
+            agent_state: &[],
+            findings: &frame.findings,
+        };
+        let svg = match telorama_svg::render_scene_with_data(&frame.scene, &data) {
+            Ok(s) => s,
+            Err(e) => return tool_error(&e.to_string()),
+        };
+        let input: u64 = frame.run.turns.iter().map(|t| t.input_tokens).sum();
+        let output: u64 = frame.run.turns.iter().map(|t| t.output_tokens).sum();
+        let cost: f64 = frame.run.turns.iter().map(|t| t.cost_usd).sum();
+        lines.push(format!(
+            "Frame {} of {}: {} turns, {} in, {} out, {}.",
+            frame.index + 1,
+            frames.len(),
+            frame.turns,
+            input,
+            output,
+            fmt_cost(cost)
+        ));
+        payloads.push(json!({
+            "frame": frame.index + 1,
+            "turns": frame.turns,
+            "scene": frame.scene,
+            "findings": frame.findings,
+            "svg_fnv1a64": content_hash(svg.as_bytes()),
+        }));
+        svgs.push(svg);
+    }
+    let structured = json!({
+        "session_id": run.session_id,
+        "dialect": run.dialect,
+        "frames": payloads,
+    });
+    let meta = json!({
+        "telorama/svg": svgs.last().expect("at least one frame"),
+        "telorama/frames": svgs,
+    });
+    tool_ok(lines.join("\n"), structured, Some(meta))
+}
+
+fn tool_session(args: &Value) -> Value {
+    let run = match adapt_session(args) {
         Ok(r) => r,
         Err(m) => return tool_error(&m),
     };

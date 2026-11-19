@@ -41,8 +41,10 @@ pub struct Pricing {
 /// authoritative for tokens and cost; spans are authoritative for
 /// permission waits and subagent structure. The counts ride on the
 /// model and print in every agent_run render, so a reader can see
-/// what the picture rests on.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// what the picture rests on. On a turn, the same counts cover that
+/// turn alone, which is what makes session frames pure functions of
+/// a prefix.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Coverage {
     pub log_events: u64,
     pub spans_seen: u64,
@@ -89,6 +91,12 @@ pub struct AgentTurn {
     pub cache_read_tokens: u64,
     pub cache_creation_tokens: u64,
     pub cost_usd: f64,
+    /// What the sources contributed to this turn alone. The run's
+    /// coverage is the session total; a frame's coverage is the sum
+    /// over its prefix turns, plus the session's supplied span count
+    /// where the dialect counts spans as an input statistic.
+    #[serde(default)]
+    pub coverage: Coverage,
 }
 
 /// One step inside a turn.

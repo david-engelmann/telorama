@@ -10,7 +10,7 @@
 use std::process::ExitCode;
 
 fn usage() -> &'static str {
-    "usage:\n  telorama inspect <traces.json>\n  telorama validate <scene.json>\n  telorama render --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] [--state <state.json>] --out <scene.svg>\n  telorama render-html --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] [--state <state.json>] --out <scene.html>\n  telorama session [--logs <logs.json>] [--spans <spans.json>] [--dialect <dialect>]\n  telorama incident --traces <traces.json> [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] [--out <scene.json>] [--render <scene.svg>]\n  telorama schema"
+    "usage:\n  telorama inspect <traces.json>\n  telorama validate <scene.json>\n  telorama render --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] [--state <state.json>] --out <scene.svg>\n  telorama render-html --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] [--state <state.json>] --out <scene.html>\n  telorama session [--logs <logs.json>] [--spans <spans.json>] [--dialect <dialect>]\n  telorama frames [--logs <logs.json>] [--spans <spans.json>] [--dialect <dialect>] --out <frames.jsonl> [--html <framebook.html>]\n  telorama incident --traces <traces.json> [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] [--out <scene.json>] [--render <scene.svg>]\n  telorama schema"
 }
 
 fn read_file(path: &str) -> Result<String, String> {
@@ -271,6 +271,76 @@ fn cmd_incident(args: &[String]) -> Result<String, String> {
     Ok(text)
 }
 
+fn cmd_frames(args: &[String]) -> Result<String, String> {
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--logs" | "--spans" | "--dialect" | "--out" | "--html" => i += 2,
+            other => {
+                return Err(format!("unknown frames argument {other:?}\n{}", usage()));
+            }
+        }
+    }
+    let Some(out_path) = flag(args, "--out")? else {
+        return Err(format!("frames needs --out\n{}", usage()));
+    };
+    let run = parse_session(
+        flag(args, "--logs")?,
+        flag(args, "--spans")?,
+        flag(args, "--dialect")?.unwrap_or("claude_code"),
+    )?;
+    let frames = telorama_scene::session_frames(&run, "telorama-cli");
+    if frames.is_empty() {
+        return Err("the session has no turns: nothing to frame".to_string());
+    }
+    let mut jsonl = String::new();
+    let mut book = String::new();
+    for frame in &frames {
+        let data = telorama_svg::SceneData {
+            spans: &[],
+            stacks: &[],
+            agent_run: Some(&frame.run),
+            agent_state: &[],
+            findings: &frame.findings,
+        };
+        let svg =
+            telorama_svg::render_scene_with_data(&frame.scene, &data).map_err(|e| e.to_string())?;
+        let payload = serde_json::json!({
+            "frame": frame.index + 1,
+            "turns": frame.turns,
+            "session_id": run.session_id,
+            "scene": frame.scene,
+            "findings": frame.findings,
+            "svg": svg,
+            "svg_fnv1a64": telorama_scene::content_hash(svg.as_bytes()),
+        });
+        jsonl.push_str(&serde_json::to_string(&payload).map_err(|e| e.to_string())?);
+        jsonl.push('\n');
+        let book_svg = svg.split('\n').skip(1).collect::<Vec<_>>().join("\n");
+        book.push_str(&format!(
+            "<section><h2>Frame {} of {} · after turn {}</h2>{}</section>\n",
+            frame.index + 1,
+            frames.len(),
+            frame.turns,
+            book_svg
+        ));
+    }
+    std::fs::write(out_path, &jsonl).map_err(|e| format!("cannot write {out_path}: {e}"))?;
+    let mut summary = format!("wrote {} frames to {}\n", frames.len(), out_path);
+    if let Some(html_path) = flag(args, "--html")? {
+        let doc = format!(
+            "<!DOCTYPE html>\n<html lang=\"en\">\n<head><meta charset=\"utf-8\"><title>Session {} frames</title></head>\n<body>\n<h1>Session {} · {} frames</h1>\n{}</body>\n</html>\n",
+            run.session_id,
+            run.session_id,
+            frames.len(),
+            book
+        );
+        std::fs::write(html_path, &doc).map_err(|e| format!("cannot write {html_path}: {e}"))?;
+        summary.push_str(&format!("wrote the framebook to {html_path}\n"));
+    }
+    Ok(summary)
+}
+
 fn cmd_session(args: &[String]) -> Result<String, String> {
     let mut i = 0;
     while i < args.len() {
@@ -299,6 +369,7 @@ fn run() -> Result<String, String> {
         Some("render") => cmd_render(&args[1..]),
         Some("render-html") => cmd_render_html(&args[1..]),
         Some("session") => cmd_session(&args[1..]),
+        Some("frames") => cmd_frames(&args[1..]),
         Some("incident") => cmd_incident(&args[1..]),
         Some("schema") if args.len() == 1 => Ok(telorama_scene::scene_schema_text()),
         _ => Err(usage().to_string()),

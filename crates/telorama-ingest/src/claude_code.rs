@@ -32,6 +32,8 @@ struct TurnBuilder {
     cache_read_tokens: u64,
     cache_creation_tokens: u64,
     cost_usd: f64,
+    events: u64,
+    merged: u64,
 }
 
 impl TurnBuilder {
@@ -44,6 +46,8 @@ impl TurnBuilder {
             cache_read_tokens: 0,
             cache_creation_tokens: 0,
             cost_usd: 0.0,
+            events: 0,
+            merged: 0,
         }
     }
 }
@@ -89,6 +93,7 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
             order.push(prompt_id.clone());
             builders.insert(prompt_id.clone(), TurnBuilder::new());
         }
+        builders.get_mut(&prompt_id).expect("builder exists").events += 1;
         if event.name == "claude_code.tool_decision" {
             if let (Some(tool), Some(decision)) =
                 (event.str_attr("tool_name"), event.str_attr("decision"))
@@ -212,6 +217,7 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
                     let wait: i64 = children.iter().map(|c| c.duration_nanos()).sum();
                     if wait > tool.wait_nanos {
                         tool.wait_nanos = wait;
+                        turn.merged += children.len() as u64;
                         for child in children {
                             merged_ids.insert(child.span_id.as_str());
                         }
@@ -255,6 +261,7 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
                     steps: taken,
                 };
                 kept.insert(insert_at.unwrap_or(kept.len()), AgentStep::Subagent(run));
+                turn.merged += 1;
                 merged_ids.insert(span.span_id.as_str());
             } else {
                 // No steps captured: place an empty run by start time
@@ -277,6 +284,7 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
                             steps: Vec::new(),
                         }),
                     );
+                    turn.merged += 1;
                     merged_ids.insert(span.span_id.as_str());
                 }
             }
@@ -284,12 +292,28 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
         }
     }
 
+    // Session-level records carry no prompt id. They belong to the
+    // session setup, so the first turn's coverage counts them; a
+    // truncated export keeps them, which keeps frame coverage pure.
+    let stray = relevant
+        .iter()
+        .filter(|e| e.str_attr("prompt.id").is_none())
+        .count() as u64;
+    if stray > 0
+        && let Some(first) = order.first()
+        && let Some(builder) = builders.get_mut(first)
+    {
+        builder.events += stray;
+    }
     let mut turns = Vec::new();
+    let mut carry = 0u64;
     for prompt_id in order {
         let builder = builders.remove(&prompt_id).expect("builder exists");
         if builder.steps.is_empty() && builder.prompt_time.is_none() {
             // A prompt id that only ever carried a decision event is
-            // not a turn.
+            // not a turn. Its events carry forward so the turn
+            // coverages still sum to the run coverage.
+            carry += builder.events;
             continue;
         }
         let start = builder
@@ -312,7 +336,18 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
             cache_read_tokens: builder.cache_read_tokens,
             cache_creation_tokens: builder.cache_creation_tokens,
             cost_usd: builder.cost_usd,
+            coverage: Coverage {
+                log_events: builder.events + carry,
+                spans_seen: 0,
+                spans_merged: builder.merged,
+            },
         });
+        carry = 0;
+    }
+    if carry > 0
+        && let Some(last) = turns.last_mut()
+    {
+        last.coverage.log_events += carry;
     }
     Ok(AgentRun {
         session_id,

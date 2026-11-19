@@ -42,6 +42,7 @@ struct TurnBuilder {
     prompt_time: Option<i64>,
     steps: Vec<AgentStep>,
     ttfts: VecDeque<i64>,
+    events: u64,
 }
 
 impl TurnBuilder {
@@ -50,6 +51,7 @@ impl TurnBuilder {
             prompt_time: None,
             steps: Vec::new(),
             ttfts: VecDeque::new(),
+            events: 0,
         }
     }
 }
@@ -98,6 +100,7 @@ pub fn parse_codex_session(logs_text: &str, spans: &[Span]) -> Result<AgentRun, 
                 builders.insert(turn_id.clone(), TurnBuilder::new());
             }
             let turn = builders.get_mut(&turn_id).expect("builder exists");
+            turn.events += 1;
             if turn.prompt_time.is_none() {
                 turn.prompt_time = Some(event.time_nano);
             }
@@ -115,6 +118,7 @@ pub fn parse_codex_session(logs_text: &str, spans: &[Span]) -> Result<AgentRun, 
             order.push(turn_id.clone());
             builders.insert(turn_id.clone(), TurnBuilder::new());
         }
+        builders.get_mut(&turn_id).expect("builder exists").events += 1;
         if event.name == "codex.tool_decision" {
             if let (Some(tool), Some(decision)) =
                 (event.str_attr("tool_name"), event.str_attr("decision"))
@@ -250,7 +254,22 @@ pub fn parse_codex_session(logs_text: &str, spans: &[Span]) -> Result<AgentRun, 
             cache_read_tokens,
             cache_creation_tokens: 0,
             cost_usd,
+            coverage: Coverage {
+                log_events: builder.events,
+                spans_seen: 0,
+                spans_merged: 0,
+            },
         });
+    }
+    // Events that arrived before the first prompt belong to no
+    // turn; the first turn's coverage counts them so the turn
+    // coverages still sum to the run coverage.
+    let counted: u64 = turns.iter().map(|t| t.coverage.log_events).sum();
+    let total = relevant.len() as u64;
+    if total > counted
+        && let Some(first) = turns.first_mut()
+    {
+        first.coverage.log_events += total - counted;
     }
     Ok(AgentRun {
         session_id,

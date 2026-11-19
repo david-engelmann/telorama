@@ -138,6 +138,7 @@ fn run_with_wait_and_cost() -> AgentRun {
                 cache_read_tokens: 0,
                 cache_creation_tokens: 0,
                 cost_usd: 0.50,
+                coverage: Coverage::default(),
             },
             AgentTurn {
                 prompt_id: "p2".to_string(),
@@ -149,6 +150,7 @@ fn run_with_wait_and_cost() -> AgentRun {
                 cache_read_tokens: 0,
                 cache_creation_tokens: 0,
                 cost_usd: 0.10,
+                coverage: Coverage::default(),
             },
         ],
         coverage: Coverage {

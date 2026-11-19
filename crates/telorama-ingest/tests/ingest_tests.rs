@@ -366,3 +366,20 @@ fn agent_state_parse_enforces_the_rationale_rule() {
     let err = telorama_ingest::parse_agent_state("[]").expect_err("an empty report is refused");
     assert!(err.message.contains("no entries"), "{err}");
 }
+
+#[test]
+fn turn_coverages_sum_to_the_run_coverage() {
+    let logs = include_str!("../../../tests/fixtures/agents/claude-code-session-logs.json");
+    let spans = parse_otlp_traces(include_str!(
+        "../../../tests/fixtures/agents/claude-code-session-spans.json"
+    ))
+    .expect("spans must parse");
+    let run = telorama_ingest::parse_claude_code_session(logs, &spans).expect("run must parse");
+    assert_eq!(run.turns.len(), 2);
+    let events: u64 = run.turns.iter().map(|t| t.coverage.log_events).sum();
+    assert_eq!(events, run.coverage.log_events);
+    let merged: u64 = run.turns.iter().map(|t| t.coverage.spans_merged).sum();
+    assert_eq!(merged, run.coverage.spans_merged);
+    assert!(run.turns[0].coverage.log_events > 0);
+    assert!(run.turns[1].coverage.log_events > 0);
+}
