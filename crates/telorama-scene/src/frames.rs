@@ -58,7 +58,7 @@ pub fn session_frames(run: &AgentRun, generated_by: &str) -> Vec<Frame> {
             scene: SCENE_VERSION.to_string(),
             title: format!("Session {}", run.session_id),
             headline: format!(
-                "After turn {k} of {total}: {input} input tokens, {output} output tokens, ${cost:.4} so far"
+                "After turn {k}: {input} input tokens, {output} output tokens, ${cost:.4} so far"
             ),
             context: Context {
                 range,
@@ -87,7 +87,7 @@ pub fn session_frames(run: &AgentRun, generated_by: &str) -> Vec<Frame> {
                 data: "session".to_string(),
             }],
             narrative: vec![NarrativeItem {
-                text: format!("Frame {} covers the first {k} of {total} turns.", k),
+                text: format!("Frame {k} covers the session prefix through turn {k}."),
                 panel: 0,
             }],
         };

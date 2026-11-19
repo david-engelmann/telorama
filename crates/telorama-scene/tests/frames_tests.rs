@@ -81,7 +81,7 @@ fn frames_cover_prefixes_in_order() {
     assert_eq!(frames[1].run.coverage.log_events, 12);
     // The supplied span count names the export and rides every frame.
     assert_eq!(frames[0].run.coverage.spans_seen, 3);
-    assert!(frames[0].scene.headline.contains("After turn 1 of 2"));
+    assert!(frames[0].scene.headline.contains("After turn 1:"));
     assert!(frames[1].scene.headline.contains("$0.5000 so far"));
 }
 
