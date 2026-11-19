@@ -12,9 +12,9 @@
 use std::collections::BTreeMap;
 use std::fmt;
 use telorama_scene::{
-    AgentRun, AgentStateEntry, AgentStep, Finding, FlameNode, Panel, RedStats, Scene,
-    ServiceGraph, Span, StackSample, StatKind, Thresholds, Unit, critical_path, flame_from_spans,
-    flame_tree, heatmap_grid, percentile_nanos, red_by_service, service_graph, waterfall_rows,
+    AgentRun, AgentStateEntry, AgentStep, Finding, FlameNode, Panel, RedStats, Scene, ServiceGraph,
+    Span, StackSample, StatKind, Thresholds, Unit, critical_path, flame_from_spans, flame_tree,
+    heatmap_grid, percentile_nanos, red_by_service, service_graph, waterfall_rows,
 };
 
 /// Canonical float formatting for emitted geometry. The implementation
@@ -1884,9 +1884,7 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
                 render_service_map(scene, spans, panel, &colors, &mut prims, &mut y)?
             }
             Panel::AgentRun { .. } => render_agent_run(scene, data, panel, &mut prims, &mut y)?,
-            Panel::AgentState { .. } => {
-                render_agent_state(scene, data, panel, &mut prims, &mut y)?
-            }
+            Panel::AgentState { .. } => render_agent_state(scene, data, panel, &mut prims, &mut y)?,
             _ => unreachable!("heading match already returned for unsupported panels"),
         }
     }

@@ -360,10 +360,8 @@ fn agent_state_parse_enforces_the_rationale_rule() {
     .expect("a complete entry parses");
     assert_eq!(ok.len(), 1);
     assert_eq!(ok[0].agent, "a");
-    let err = telorama_ingest::parse_agent_state(
-        r#"[{"agent":"a","doing":"working","why":"  "}]"#,
-    )
-    .expect_err("an empty rationale is refused");
+    let err = telorama_ingest::parse_agent_state(r#"[{"agent":"a","doing":"working","why":"  "}]"#)
+        .expect_err("an empty rationale is refused");
     assert!(err.message.contains("empty why"), "{err}");
     let err = telorama_ingest::parse_agent_state("[]").expect_err("an empty report is refused");
     assert!(err.message.contains("no entries"), "{err}");
