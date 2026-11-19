@@ -35,13 +35,30 @@ pub const VIEW_HTML: &str = r##"<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <title>telorama scene</title>
-<style>body{margin:0;background:#FFFFFF;color:#1A1A1A;font-family:system-ui,sans-serif}main{padding:12px}svg{width:100%;height:auto}</style>
+<style>body{margin:0;background:#FFFFFF;color:#1A1A1A;font-family:system-ui,sans-serif}main{padding:12px}svg{width:100%;height:auto}nav{display:none;padding:8px 12px;gap:10px;align-items:center}nav button{font:inherit;padding:2px 10px}nav span{color:#555555}</style>
 </head>
 <body>
+<nav id="stepper"><button id="prev" type="button">Previous</button><span id="pos"></span><button id="next" type="button">Next</button></nav>
 <main id="scene"><p>Waiting for a scene render.</p></main>
 <script>
 "use strict";
 var sceneEl = document.getElementById("scene");
+var stepperEl = document.getElementById("stepper");
+var posEl = document.getElementById("pos");
+var prevEl = document.getElementById("prev");
+var nextEl = document.getElementById("next");
+var frames = null;
+var frameIndex = 0;
+function showFrame(i) {
+  frameIndex = i;
+  sceneEl.innerHTML = frames[i];
+  posEl.textContent = "Frame " + (i + 1) + " of " + frames.length;
+  prevEl.disabled = i === 0;
+  nextEl.disabled = i === frames.length - 1;
+  notifySize();
+}
+prevEl.addEventListener("click", function () { if (frames && frameIndex > 0) { showFrame(frameIndex - 1); } });
+nextEl.addEventListener("click", function () { if (frames && frameIndex < frames.length - 1) { showFrame(frameIndex + 1); } });
 var initId = 1;
 function post(msg) { window.parent.postMessage(msg, "*"); }
 function notifySize() {
@@ -56,6 +73,15 @@ window.addEventListener("message", function (event) {
   }
   if (msg.method === "ui/notifications/tool-result") {
     var meta = (msg.params && msg.params._meta) || {};
+    var delivered = meta["telorama/frames"];
+    if (Array.isArray(delivered) && delivered.length > 1) {
+      frames = delivered;
+      stepperEl.style.display = "flex";
+      showFrame(frames.length - 1);
+      return;
+    }
+    frames = null;
+    stepperEl.style.display = "none";
     var svg = meta["telorama/svg"];
     if (typeof svg === "string") {
       sceneEl.innerHTML = svg;

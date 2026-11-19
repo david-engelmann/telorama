@@ -109,6 +109,18 @@ fn resources_read_returns_the_app_view() {
         html.contains("telorama/svg"),
         "the view reads the svg from _meta"
     );
+    assert!(
+        html.contains("telorama/frames"),
+        "the view reads the frame stream from _meta"
+    );
+    assert!(
+        html.contains("id=\"stepper\""),
+        "the view carries the stepper"
+    );
+    assert!(
+        !html.contains("transition"),
+        "frames replace: the view declares no transitions"
+    );
 }
 
 #[test]
