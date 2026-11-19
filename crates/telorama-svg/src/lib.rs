@@ -630,10 +630,18 @@ fn render_agent_state(
     let Panel::AgentState { data: data_id } = panel else {
         return Err(fail("render_agent_state called on a non-agent-state panel"));
     };
-    if !scene.data.iter().any(|d| d.id == *data_id) {
-        return Err(fail(format!(
-            "agent_state reads undeclared data id {data_id:?}"
-        )));
+    match scene.data.iter().find(|d| d.id == *data_id) {
+        Some(entry) if entry.source.kind == "agent_state" => {}
+        Some(_) => {
+            return Err(fail(format!(
+                "agent_state panel reads data id {data_id:?}, whose source kind is not agent_state"
+            )));
+        }
+        None => {
+            return Err(fail(format!(
+                "agent_state reads undeclared data id {data_id:?}"
+            )));
+        }
     }
     if data.agent_state.is_empty() {
         return Err(fail(

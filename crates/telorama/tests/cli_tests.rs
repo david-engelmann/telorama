@@ -400,3 +400,30 @@ fn frames_command_writes_jsonl_and_a_framebook() {
         "the framebook carries no scripts"
     );
 }
+
+#[test]
+fn render_with_state_refuses_a_misbound_agent_state_panel() {
+    let scene_path = workspace_file("tests/fixtures/scenes/agent_state_scene.json");
+    let text = std::fs::read_to_string(&scene_path).unwrap();
+    let bad = text.replace("\"kind\":\"agent_state\"", "\"kind\":\"otlp_file\"");
+    assert_ne!(bad, text, "the fixture must declare the agent_state kind");
+    let tmp = std::env::temp_dir().join(format!("telorama-misbound-{}.json", std::process::id()));
+    std::fs::write(&tmp, bad).unwrap();
+    let state = workspace_file("tests/fixtures/agents/agent-state.json");
+    let out = telorama(&[
+        "render",
+        "--scene",
+        tmp.to_str().unwrap(),
+        "--state",
+        state.to_str().unwrap(),
+        "--out",
+        std::env::temp_dir()
+            .join("telorama-misbound.svg")
+            .to_str()
+            .unwrap(),
+    ]);
+    assert!(
+        !out.status.success(),
+        "state supplied for another kind of entry must not satisfy the panel"
+    );
+}

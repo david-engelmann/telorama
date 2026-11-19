@@ -309,30 +309,21 @@ fn build_turn(
         },
     };
     let steps = std::mem::take(&mut turn.steps);
-    for step in &steps {
-        add_step_totals(&mut turn, step);
-    }
+    AgentStep::walk(&steps, &mut |step| add_step_totals(&mut turn, step));
     turn.steps = steps;
     turn
 }
 
 /// Turn totals sum the turn's model calls, subagents included: the
-/// same rule the log dialects follow.
+/// same rule the log dialects follow. The walk is the shared step
+/// traversal, so this census cannot diverge from the others.
 fn add_step_totals(turn: &mut AgentTurn, step: &AgentStep) {
-    match step {
-        AgentStep::ModelCall(call) => {
-            turn.input_tokens += call.input_tokens;
-            turn.output_tokens += call.output_tokens;
-            turn.cache_read_tokens += call.cache_read_tokens;
-            turn.cache_creation_tokens += call.cache_creation_tokens;
-            turn.cost_usd += call.cost_usd;
-        }
-        AgentStep::Subagent(sub) => {
-            for inner in &sub.steps {
-                add_step_totals(turn, inner);
-            }
-        }
-        AgentStep::ToolCall(_) => {}
+    if let AgentStep::ModelCall(call) = step {
+        turn.input_tokens += call.input_tokens;
+        turn.output_tokens += call.output_tokens;
+        turn.cache_read_tokens += call.cache_read_tokens;
+        turn.cache_creation_tokens += call.cache_creation_tokens;
+        turn.cost_usd += call.cost_usd;
     }
 }
 

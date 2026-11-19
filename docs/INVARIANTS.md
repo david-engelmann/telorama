@@ -307,6 +307,85 @@ later milestones are marked as validator-side.
 - INV-48. The plugin manifest, the MCP registration, and the
   skill describe the same product. The manifest names telorama
   at the workspace version, the registration starts the
-  telorama-mcp binary, and the skill names all six tools and all
+  telorama-mcp binary, and the skill names all seven tools and all
   four dialects.
   Enforced by cli_tests plugin_packaging_is_wellformed.
+
+## Investigation (telorama-scene investigate)
+
+- INV-49. A finding derives only from the derived truths the
+  panels print. Its evidence numbers equal the matching
+  derivation's numbers over the same inputs, so the strip can
+  never quote a figure the panels do not.
+  Enforced by investigate_tests
+  investigate_ranks_errors_before_latency_and_matches_red and
+  investigate_wait_and_cost_findings_from_a_run, and
+  golden_tests golden_incident_findings_scene.
+- INV-50. Every finding carries at least one exemplar that
+  exists in the input. A candidate whose exemplar cannot be
+  found is not emitted.
+  Enforced by investigate_tests
+  investigate_ranks_errors_before_latency_and_matches_red
+  (exemplar membership) and
+  investigate_wait_and_cost_findings_from_a_run.
+- INV-51. Finding order is a total deterministic order, errors
+  before latency before wait before cost, and statements are
+  byte-identical for identical input under any input ordering.
+  Enforced by investigate_tests
+  investigate_is_deterministic_under_input_reordering.
+- INV-52. Findings state evidence and never prescribe a remedy.
+  Statements are built only from evidence templates over the
+  derivations, with no recommendation text anywhere in the
+  investigation layer.
+  Enforced by investigate_tests (every statement assertion) and
+  golden_tests golden_incident_findings_scene.
+
+## Agent state (telorama-ingest state, telorama-svg)
+
+- INV-53. An agent-state entry with an empty action or an empty
+  rationale is refused at parse, and an agent_state panel
+  rendered without state data fails the render rather than
+  drawing an empty panel. The panel reads a data entry whose
+  source kind is agent_state; the validator refuses the panel
+  bound to any other kind, and the renderer refuses it again,
+  so state supplied for another entry never satisfies the panel.
+  Enforced by ingest_tests
+  agent_state_parse_enforces_the_rationale_rule, validator_tests
+  agent_state_panel_must_read_an_agent_state_entry, cli_tests
+  render_with_state_refuses_a_misbound_agent_state_panel, and
+  golden_tests golden_agent_state_scene.
+
+## Frames (telorama-scene frames)
+
+- INV-54. Frame prefix purity. Frame k is a pure function of
+  the session prefix through turn k. Its turns are the prefix
+  turns verbatim, its coverage sums the prefix turns' own
+  log_events, spans_seen, and spans_merged, its pricing names
+  only models the prefix used, and its scene and findings
+  speak only of the prefix.
+  Enforced by golden_tests
+  frames_from_a_truncated_export_equal_the_leading_frames and
+  frames_tests frame_pricing_names_only_prefix_models.
+- INV-55. Every frame is a complete scene that validates and
+  renders standalone from its own prefix, with figures from
+  that prefix only.
+  Enforced by frames_tests
+  every_frame_scene_validates_and_frames_are_deterministic
+  and frames_cover_prefixes_in_order, and golden_tests
+  frames_from_a_truncated_export_equal_the_leading_frames
+  (the standalone render).
+- INV-56. The view displays only delivered frames. Stepping
+  replaces the whole frame in a container that carries no
+  transitions, and payload data never animates.
+  Enforced by mcp_tests resources_read_returns_the_app_view
+  (the view declares no transitions and carries the stepper).
+
+## Findings on the surfaces (CLI, telorama-mcp)
+
+- INV-57. The CLI and MCP render paths attach findings
+  automatically. No flag or argument suppresses them, and the
+  tool renders therefore differ from the library goldens by the
+  findings strip alone.
+  Enforced by cli_tests render_matches_the_golden_file and
+  render_agent_run_scene_from_a_session, and mcp_tests
+  render_scene_returns_the_triple_contract.

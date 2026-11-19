@@ -218,3 +218,23 @@ fn source_without_query_or_trace_is_rejected() {
             .any(|e| e.message.contains("not reproducible"))
     );
 }
+
+#[test]
+fn agent_state_panel_must_read_an_agent_state_entry() {
+    let text = include_str!("../../../tests/fixtures/scenes/agent_state_scene.json");
+    let mut scene: Value = serde_json::from_str(text).expect("fixture scene must be JSON");
+    scene["data"][0]["source"]["kind"] = json!("otlp_file");
+    let errors = validate_scene_json(&scene);
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("source kind is agent_state")),
+        "a mis-bound agent_state panel must be refused: {}",
+        messages(&errors)
+    );
+    let good: Value = serde_json::from_str(text).expect("fixture scene must be JSON");
+    assert!(
+        validate_scene_json(&good).is_empty(),
+        "the fixture as shipped must validate"
+    );
+}

@@ -336,11 +336,7 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
             cache_read_tokens: builder.cache_read_tokens,
             cache_creation_tokens: builder.cache_creation_tokens,
             cost_usd: builder.cost_usd,
-            coverage: Coverage {
-                log_events: builder.events + carry,
-                spans_seen: 0,
-                spans_merged: builder.merged,
-            },
+            coverage: Coverage::logs(builder.events + carry, builder.merged),
         });
         carry = 0;
     }
@@ -348,6 +344,21 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
         && let Some(last) = turns.last_mut()
     {
         last.coverage.log_events += carry;
+    }
+    // Seen spans belong to the turn whose window holds their
+    // midpoint, the placement the subagent fusion uses. A span in
+    // no turn's window counts toward the first turn, the stray
+    // rule the log events follow, so the turn coverages sum to
+    // the run coverage on this axis too.
+    if !turns.is_empty() {
+        for span in spans {
+            let mid = span.start_unix_nano + (span.end_unix_nano - span.start_unix_nano) / 2;
+            let idx = turns
+                .iter()
+                .position(|t| mid >= t.start_unix_nano && mid <= t.end_unix_nano)
+                .unwrap_or(0);
+            turns[idx].coverage.spans_seen += 1;
+        }
     }
     Ok(AgentRun {
         session_id,

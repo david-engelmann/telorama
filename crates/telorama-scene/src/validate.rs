@@ -182,6 +182,8 @@ pub fn validate_scene_json(v: &Value) -> Vec<ValidationError> {
 
     // Data entries.
     let mut data_ids: BTreeSet<String> = BTreeSet::new();
+    let mut data_kinds: std::collections::BTreeMap<String, String> =
+        std::collections::BTreeMap::new();
     match obj.get("data").and_then(Value::as_array) {
         Some(data) => {
             if data.is_empty() {
@@ -203,12 +205,17 @@ pub fn validate_scene_json(v: &Value) -> Vec<ValidationError> {
                 }
                 match entry.get("source") {
                     Some(source) => {
-                        if non_empty_str(source, "kind").is_none() {
-                            err(
+                        match non_empty_str(source, "kind") {
+                            Some(kind) => {
+                                if let Some(id) = non_empty_str(entry, "id") {
+                                    data_kinds.insert(id.to_string(), kind.to_string());
+                                }
+                            }
+                            None => err(
                                 &mut errors,
                                 &format!("{base}.source.kind"),
                                 "source must name its kind",
-                            );
+                            ),
                         }
                         let has_query = non_empty_str(source, "query").is_some();
                         let has_trace = non_empty_str(source, "trace_id").is_some();
@@ -274,6 +281,16 @@ pub fn validate_scene_json(v: &Value) -> Vec<ValidationError> {
                         &format!("{base}.data"),
                         "panel needs a data id",
                     ),
+                }
+                if ptype == "agent_state"
+                    && let Some(id) = non_empty_str(panel, "data")
+                    && data_kinds.get(id).map(String::as_str) != Some("agent_state")
+                {
+                    err(
+                        &mut errors,
+                        &format!("{base}.data"),
+                        "agent_state panel must read a data entry whose source kind is agent_state",
+                    );
                 }
                 if matches!(ptype, "stat" | "red_row") {
                     validate_thresholds(panel, &base, &mut errors);
