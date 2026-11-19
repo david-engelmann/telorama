@@ -312,3 +312,19 @@ The static core is complete at M4. The live observability
 addendum stays a milestone of its own after it, fenced as
 recorded in the addendum above, and opens only on direction
 from Main Muse.
+
+## Milestone opening, 2026-11-19. M5, live observability
+
+Main Muse directed the fence lifted on 2026-11-19, on David's
+full press order after the credit reset. M5 opens as the live
+observability milestone, scoped from the terms of
+docs/LIVE-VISION.md and designed in docs/LIVE-DESIGN.md, which
+is the milestone's design record. The design was written before
+the build, with invariants INV-49 through INV-57 drafted in it
+in advance, under the same discipline as the static core. Five
+slices are planned. The investigation layer first, then the
+agent-state panel, then frames, then the view stepper, then
+close-out. The fences from the vision hold. No datastore, no
+query language, no dashboard editor, no alerting, no hosted
+renderer, no streaming server. The crates.io publish remains
+the owner's act and is not part of this milestone.
