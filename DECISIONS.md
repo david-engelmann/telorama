@@ -328,3 +328,39 @@ close-out. The fences from the vision hold. No datastore, no
 query language, no dashboard editor, no alerting, no hosted
 renderer, no streaming server. The crates.io publish remains
 the owner's act and is not part of this milestone.
+
+## Landing record, 2026-11-19. M5 closed
+
+The live observability milestone is landed. The design record
+landed as PR 2 (main a0c29c30), the investigation layer as PR 3
+(b920a770), the agent-state panel as PR 4 (cd99fe5c), frames as
+PR 5 (532110bf), the view stepper as PR 6 (281334ea), and the
+checkpoint repairs with the close-out records as PR 7. Main
+stands at f44f885f, its tree verified identical to the final PR
+head, and the closing gate is run 44637518364, SUCCESS, with
+117 tests, up from 95 at M4. The golden corpus stands at twelve
+scenes. The fleet-records mirror carries the milestone in the
+same passes, verified blob-for-blob.
+
+The checkpoint ran the standing three reviews. The red team and
+the standards axis each returned two Majors, the spec axis
+three Minors, and every finding was repaired in PR 7 or
+answered here. Frame purity is now exact on every coverage
+axis: the log dialects count seen spans per turn by window, so
+no frame can quote a figure from a later turn. The agent_state
+panel's data entry must declare the agent_state kind, enforced
+by the validator and the renderer both. One shared step
+traversal carries the totals, pricing, and wait censuses. The
+Claude Code carry and stray coverage rules and the Codex
+pre-prompt residual gained their first tests.
+
+Two refinements of the design record stand as built and are
+recorded here as the milestone's own corrections. The standing
+5 percent threshold evidence rides the errors finding, because
+the threshold lives in the RED derivation; the design draft's
+sentence had placed it under latency. Frame scenes speak only
+of their own prefix, after the first headline naming the
+session's total turn count failed the truncation test the
+design itself required.
+
+The crates.io publish remains the owner's act, unchanged.
