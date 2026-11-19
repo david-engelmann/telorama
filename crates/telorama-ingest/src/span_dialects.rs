@@ -291,6 +291,7 @@ fn build_turn(
         }
         _ => emit(root, children, dialect, priced, unpriced, &mut steps),
     }
+    let span_count = subtree_len(root, children);
     let mut turn = AgentTurn {
         prompt_id: root.span_id.clone(),
         start_unix_nano: root.start_unix_nano,
@@ -301,6 +302,11 @@ fn build_turn(
         cache_read_tokens: 0,
         cache_creation_tokens: 0,
         cost_usd: 0.0,
+        coverage: Coverage {
+            log_events: 0,
+            spans_seen: span_count,
+            spans_merged: span_count,
+        },
     };
     let steps = std::mem::take(&mut turn.steps);
     for step in &steps {
@@ -335,6 +341,21 @@ fn children_of<'a>(children: &'a BTreeMap<&str, Vec<&'a Span>>, span: &Span) -> 
         .get(span.span_id.as_str())
         .map(Vec::as_slice)
         .unwrap_or(&[])
+}
+
+/// How many spans a root's subtree carries, the root included. The
+/// span dialects read and merge every span in the trace, so a turn's
+/// coverage is its subtree size.
+fn subtree_len(root: &Span, children: &BTreeMap<&str, Vec<&Span>>) -> u64 {
+    let mut count = 0u64;
+    let mut stack: Vec<&Span> = vec![root];
+    while let Some(span) = stack.pop() {
+        count += 1;
+        if let Some(kids) = children.get(span.span_id.as_str()) {
+            stack.extend(kids.iter());
+        }
+    }
+    count
 }
 
 fn emit(

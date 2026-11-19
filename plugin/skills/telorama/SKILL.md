@@ -23,6 +23,10 @@ scene traces back to the data it names.
   and the SVG for the view on hosts that render MCP Apps.
 - `session_run` adapts an agent session export into the canonical
   run model and returns it as JSON.
+- `session_frames` builds the live frame stream for a session
+  export, one complete scene per turn boundary, each frame a pure
+  function of the session prefix through that turn. The view steps
+  through the frames; nothing animates and nothing transitions.
 - `incident_scene` composes the incident template from a trace
   export and returns the triple contract plus the composed spec.
 - `scene_panel_detail` is app-only and serves the view's

@@ -315,6 +315,7 @@ fn plugin_packaging_is_wellformed() {
         "inspect_traces",
         "render_scene",
         "session_run",
+        "session_frames",
         "incident_scene",
         "scene_panel_detail",
         "Claude Code",
@@ -355,4 +356,44 @@ fn render_with_state_draws_the_agent_state_panel() {
         rendered.contains("Waiting on · the builder to push the final head"),
         "{rendered}"
     );
+}
+
+#[test]
+fn frames_command_writes_jsonl_and_a_framebook() {
+    let logs = workspace_file("tests/fixtures/agents/claude-code-session-logs.json");
+    let spans = workspace_file("tests/fixtures/agents/claude-code-session-spans.json");
+    let tmp = std::env::temp_dir().join(format!("telorama-frames-{}.jsonl", std::process::id()));
+    let book = std::env::temp_dir().join(format!("telorama-framebook-{}.html", std::process::id()));
+    let out = telorama(&[
+        "frames",
+        "--logs",
+        logs.to_str().unwrap(),
+        "--spans",
+        spans.to_str().unwrap(),
+        "--out",
+        tmp.to_str().unwrap(),
+        "--html",
+        book.to_str().unwrap(),
+    ]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let jsonl = std::fs::read_to_string(&tmp).unwrap();
+    let lines: Vec<&str> = jsonl.lines().collect();
+    assert_eq!(lines.len(), 2, "one payload per frame");
+    for (i, line) in lines.iter().enumerate() {
+        let payload: serde_json::Value = serde_json::from_str(line).expect("payload parses");
+        assert_eq!(payload["frame"], i + 1);
+        assert_eq!(payload["turns"], i + 1);
+        assert!(
+            payload["svg"].as_str().expect("svg").contains("<svg"),
+            "each payload carries its frame render"
+        );
+    }
+    let html = std::fs::read_to_string(&book).unwrap();
+    assert!(html.contains("Frame 1 of 2 · after turn 1"), "{html}");
+    assert!(html.contains("Frame 2 of 2 · after turn 2"), "{html}");
+    assert!(!html.contains("<script"), "the framebook carries no scripts");
 }

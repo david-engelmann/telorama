@@ -485,3 +485,42 @@ fn golden_agent_state_scene() {
     assert!(svg.contains("Waiting on · the builder to push the final head"));
     assert_golden("agent_state_scene.svg", &svg);
 }
+
+#[test]
+fn frames_from_a_truncated_export_equal_the_leading_frames() {
+    let spans = telorama_ingest::parse_otlp_traces(&workspace_file(
+        "tests/fixtures/agents/claude-code-session-spans.json",
+    ))
+    .expect("spans must parse");
+    let full = telorama_ingest::parse_claude_code_session(
+        &workspace_file("tests/fixtures/agents/claude-code-session-logs.json"),
+        &spans,
+    )
+    .expect("full run must parse");
+    let cut = telorama_ingest::parse_claude_code_session(
+        &workspace_file("tests/fixtures/agents/claude-code-session-turn1-logs.json"),
+        &spans,
+    )
+    .expect("truncated run must parse");
+    let full_frames = telorama_scene::session_frames(&full, "test");
+    let cut_frames = telorama_scene::session_frames(&cut, "test");
+    assert_eq!(full_frames.len(), 2);
+    assert_eq!(cut_frames.len(), 1);
+    assert_eq!(cut_frames[0].run, full_frames[0].run);
+    assert_eq!(cut_frames[0].scene, full_frames[0].scene);
+    assert_eq!(cut_frames[0].findings, full_frames[0].findings);
+    let render = |frame: &telorama_scene::Frame| {
+        telorama_svg::render_scene_with_data(
+            &frame.scene,
+            &telorama_svg::SceneData {
+                spans: &[],
+                stacks: &[],
+                agent_run: Some(&frame.run),
+                agent_state: &[],
+                findings: &frame.findings,
+            },
+        )
+        .expect("frame must render")
+    };
+    assert_eq!(render(&cut_frames[0]), render(&full_frames[0]));
+}

@@ -285,3 +285,33 @@ fn render_scene_draws_the_agent_state_panel() {
         "the summary counts the entries"
     );
 }
+
+#[test]
+fn session_frames_tool_returns_the_frame_stream() {
+    let result = call_tool(
+        13,
+        "session_frames",
+        json!({
+            "logs": workspace_file("tests/fixtures/agents/claude-code-session-logs.json"),
+            "spans": workspace_file("tests/fixtures/agents/claude-code-session-spans.json")
+        }),
+    );
+    assert_eq!(result["isError"], false);
+    let text = result["content"][0]["text"].as_str().expect("text");
+    assert!(text.contains("Frame 1 of 2"), "{text}");
+    assert!(text.contains("Frame 2 of 2"), "{text}");
+    let frames = result["structuredContent"]["frames"]
+        .as_array()
+        .expect("frames");
+    assert_eq!(frames.len(), 2);
+    assert_eq!(frames[0]["turns"], 1);
+    assert_eq!(frames[1]["turns"], 2);
+    let meta_frames = result["_meta"]["telorama/frames"]
+        .as_array()
+        .expect("meta frames");
+    assert_eq!(meta_frames.len(), 2);
+    assert_eq!(
+        result["_meta"]["telorama/svg"], meta_frames[1],
+        "the view payload is the final frame"
+    );
+}
