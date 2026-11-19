@@ -254,11 +254,7 @@ pub fn parse_codex_session(logs_text: &str, spans: &[Span]) -> Result<AgentRun, 
             cache_read_tokens,
             cache_creation_tokens: 0,
             cost_usd,
-            coverage: Coverage {
-                log_events: builder.events,
-                spans_seen: 0,
-                spans_merged: 0,
-            },
+            coverage: Coverage::logs(builder.events, 0),
         });
     }
     // Events that arrived before the first prompt belong to no
@@ -270,6 +266,20 @@ pub fn parse_codex_session(logs_text: &str, spans: &[Span]) -> Result<AgentRun, 
         && let Some(first) = turns.first_mut()
     {
         first.coverage.log_events += total - counted;
+    }
+    // Seen spans belong to the turn whose window holds their
+    // midpoint. A span in no turn's window counts toward the
+    // first turn, so the turn coverages sum to the run coverage
+    // on this axis too.
+    if !turns.is_empty() {
+        for span in spans {
+            let mid = span.start_unix_nano + (span.end_unix_nano - span.start_unix_nano) / 2;
+            let idx = turns
+                .iter()
+                .position(|t| mid >= t.start_unix_nano && mid <= t.end_unix_nano)
+                .unwrap_or(0);
+            turns[idx].coverage.spans_seen += 1;
+        }
     }
     Ok(AgentRun {
         session_id,

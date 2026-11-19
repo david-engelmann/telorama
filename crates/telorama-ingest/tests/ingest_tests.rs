@@ -380,6 +380,62 @@ fn turn_coverages_sum_to_the_run_coverage() {
     assert_eq!(events, run.coverage.log_events);
     let merged: u64 = run.turns.iter().map(|t| t.coverage.spans_merged).sum();
     assert_eq!(merged, run.coverage.spans_merged);
+    let seen: u64 = run.turns.iter().map(|t| t.coverage.spans_seen).sum();
+    assert_eq!(seen, run.coverage.spans_seen);
+    assert_eq!(run.turns[0].coverage.spans_seen, 3);
+    assert_eq!(run.turns[1].coverage.spans_seen, 3);
     assert!(run.turns[0].coverage.log_events > 0);
     assert!(run.turns[1].coverage.log_events > 0);
+}
+
+#[test]
+fn claude_decision_only_prompt_carries_its_events_forward() {
+    let logs = r#"{"resourceLogs":[{"scopeLogs":[{"logRecords":[
+      {"attributes":[{"key":"event.name","value":{"stringValue":"claude_code.tool_decision"}},{"key":"session.id","value":{"stringValue":"s-carry"}},{"key":"prompt.id","value":{"stringValue":"p-0"}},{"key":"tool_name","value":{"stringValue":"Bash"}},{"key":"decision","value":{"stringValue":"accept"}}],"timeUnixNano":"1000000000"},
+      {"attributes":[{"key":"event.name","value":{"stringValue":"claude_code.user_prompt"}},{"key":"session.id","value":{"stringValue":"s-carry"}},{"key":"prompt.id","value":{"stringValue":"p-1"}}],"timeUnixNano":"2000000000"},
+      {"attributes":[{"key":"event.name","value":{"stringValue":"claude_code.api_request"}},{"key":"session.id","value":{"stringValue":"s-carry"}},{"key":"prompt.id","value":{"stringValue":"p-1"}},{"key":"model","value":{"stringValue":"claude-sonnet-4-5"}},{"key":"input_tokens","value":{"intValue":"10"}},{"key":"output_tokens","value":{"intValue":"2"}},{"key":"cost_usd","value":{"doubleValue":0.001}},{"key":"duration_ms","value":{"intValue":"100"}}],"timeUnixNano":"3000000000"}
+    ]}]}]}"#;
+    let run = telorama_ingest::parse_claude_code_session(logs, &[]).expect("run must parse");
+    assert_eq!(run.turns.len(), 1, "a decision-only prompt is not a turn");
+    assert_eq!(run.turns[0].prompt_id, "p-1");
+    assert_eq!(
+        run.turns[0].coverage.log_events, 3,
+        "the dropped prompt's event carries forward"
+    );
+    assert_eq!(run.coverage.log_events, 3);
+}
+
+#[test]
+fn claude_promptless_records_count_toward_the_first_turn() {
+    let logs = r#"{"resourceLogs":[{"scopeLogs":[{"logRecords":[
+      {"attributes":[{"key":"event.name","value":{"stringValue":"claude_code.api_request"}},{"key":"session.id","value":{"stringValue":"s-stray"}},{"key":"model","value":{"stringValue":"claude-sonnet-4-5"}},{"key":"input_tokens","value":{"intValue":"1"}},{"key":"output_tokens","value":{"intValue":"1"}},{"key":"cost_usd","value":{"doubleValue":0.001}},{"key":"duration_ms","value":{"intValue":"10"}}],"timeUnixNano":"1000000000"},
+      {"attributes":[{"key":"event.name","value":{"stringValue":"claude_code.user_prompt"}},{"key":"session.id","value":{"stringValue":"s-stray"}},{"key":"prompt.id","value":{"stringValue":"p-1"}}],"timeUnixNano":"2000000000"},
+      {"attributes":[{"key":"event.name","value":{"stringValue":"claude_code.api_request"}},{"key":"session.id","value":{"stringValue":"s-stray"}},{"key":"prompt.id","value":{"stringValue":"p-1"}},{"key":"model","value":{"stringValue":"claude-sonnet-4-5"}},{"key":"input_tokens","value":{"intValue":"10"}},{"key":"output_tokens","value":{"intValue":"2"}},{"key":"cost_usd","value":{"doubleValue":0.001}},{"key":"duration_ms","value":{"intValue":"100"}}],"timeUnixNano":"3000000000"}
+    ]}]}]}"#;
+    let run = telorama_ingest::parse_claude_code_session(logs, &[]).expect("run must parse");
+    assert_eq!(run.turns.len(), 1);
+    assert_eq!(
+        run.turns[0].steps.len(),
+        1,
+        "a prompt-less record folds into no step"
+    );
+    assert_eq!(
+        run.turns[0].coverage.log_events, 3,
+        "the prompt-less record counts toward the first turn"
+    );
+    assert_eq!(run.coverage.log_events, 3);
+}
+
+#[test]
+fn codex_pre_prompt_events_land_in_the_first_turns_coverage() {
+    let logs = include_str!("../../../tests/fixtures/agents/codex-session-logs.json");
+    let run = telorama_ingest::parse_codex_session(logs, &[]).expect("run must parse");
+    assert_eq!(run.turns.len(), 2);
+    assert_eq!(
+        run.turns[0].coverage.log_events, 10,
+        "nine folded events plus the conversation start that arrived before the first prompt"
+    );
+    assert_eq!(run.turns[1].coverage.log_events, 6);
+    let sum: u64 = run.turns.iter().map(|t| t.coverage.log_events).sum();
+    assert_eq!(sum, run.coverage.log_events);
 }

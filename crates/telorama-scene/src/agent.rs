@@ -51,6 +51,19 @@ pub struct Coverage {
     pub spans_merged: u64,
 }
 
+impl Coverage {
+    /// Coverage for a turn of a log dialect: the events it folded
+    /// and the spans it merged, with its seen-span count filled in
+    /// by the parser's window pass.
+    pub fn logs(log_events: u64, spans_merged: u64) -> Self {
+        Coverage {
+            log_events,
+            spans_seen: 0,
+            spans_merged,
+        }
+    }
+}
+
 /// One agent's reported state inside a live scene: what it is doing,
 /// why, what it is waiting on, and what it will do next. The state is
 /// runtime data supplied alongside spans and runs, never spec content.
@@ -109,6 +122,19 @@ pub enum AgentStep {
 }
 
 impl AgentStep {
+    /// Visit every step in a list, descending into subagent runs.
+    /// The one traversal of the step tree: totals, model censuses,
+    /// and wait walks all ride it so they can never diverge on
+    /// what a step tree contains.
+    pub fn walk<'a>(steps: &'a [AgentStep], visit: &mut impl FnMut(&'a AgentStep)) {
+        for step in steps {
+            visit(step);
+            if let AgentStep::Subagent(sub) = step {
+                AgentStep::walk(&sub.steps, visit);
+            }
+        }
+    }
+
     pub fn start_unix_nano(&self) -> i64 {
         match self {
             AgentStep::ModelCall(s) => s.start_unix_nano,

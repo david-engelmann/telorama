@@ -35,7 +35,7 @@ fn two_turn_run() -> AgentRun {
                 cost_usd: 0.50,
                 coverage: Coverage {
                     log_events: 5,
-                    spans_seen: 0,
+                    spans_seen: 2,
                     spans_merged: 0,
                 },
             },
@@ -51,7 +51,7 @@ fn two_turn_run() -> AgentRun {
                 cost_usd: 0.0,
                 coverage: Coverage {
                     log_events: 7,
-                    spans_seen: 0,
+                    spans_seen: 1,
                     spans_merged: 0,
                 },
             },
@@ -79,8 +79,9 @@ fn frames_cover_prefixes_in_order() {
     assert_eq!(frames[1].run.turns.len(), 2);
     assert_eq!(frames[0].run.coverage.log_events, 5);
     assert_eq!(frames[1].run.coverage.log_events, 12);
-    // The supplied span count names the export and rides every frame.
-    assert_eq!(frames[0].run.coverage.spans_seen, 3);
+    // Seen spans are the prefix turns' own counts, summed.
+    assert_eq!(frames[0].run.coverage.spans_seen, 2);
+    assert_eq!(frames[1].run.coverage.spans_seen, 3);
     assert!(frames[0].scene.headline.contains("After turn 1:"));
     assert!(frames[1].scene.headline.contains("$0.5000 so far"));
 }

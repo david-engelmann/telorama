@@ -497,9 +497,18 @@ fn frames_from_a_truncated_export_equal_the_leading_frames() {
         &spans,
     )
     .expect("full run must parse");
+    let cut_spans: Vec<_> = spans
+        .iter()
+        .filter(|s| {
+            s.start_unix_nano + (s.end_unix_nano - s.start_unix_nano) / 2
+                <= full.turns[0].end_unix_nano
+        })
+        .cloned()
+        .collect();
+    assert_eq!(cut_spans.len(), 3, "turn 1 of the demo carries three spans");
     let cut = telorama_ingest::parse_claude_code_session(
         &workspace_file("tests/fixtures/agents/claude-code-session-turn1-logs.json"),
-        &spans,
+        &cut_spans,
     )
     .expect("truncated run must parse");
     let full_frames = telorama_scene::session_frames(&full, "test");

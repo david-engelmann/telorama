@@ -4,19 +4,19 @@
 //!
 //! Purity is the contract. A frame's run carries the prefix turns
 //! verbatim, its coverage is the sum of the prefix turns' own
-//! coverage (plus, for the log dialects, the supplied span count,
-//! which names the input the export carried and does not change
-//! under a turn truncation), and its pricing names only the models
-//! the prefix actually used. Frame k is therefore a pure function of
-//! the session prefix through turn k, and the truncation test proves
-//! it: frames built from an export cut after turn 1 equal the leading
+//! coverage on every axis, and its pricing, when the session
+//! carries pricing at all, names only the models the prefix
+//! actually used; a session without pricing yields frames without
+//! pricing. Frame k is therefore a pure function of the session
+//! prefix through turn k, and the truncation test proves it:
+//! frames built from an export cut after turn 1 equal the leading
 //! frames built from the whole export.
 
 use std::collections::BTreeMap;
 
 use serde::Serialize;
 
-use crate::agent::{AgentRun, Coverage, Pricing};
+use crate::agent::{AgentRun, AgentStep, Coverage, Pricing};
 use crate::investigate::{Finding, investigate};
 use crate::spec::{
     Context, DataRef, NarrativeItem, Panel, Provenance, SCENE_VERSION, Sampling, Scene, Source,
@@ -109,15 +109,7 @@ fn prefix_run(run: &AgentRun, k: usize) -> AgentRun {
     let turns: Vec<_> = run.turns.iter().take(k).cloned().collect();
     let log_events: u64 = turns.iter().map(|t| t.coverage.log_events).sum();
     let merged: u64 = turns.iter().map(|t| t.coverage.spans_merged).sum();
-    // The span dialects count spans per turn exactly, so their prefix
-    // coverage is the turn sum. The log dialects count the supplied
-    // span input at session level; that statistic names the export
-    // the frames were built from and does not change when the log
-    // stream is cut at a turn boundary.
-    let spans_seen = match run.dialect.as_str() {
-        "genai" | "openinference" => turns.iter().map(|t| t.coverage.spans_seen).sum(),
-        _ => run.coverage.spans_seen,
-    };
+    let spans_seen: u64 = turns.iter().map(|t| t.coverage.spans_seen).sum();
     let pricing = run.pricing.as_ref().map(|p| {
         let mut models: Vec<&str> = Vec::new();
         for turn in &turns {
@@ -152,12 +144,10 @@ fn prefix_run(run: &AgentRun, k: usize) -> AgentRun {
     }
 }
 
-fn collect_models<'a>(steps: &'a [crate::agent::AgentStep], out: &mut Vec<&'a str>) {
-    for step in steps {
-        match step {
-            crate::agent::AgentStep::ModelCall(call) => out.push(call.model.as_str()),
-            crate::agent::AgentStep::Subagent(sub) => collect_models(&sub.steps, out),
-            crate::agent::AgentStep::ToolCall(_) => {}
+fn collect_models<'a>(steps: &'a [AgentStep], out: &mut Vec<&'a str>) {
+    AgentStep::walk(steps, &mut |step| {
+        if let AgentStep::ModelCall(call) = step {
+            out.push(call.model.as_str());
         }
-    }
+    });
 }
