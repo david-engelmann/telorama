@@ -1,0 +1,1 @@
+[{"agent":"builder","doing":"running the workspace test suite","next":"open the pull request","why":"the slice is ready for its gate and the suite is the verdict"},{"agent":"reviewer","doing":"reading the diff","waiting_on":"the builder to push the final head","why":"the checkpoint rule needs an independent pass before anything lands"}]

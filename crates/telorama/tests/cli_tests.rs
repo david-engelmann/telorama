@@ -325,3 +325,34 @@ fn plugin_packaging_is_wellformed() {
         assert!(skill.contains(needle), "the skill must mention {needle}");
     }
 }
+
+#[test]
+fn render_with_state_draws_the_agent_state_panel() {
+    let scene = workspace_file("tests/fixtures/scenes/agent_state_scene.json");
+    let state = workspace_file("tests/fixtures/agents/agent-state.json");
+    let tmp = std::env::temp_dir().join(format!("telorama-state-{}.svg", std::process::id()));
+    let out = telorama(&[
+        "render",
+        "--scene",
+        scene.to_str().unwrap(),
+        "--state",
+        state.to_str().unwrap(),
+        "--out",
+        tmp.to_str().unwrap(),
+    ]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let rendered = std::fs::read_to_string(&tmp).unwrap();
+    assert!(rendered.contains("Agent state"), "{rendered}");
+    assert!(
+        rendered.contains("Why · the slice is ready for its gate"),
+        "{rendered}"
+    );
+    assert!(
+        rendered.contains("Waiting on · the builder to push the final head"),
+        "{rendered}"
+    );
+}

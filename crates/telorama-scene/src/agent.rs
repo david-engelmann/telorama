@@ -49,6 +49,32 @@ pub struct Coverage {
     pub spans_merged: u64,
 }
 
+/// One agent's reported state inside a live scene: what it is doing,
+/// why, what it is waiting on, and what it will do next. The state is
+/// runtime data supplied alongside spans and runs, never spec content.
+/// The rationale is the point: parsing refuses an entry without one,
+/// so the scene cannot render the lazy version of an agent's work.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AgentStateEntry {
+    /// Who is reporting, a label the reader can follow across frames.
+    pub agent: String,
+    /// What the agent is doing now, in its own words.
+    pub doing: String,
+    /// Why it is doing that. Required, and enforced non-empty at parse.
+    pub why: String,
+    /// What the agent is blocked on, when it is blocked. Waiting is a
+    /// first-class part of the picture, on the blocked-on-user
+    /// precedent in the span tree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub waiting_on: Option<String>,
+    /// What the agent will do next, when it knows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next: Option<String>,
+    /// When this state began, when the reporter knows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub since_unix_ms: Option<i64>,
+}
+
 /// One turn: one user prompt and everything the agent did about it.
 /// Token and cost totals are the turn's own, summed from its model
 /// calls, subagents included.

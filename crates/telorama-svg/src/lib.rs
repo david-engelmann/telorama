@@ -12,9 +12,9 @@
 use std::collections::BTreeMap;
 use std::fmt;
 use telorama_scene::{
-    AgentRun, AgentStep, Finding, FlameNode, Panel, RedStats, Scene, ServiceGraph, Span,
-    StackSample, StatKind, Thresholds, Unit, critical_path, flame_from_spans, flame_tree,
-    heatmap_grid, percentile_nanos, red_by_service, service_graph, waterfall_rows,
+    AgentRun, AgentStateEntry, AgentStep, Finding, FlameNode, Panel, RedStats, Scene,
+    ServiceGraph, Span, StackSample, StatKind, Thresholds, Unit, critical_path, flame_from_spans,
+    flame_tree, heatmap_grid, percentile_nanos, red_by_service, service_graph, waterfall_rows,
 };
 
 /// Canonical float formatting for emitted geometry. The implementation
@@ -618,6 +618,81 @@ fn layout_agent_step(
             layout_agent_step(prims, child, depth + 1, from_nano, window_nano, y);
         }
     }
+}
+
+fn render_agent_state(
+    scene: &Scene,
+    data: &SceneData,
+    panel: &Panel,
+    prims: &mut Vec<Prim>,
+    y: &mut f64,
+) -> Result<(), RenderError> {
+    let Panel::AgentState { data: data_id } = panel else {
+        return Err(fail("render_agent_state called on a non-agent-state panel"));
+    };
+    if !scene.data.iter().any(|d| d.id == *data_id) {
+        return Err(fail(format!(
+            "agent_state reads undeclared data id {data_id:?}"
+        )));
+    }
+    if data.agent_state.is_empty() {
+        return Err(fail(
+            "agent_state panel needs agent state: supply a state report for its data entry",
+        ));
+    }
+    for entry in data.agent_state {
+        text(
+            prims,
+            MARGIN,
+            *y + 12.0,
+            12.0,
+            INK,
+            true,
+            false,
+            format!("{} · {}", entry.agent, entry.doing),
+        );
+        *y += 15.0;
+        text(
+            prims,
+            MARGIN,
+            *y + 12.0,
+            12.0,
+            INK,
+            false,
+            false,
+            format!("Why · {}", entry.why),
+        );
+        *y += 15.0;
+        if let Some(waiting) = &entry.waiting_on {
+            text(
+                prims,
+                MARGIN,
+                *y + 12.0,
+                12.0,
+                ERROR_COLOR,
+                false,
+                false,
+                format!("Waiting on · {waiting}"),
+            );
+            *y += 15.0;
+        }
+        if let Some(next) = &entry.next {
+            text(
+                prims,
+                MARGIN,
+                *y + 12.0,
+                12.0,
+                MUTED,
+                false,
+                false,
+                format!("Next · {next}"),
+            );
+            *y += 15.0;
+        }
+        *y += 6.0;
+    }
+    *y -= 6.0;
+    Ok(())
 }
 
 fn render_agent_run(
@@ -1658,6 +1733,8 @@ pub struct SceneData<'a> {
     pub spans: &'a [Span],
     pub stacks: &'a [StackSample],
     pub agent_run: Option<&'a AgentRun>,
+    /// The agent-state entries, when a panel renders them.
+    pub agent_state: &'a [AgentStateEntry],
     /// The investigation layer for this render, ranked findings from
     /// `telorama_scene::investigate`. Empty draws no strip.
     pub findings: &'a [Finding],
@@ -1673,6 +1750,7 @@ pub fn render_scene(scene: &Scene, spans: &[Span]) -> Result<String, RenderError
             spans,
             stacks: &[],
             agent_run: None,
+            agent_state: &[],
             findings: &[],
         },
     )
@@ -1773,6 +1851,7 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
             Panel::Flame { .. } => "Flame graph",
             Panel::ServiceMap { .. } => "Service map",
             Panel::AgentRun { .. } => "Agent run",
+            Panel::AgentState { .. } => "Agent state",
             other => {
                 return Err(fail(format!(
                     "panel type {} is in the spec but has no renderer yet: it lands in a later milestone",
@@ -1805,6 +1884,9 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
                 render_service_map(scene, spans, panel, &colors, &mut prims, &mut y)?
             }
             Panel::AgentRun { .. } => render_agent_run(scene, data, panel, &mut prims, &mut y)?,
+            Panel::AgentState { .. } => {
+                render_agent_state(scene, data, panel, &mut prims, &mut y)?
+            }
             _ => unreachable!("heading match already returned for unsupported panels"),
         }
     }

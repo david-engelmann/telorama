@@ -152,6 +152,9 @@ pub enum Panel {
     AgentRun {
         data: String,
     },
+    AgentState {
+        data: String,
+    },
 }
 
 impl Panel {
@@ -165,7 +168,8 @@ impl Panel {
             | Panel::Flame { data, .. }
             | Panel::Heatmap { data, .. }
             | Panel::ServiceMap { data, .. }
-            | Panel::AgentRun { data, .. } => data,
+            | Panel::AgentRun { data, .. }
+            | Panel::AgentState { data, .. } => data,
         }
     }
 
@@ -180,6 +184,7 @@ impl Panel {
             Panel::Heatmap { .. } => "heatmap",
             Panel::ServiceMap { .. } => "service_map",
             Panel::AgentRun { .. } => "agent_run",
+            Panel::AgentState { .. } => "agent_state",
         }
     }
 }

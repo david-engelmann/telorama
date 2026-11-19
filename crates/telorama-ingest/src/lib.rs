@@ -11,6 +11,7 @@ pub mod codex;
 pub(crate) mod events;
 mod pricing;
 pub mod span_dialects;
+pub mod state;
 
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -20,6 +21,7 @@ use telorama_scene::{Span, SpanKind, StackSample};
 pub use claude_code::parse_claude_code_session;
 pub use codex::parse_codex_session;
 pub use span_dialects::{parse_genai_session, parse_openinference_session};
+pub use state::parse_agent_state;
 
 /// An ingest failure with a message specific enough to act on.
 #[derive(Debug, Clone, PartialEq, Eq)]
