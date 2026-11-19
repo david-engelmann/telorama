@@ -66,6 +66,7 @@ fn tools_list_links_the_view_and_hides_the_drilldown() {
             "inspect_traces",
             "render_scene",
             "session_run",
+            "session_frames",
             "scene_panel_detail",
             "incident_scene"
         ]
