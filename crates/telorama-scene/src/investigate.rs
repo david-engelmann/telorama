@@ -11,7 +11,7 @@
 
 use crate::agent::{AgentRun, AgentStep};
 use crate::derive::{critical_path, red_by_service, waterfall_rows};
-use crate::field::{format_duration_nanos, Thresholds};
+use crate::field::{Thresholds, format_duration_nanos};
 use crate::trace::Span;
 use serde::Serialize;
 use std::collections::BTreeSet;
