@@ -303,8 +303,8 @@ fn cmd_frames(args: &[String]) -> Result<String, String> {
             agent_state: &[],
             findings: &frame.findings,
         };
-        let svg = telorama_svg::render_scene_with_data(&frame.scene, &data)
-            .map_err(|e| e.to_string())?;
+        let svg =
+            telorama_svg::render_scene_with_data(&frame.scene, &data).map_err(|e| e.to_string())?;
         let payload = serde_json::json!({
             "frame": frame.index + 1,
             "turns": frame.turns,

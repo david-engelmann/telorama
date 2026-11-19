@@ -501,11 +501,10 @@ fn adapt_session(args: &Value) -> Result<AgentRun, String> {
             let spans =
                 telorama_ingest::parse_otlp_traces(spans_text).map_err(|e| e.to_string())?;
             match dialect {
-                "genai" => {
-                    telorama_ingest::parse_genai_session(&spans).map_err(|e| e.to_string())
+                "genai" => telorama_ingest::parse_genai_session(&spans).map_err(|e| e.to_string()),
+                _ => {
+                    telorama_ingest::parse_openinference_session(&spans).map_err(|e| e.to_string())
                 }
-                _ => telorama_ingest::parse_openinference_session(&spans)
-                    .map_err(|e| e.to_string()),
             }
         }
         _ => {

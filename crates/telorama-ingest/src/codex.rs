@@ -118,10 +118,7 @@ pub fn parse_codex_session(logs_text: &str, spans: &[Span]) -> Result<AgentRun, 
             order.push(turn_id.clone());
             builders.insert(turn_id.clone(), TurnBuilder::new());
         }
-        builders
-            .get_mut(&turn_id)
-            .expect("builder exists")
-            .events += 1;
+        builders.get_mut(&turn_id).expect("builder exists").events += 1;
         if event.name == "codex.tool_decision" {
             if let (Some(tool), Some(decision)) =
                 (event.str_attr("tool_name"), event.str_attr("decision"))

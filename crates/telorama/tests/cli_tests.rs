@@ -395,5 +395,8 @@ fn frames_command_writes_jsonl_and_a_framebook() {
     let html = std::fs::read_to_string(&book).unwrap();
     assert!(html.contains("Frame 1 of 2 · after turn 1"), "{html}");
     assert!(html.contains("Frame 2 of 2 · after turn 2"), "{html}");
-    assert!(!html.contains("<script"), "the framebook carries no scripts");
+    assert!(
+        !html.contains("<script"),
+        "the framebook carries no scripts"
+    );
 }

@@ -17,9 +17,9 @@ use std::collections::BTreeMap;
 use serde::Serialize;
 
 use crate::agent::{AgentRun, Coverage, Pricing};
-use crate::investigate::{investigate, Finding};
+use crate::investigate::{Finding, investigate};
 use crate::spec::{
-    Context, DataRef, NarrativeItem, Panel, Provenance, Scene, Source, TimeRange, SCENE_VERSION,
+    Context, DataRef, NarrativeItem, Panel, Provenance, SCENE_VERSION, Scene, Source, TimeRange,
 };
 
 /// One frame of a live session: a complete scene over the session

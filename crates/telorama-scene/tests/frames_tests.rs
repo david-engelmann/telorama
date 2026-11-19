@@ -1,5 +1,5 @@
 use telorama_scene::{
-    session_frames, AgentRun, AgentStep, AgentTurn, Coverage, ModelCall, Pricing,
+    AgentRun, AgentStep, AgentTurn, Coverage, ModelCall, Pricing, session_frames,
 };
 
 fn call(model: &str, cost: f64) -> AgentStep {

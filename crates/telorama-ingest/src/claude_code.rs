@@ -93,10 +93,7 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
             order.push(prompt_id.clone());
             builders.insert(prompt_id.clone(), TurnBuilder::new());
         }
-        builders
-            .get_mut(&prompt_id)
-            .expect("builder exists")
-            .events += 1;
+        builders.get_mut(&prompt_id).expect("builder exists").events += 1;
         if event.name == "claude_code.tool_decision" {
             if let (Some(tool), Some(decision)) =
                 (event.str_attr("tool_name"), event.str_attr("decision"))
