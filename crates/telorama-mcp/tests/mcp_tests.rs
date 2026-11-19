@@ -252,3 +252,36 @@ fn incident_scene_tool_composes_and_renders() {
         .expect("view payload");
     assert!(svg.contains("<svg"), "the view payload is the render");
 }
+
+#[test]
+fn render_scene_draws_the_agent_state_panel() {
+    let result = call_tool(
+        12,
+        "render_scene",
+        json!({
+            "scene": workspace_file("tests/fixtures/scenes/agent_state_scene.json"),
+            "agent_state": workspace_file("tests/fixtures/agents/agent-state.json")
+        }),
+    );
+    assert_eq!(result["isError"], false);
+    let svg = result["_meta"]["telorama/svg"]
+        .as_str()
+        .expect("svg in _meta");
+    assert!(svg.contains("Agent state"), "the panel heading renders");
+    assert!(
+        svg.contains("builder · running the workspace test suite"),
+        "the action line renders"
+    );
+    assert!(
+        svg.contains("Why · the checkpoint rule needs an independent pass"),
+        "the rationale renders"
+    );
+    assert!(
+        svg.contains("Waiting on · the builder to push the final head"),
+        "the waiting line renders"
+    );
+    assert_eq!(
+        result["structuredContent"]["panels"][0]["entries"], 2,
+        "the summary counts the entries"
+    );
+}

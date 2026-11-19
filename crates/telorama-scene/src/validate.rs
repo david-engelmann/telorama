@@ -94,7 +94,7 @@ fn validate_thresholds(panel: &Value, base: &str, errors: &mut Vec<ValidationErr
     }
 }
 
-const PANEL_TYPES: [&str; 8] = [
+const PANEL_TYPES: [&str; 9] = [
     "waterfall",
     "stat",
     "red_row",
@@ -103,6 +103,7 @@ const PANEL_TYPES: [&str; 8] = [
     "heatmap",
     "service_map",
     "agent_run",
+    "agent_state",
 ];
 const UNITS: [&str; 5] = ["duration", "count", "ratio", "requests_per_second", "bytes"];
 const STATS: [&str; 7] = ["p50", "p95", "p99", "count", "rate", "error_ratio", "last"];

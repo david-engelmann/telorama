@@ -10,7 +10,7 @@
 use std::process::ExitCode;
 
 fn usage() -> &'static str {
-    "usage:\n  telorama inspect <traces.json>\n  telorama validate <scene.json>\n  telorama render --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] --out <scene.svg>\n  telorama render-html --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] --out <scene.html>\n  telorama session [--logs <logs.json>] [--spans <spans.json>] [--dialect <dialect>]\n  telorama incident --traces <traces.json> [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] [--out <scene.json>] [--render <scene.svg>]\n  telorama schema"
+    "usage:\n  telorama inspect <traces.json>\n  telorama validate <scene.json>\n  telorama render --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] [--state <state.json>] --out <scene.svg>\n  telorama render-html --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] [--state <state.json>] --out <scene.html>\n  telorama session [--logs <logs.json>] [--spans <spans.json>] [--dialect <dialect>]\n  telorama incident --traces <traces.json> [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] [--out <scene.json>] [--render <scene.svg>]\n  telorama schema"
 }
 
 fn read_file(path: &str) -> Result<String, String> {
@@ -72,13 +72,14 @@ fn flag<'a>(args: &'a [String], name: &str) -> Result<Option<&'a str>, String> {
     Ok(value)
 }
 
-const RENDER_FLAGS: [&str; 7] = [
+const RENDER_FLAGS: [&str; 8] = [
     "--scene",
     "--traces",
     "--profile",
     "--session-logs",
     "--session-spans",
     "--dialect",
+    "--state",
     "--out",
 ];
 
@@ -178,11 +179,18 @@ fn cmd_render_like(args: &[String], html: bool) -> Result<String, String> {
     } else {
         None
     };
+    let state = match flag(args, "--state")? {
+        Some(path) => {
+            telorama_ingest::parse_agent_state(&read_file(path)?).map_err(|e| e.to_string())?
+        }
+        None => Vec::new(),
+    };
     let findings = telorama_scene::investigate(&spans, run.as_ref(), scene.context.range.seconds());
     let data = telorama_svg::SceneData {
         spans: &spans,
         stacks: &stacks,
         agent_run: run.as_ref(),
+        agent_state: &state,
         findings: &findings,
     };
     let svg = telorama_svg::render_scene_with_data(&scene, &data).map_err(|e| e.to_string())?;
@@ -253,6 +261,7 @@ fn cmd_incident(args: &[String]) -> Result<String, String> {
                 spans: &spans,
                 stacks: &[],
                 agent_run: run.as_ref(),
+                agent_state: &[],
                 findings: &findings,
             },
         )

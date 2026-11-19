@@ -75,7 +75,7 @@ pub fn scene_schema() -> Value {
                     "type": "object",
                     "required": ["type", "data"],
                     "properties": {
-                        "type": { "enum": ["waterfall", "stat", "red_row", "sankey", "flame", "heatmap", "service_map", "agent_run"] },
+                        "type": { "enum": ["waterfall", "stat", "red_row", "sankey", "flame", "heatmap", "service_map", "agent_run", "agent_state"] },
                         "data": { "type": "string", "minLength": 1 },
                         "thresholds": {
                             "type": "array",

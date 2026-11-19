@@ -17,7 +17,8 @@ pub mod trace;
 pub mod validate;
 
 pub use agent::{
-    AgentRun, AgentStep, AgentTurn, Coverage, ModelCall, Pricing, SubagentRun, ToolCall,
+    AgentRun, AgentStateEntry, AgentStep, AgentTurn, Coverage, ModelCall, Pricing, SubagentRun,
+    ToolCall,
 };
 pub use compose::incident_scene;
 pub use derive::{

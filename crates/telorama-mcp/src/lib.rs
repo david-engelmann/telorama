@@ -148,7 +148,8 @@ fn tool_definitions() -> Value {
         "profile": {"type": "string", "description": "Folded-stack profile text for flame panels"},
         "session_logs": {"type": "string", "description": "OTLP log export text for agent_run panels"},
         "session_spans": {"type": "string", "description": "OTLP trace export text to fuse into the session"},
-        "dialect": {"type": "string", "enum": ["claude_code", "codex", "genai", "openinference"], "description": "Session dialect, default claude_code. The genai and openinference dialects read session_spans."}
+        "dialect": {"type": "string", "enum": ["claude_code", "codex", "genai", "openinference"], "description": "Session dialect, default claude_code. The genai and openinference dialects read session_spans."},
+        "agent_state": {"type": "string", "description": "Agent state report JSON text for agent_state panels, a list of entries with agent, doing, and why"}
     });
     let mut render_props = json!({
         "scene": {"type": "string", "description": "The scene spec JSON text"}
@@ -231,6 +232,7 @@ struct Inputs {
     spans: Vec<Span>,
     stacks: Vec<StackSample>,
     run: Option<AgentRun>,
+    state: Vec<telorama_scene::AgentStateEntry>,
 }
 
 fn arg_str<'a>(args: &'a Value, key: &str) -> Option<&'a str> {
@@ -267,7 +269,16 @@ fn build_inputs(args: &Value) -> Result<Inputs, String> {
             _ => None,
         },
     };
-    Ok(Inputs { spans, stacks, run })
+    let state = match arg_str(args, "agent_state") {
+        Some(text) => telorama_ingest::parse_agent_state(text).map_err(|e| e.to_string())?,
+        None => Vec::new(),
+    };
+    Ok(Inputs {
+        spans,
+        stacks,
+        run,
+        state,
+    })
 }
 
 fn parse_session(logs: &str, spans_text: Option<&str>, args: &Value) -> Result<AgentRun, String> {
@@ -428,6 +439,7 @@ fn tool_render(args: &Value) -> Value {
         spans: &inputs.spans,
         stacks: &inputs.stacks,
         agent_run: inputs.run.as_ref(),
+        agent_state: &inputs.state,
         findings: &findings,
     };
     let svg = match telorama_svg::render_scene_with_data(&scene, &data) {
@@ -537,6 +549,7 @@ fn tool_incident(args: &Value) -> Value {
         spans: &inputs.spans,
         stacks: &inputs.stacks,
         agent_run: inputs.run.as_ref(),
+        agent_state: &inputs.state,
         findings: &findings,
     };
     let svg = match telorama_svg::render_scene_with_data(&scene, &data) {
@@ -714,6 +727,11 @@ fn panel_summary(scene: &Scene, inputs: &Inputs, panel: &Panel) -> Value {
             }),
             None => json!({"type": "agent_run", "turns": 0}),
         },
+        Panel::AgentState { .. } => json!({
+            "type": "agent_state",
+            "entries": inputs.state.len(),
+            "waiting": inputs.state.iter().filter(|e| e.waiting_on.is_some()).count()
+        }),
     }
 }
 
@@ -883,6 +901,10 @@ fn panel_detail(scene: &Scene, inputs: &Inputs, panel: &Panel) -> Value {
         Panel::AgentRun { .. } => json!({
             "type": "agent_run",
             "run": inputs.run.as_ref().map(|r| serde_json::to_value(r).expect("the run model must serialize"))
+        }),
+        Panel::AgentState { .. } => json!({
+            "type": "agent_state",
+            "state": serde_json::to_value(&inputs.state).expect("the state model must serialize")
         }),
     }
 }
