@@ -58,7 +58,11 @@ fn investigate_ranks_errors_before_latency_and_matches_red() {
     );
     assert!(errors.statement.contains("above the standing 5%"));
     // INV-50: the exemplars exist in the input.
-    assert!(spans.iter().any(|s| s.span_id == errors.exemplars[0] && s.is_error));
+    assert!(
+        spans
+            .iter()
+            .any(|s| s.span_id == errors.exemplars[0] && s.is_error)
+    );
     assert_eq!(errors.exemplars[1], "t1");
     let latency = &findings[1];
     assert_eq!(latency.rank, 2);
@@ -174,8 +178,9 @@ fn investigate_wait_and_cost_findings_from_a_run() {
     let cost = &findings[1];
     assert_eq!(cost.kind, "cost");
     assert!(
-        cost.statement
-            .contains("most expensive turn cost $0.5000 (83.3% of the session priced cost $0.6000)"),
+        cost.statement.contains(
+            "most expensive turn cost $0.5000 (83.3% of the session priced cost $0.6000)"
+        ),
         "{}",
         cost.statement
     );

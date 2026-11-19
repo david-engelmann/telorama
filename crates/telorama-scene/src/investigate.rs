@@ -138,11 +138,7 @@ fn latency_finding(spans: &[Span]) -> Option<Finding> {
 /// Every tool call in a run, subagents included, with the prompt id of
 /// the turn it belongs to.
 fn tool_calls(run: &AgentRun) -> Vec<(String, String, i64)> {
-    fn walk(
-        steps: &[AgentStep],
-        prompt_id: &str,
-        out: &mut Vec<(String, String, i64)>,
-    ) {
+    fn walk(steps: &[AgentStep], prompt_id: &str, out: &mut Vec<(String, String, i64)>) {
         for step in steps {
             match step {
                 AgentStep::ToolCall(tool) => {
@@ -166,12 +162,7 @@ fn wait_finding(run: &AgentRun) -> Option<Finding> {
     if total_wait <= 0 || run.turns.is_empty() {
         return None;
     }
-    let wall = run
-        .turns
-        .iter()
-        .map(|t| t.end_unix_nano)
-        .max()
-        .unwrap_or(0)
+    let wall = run.turns.iter().map(|t| t.end_unix_nano).max().unwrap_or(0)
         - run
             .turns
             .iter()

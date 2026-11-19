@@ -178,11 +178,7 @@ fn cmd_render_like(args: &[String], html: bool) -> Result<String, String> {
     } else {
         None
     };
-    let findings = telorama_scene::investigate(
-        &spans,
-        run.as_ref(),
-        scene.context.range.seconds(),
-    );
+    let findings = telorama_scene::investigate(&spans, run.as_ref(), scene.context.range.seconds());
     let data = telorama_svg::SceneData {
         spans: &spans,
         stacks: &stacks,
@@ -249,11 +245,8 @@ fn cmd_incident(args: &[String]) -> Result<String, String> {
         std::fs::write(out_path, &text).map_err(|e| format!("cannot write {out_path}: {e}"))?;
     }
     if let Some(render_path) = flag(args, "--render")? {
-        let findings = telorama_scene::investigate(
-            &spans,
-            run.as_ref(),
-            scene.context.range.seconds(),
-        );
+        let findings =
+            telorama_scene::investigate(&spans, run.as_ref(), scene.context.range.seconds());
         let svg = telorama_svg::render_scene_with_data(
             &scene,
             &telorama_svg::SceneData {

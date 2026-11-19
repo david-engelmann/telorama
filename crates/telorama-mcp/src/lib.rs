@@ -445,8 +445,7 @@ fn tool_render(args: &Value) -> Value {
     );
     text.push_str(&findings_text(&findings));
     let mut structured = scene_summary(&scene, &inputs, &svg);
-    structured["investigation"] =
-        serde_json::to_value(&findings).expect("findings must serialize");
+    structured["investigation"] = serde_json::to_value(&findings).expect("findings must serialize");
     tool_ok(text, structured, Some(json!({"telorama/svg": svg})))
 }
 
@@ -546,8 +545,7 @@ fn tool_incident(args: &Value) -> Value {
     };
     let mut structured = scene_summary(&scene, &inputs, &svg);
     structured["scene"] = serde_json::to_value(&scene).expect("the composed scene must serialize");
-    structured["investigation"] =
-        serde_json::to_value(&findings).expect("findings must serialize");
+    structured["investigation"] = serde_json::to_value(&findings).expect("findings must serialize");
     let types: Vec<&str> = scene.panels.iter().map(|p| p.type_name()).collect();
     let mut text = format!(
         "{}. {} Panels: {}. SVG {} bytes, fnv1a64 {}.",

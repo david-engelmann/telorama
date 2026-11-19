@@ -130,7 +130,10 @@ fn render_scene_returns_the_triple_contract() {
     let svg = result["_meta"]["telorama/svg"]
         .as_str()
         .expect("svg in _meta");
-    assert!(svg.contains("Look here first"), "the strip rides the tool render");
+    assert!(
+        svg.contains("Look here first"),
+        "the strip rides the tool render"
+    );
     assert!(svg.contains("email carries 100.0% of the errors"), "{svg}");
     assert_eq!(
         result["structuredContent"]["svg_fnv1a64"],
