@@ -32,7 +32,7 @@ pub use field::{
     format_value,
 };
 pub use frames::{Frame, session_frames};
-pub use investigate::{Finding, investigate};
+pub use investigate::{EvidencePoint, Finding, investigate};
 pub use profile::StackSample;
 pub use schema::{scene_schema, scene_schema_text};
 pub use spec::{

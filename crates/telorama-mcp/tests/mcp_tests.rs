@@ -118,6 +118,10 @@ fn resources_read_returns_the_app_view() {
         "the view carries the stepper"
     );
     assert!(
+        html.contains("delivered.length > 0"),
+        "the stepper shows whenever a frame stream is delivered"
+    );
+    assert!(
         !html.contains("transition"),
         "frames replace: the view declares no transitions"
     );
@@ -202,6 +206,16 @@ fn session_run_tool_prices_a_codex_session() {
     let text = result["content"][0]["text"].as_str().expect("text part");
     assert!(text.contains("$0.0289"), "got: {text}");
     assert!(text.contains("estimate"), "got: {text}");
+    // The session payload carries the run's findings too (INV-57).
+    let investigation = result["structuredContent"]["investigation"]
+        .as_array()
+        .expect("investigation list");
+    assert!(
+        investigation
+            .iter()
+            .any(|f| f["kind"] == "cost" && f["evidence"].is_array()),
+        "the cost finding rides the session payload with its evidence"
+    );
 }
 
 #[test]

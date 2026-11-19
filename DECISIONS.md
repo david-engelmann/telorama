@@ -364,3 +364,29 @@ session's total turn count failed the truncation test the
 design itself required.
 
 The crates.io publish remains the owner's act, unchanged.
+
+## M5 spec follow-ups, 2026-11-19
+
+The spec fidelity axis's full report reached the seat after
+the landing record above and named four deviations the repair
+pass had not covered. They are repaired in a follow-up pass on
+the same day. A finding now carries its evidence numbers as
+structured data beside its statement, as the design's finding
+shape specifies. The cost finding names the costliest turn's
+model in its statement and its evidence. The view shows its
+stepper whenever a frame stream is delivered, a one-turn
+session included. INV-57's entry now names the session tool's
+findings attachment, which the build had extended past the
+design's letter without recording it. The standing verdict
+threshold the errors finding compares against is read from the
+field system's own rule rather than a copied literal. Two
+deviations the report named were already answered by the
+repair pass it predated: frame coverage is a true prefix sum
+on every axis, so the README's sentence stands as written, and
+the threshold placement is recorded in the landing record
+above. On the duration half of that sentence, the position is
+this. The standing duration verdict judges a service's RED
+duration, which the RED row itself prints under its own
+threshold rule. The latency finding's subject is one span's
+self time, which no standing verdict judges, so no crossing
+sentence is added there.

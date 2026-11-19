@@ -11,10 +11,28 @@
 
 use crate::agent::{AgentRun, AgentStep};
 use crate::derive::{critical_path, red_by_service, waterfall_rows};
-use crate::field::format_duration_nanos;
+use crate::field::{format_duration_nanos, Thresholds};
 use crate::trace::Span;
 use serde::Serialize;
 use std::collections::BTreeSet;
+
+/// One evidence number behind a finding's statement, carried as
+/// data so the agent reader consumes the same evidence the human
+/// reads in the statement.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct EvidencePoint {
+    /// The measure's name, such as `error_ratio`.
+    pub label: String,
+    /// The measured value, formatted by the field formatters.
+    pub value: String,
+}
+
+fn ev(label: &str, value: String) -> EvidencePoint {
+    EvidencePoint {
+        label: label.to_string(),
+        value,
+    }
+}
 
 /// One ranked investigation marker.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -29,6 +47,8 @@ pub struct Finding {
     /// The evidence stated in one line, generated from measured
     /// values only.
     pub statement: String,
+    /// The evidence numbers behind the statement, as data.
+    pub evidence: Vec<EvidencePoint>,
     /// Span ids, trace ids, or prompt ids that exist in the input
     /// data and prove the statement.
     pub exemplars: Vec<String>,
@@ -65,6 +85,7 @@ fn errors_finding(spans: &[Span], window_seconds: f64) -> Option<Finding> {
             .then_with(|| a.span_id.cmp(&b.span_id))
     });
     let exemplar = error_spans[0];
+    let threshold = Thresholds::error_ratio().steps[0].above;
     let mut statement = format!(
         "{} carries {} of the errors in the window, {} of {} errors across {} calls at {} errors",
         leader.service,
@@ -74,14 +95,22 @@ fn errors_finding(spans: &[Span], window_seconds: f64) -> Option<Finding> {
         leader.calls,
         pct(leader.error_ratio),
     );
-    if leader.error_ratio >= 0.05 {
+    let mut evidence = vec![
+        ev("service_errors", leader.errors.to_string()),
+        ev("service_calls", leader.calls.to_string()),
+        ev("error_ratio", pct(leader.error_ratio)),
+        ev("window_errors", total_errors.to_string()),
+    ];
+    if leader.error_ratio >= threshold {
         statement.push_str(", above the standing 5% verdict threshold");
+        evidence.push(ev("verdict_threshold", pct(threshold)));
     }
     Some(Finding {
         rank: 0,
         kind: "errors".to_string(),
         subject: leader.service.clone(),
         statement,
+        evidence,
         exemplars: vec![exemplar.span_id.clone(), exemplar.trace_id.clone()],
     })
 }
@@ -132,6 +161,11 @@ fn latency_finding(spans: &[Span]) -> Option<Finding> {
         kind: "latency".to_string(),
         subject: span.name.clone(),
         statement,
+        evidence: vec![
+            ev("self_time", format_duration_nanos(self_nanos)),
+            ev("window_self_time", format_duration_nanos(total_self)),
+            ev("share", pct(self_nanos as f64 / total_self as f64)),
+        ],
         exemplars: vec![span.span_id.clone(), span.trace_id.clone()],
     })
 }
@@ -182,6 +216,12 @@ fn wait_finding(run: &AgentRun) -> Option<Finding> {
             format_duration_nanos(*longest),
             tool,
         ),
+        evidence: vec![
+            ev("total_wait", format_duration_nanos(total_wait)),
+            ev("longest_wait", format_duration_nanos(*longest)),
+            ev("session_wall", format_duration_nanos(wall)),
+            ev("share", pct(total_wait as f64 / wall as f64)),
+        ],
         exemplars: vec![prompt_id.clone()],
     })
 }
@@ -208,6 +248,7 @@ fn cost_finding(run: &AgentRun) -> Option<Finding> {
                 "No priced cost in this session. Unpriced models in use, {}",
                 unpriced.join(", "),
             ),
+            evidence: vec![ev("unpriced_models", unpriced.join(", "))],
             exemplars: vec![run.turns[0].prompt_id.clone()],
         });
     }
@@ -221,23 +262,43 @@ fn cost_finding(run: &AgentRun) -> Option<Finding> {
                 .then_with(|| b.prompt_id.cmp(&a.prompt_id))
         })
         .expect("a non-empty run has a costliest turn");
+    let mut models: BTreeSet<String> = BTreeSet::new();
+    AgentStep::walk(&leader.steps, &mut |step| {
+        if let AgentStep::ModelCall(call) = step {
+            models.insert(call.model.clone());
+        }
+    });
+    let models: Vec<String> = models.into_iter().collect();
     let mut statement = format!(
         "The most expensive turn cost ${:.4} ({} of the session priced cost ${:.4})",
         leader.cost_usd,
         pct(leader.cost_usd / total),
         total,
     );
+    if !models.is_empty() {
+        statement.push_str(&format!(" on {}", models.join(", ")));
+    }
+    let mut evidence = vec![
+        ev("turn_cost_usd", format!("${:.4}", leader.cost_usd)),
+        ev("session_cost_usd", format!("${:.4}", total)),
+        ev("share", pct(leader.cost_usd / total)),
+    ];
+    if !models.is_empty() {
+        evidence.push(ev("model", models.join(", ")));
+    }
     if !unpriced.is_empty() {
         statement.push_str(&format!(
             ". Priced cost excludes unpriced models, {}",
             unpriced.join(", ")
         ));
+        evidence.push(ev("unpriced_models", unpriced.join(", ")));
     }
     Some(Finding {
         rank: 0,
         kind: "cost".to_string(),
         subject: leader.prompt_id.clone(),
         statement,
+        evidence,
         exemplars: vec![leader.prompt_id.clone()],
     })
 }
