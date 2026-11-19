@@ -19,7 +19,8 @@ use serde::Serialize;
 use crate::agent::{AgentRun, Coverage, Pricing};
 use crate::investigate::{Finding, investigate};
 use crate::spec::{
-    Context, DataRef, NarrativeItem, Panel, Provenance, SCENE_VERSION, Scene, Source, TimeRange,
+    Context, DataRef, NarrativeItem, Panel, Provenance, SCENE_VERSION, Sampling, Scene, Source,
+    TimeRange,
 };
 
 /// One frame of a live session: a complete scene over the session
@@ -80,7 +81,7 @@ pub fn session_frames(run: &AgentRun, generated_by: &str) -> Vec<Frame> {
                     trace_id: None,
                     buckets: None,
                 },
-                sampled: "unsampled".to_string(),
+                sampled: Sampling::Unsampled,
             }],
             panels: vec![Panel::AgentRun {
                 data: "session".to_string(),
