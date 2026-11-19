@@ -1,6 +1,6 @@
 //! Agent-state parsing. The working agent reports its own state as a
 //! JSON list of entries; this parser is where the rationale rule is
-//! enforced. An entry with an empty agent, action, or rationale is
+//! enforced. An entry with an empty agent, doing, or rationale is
 //! refused with a named error, because the scene will not render the
 //! lazy version of an agent's work.
 

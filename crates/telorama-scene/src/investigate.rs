@@ -90,16 +90,17 @@ fn latency_finding(spans: &[Span]) -> Option<Finding> {
     if spans.is_empty() {
         return None;
     }
+    let by_id: std::collections::BTreeMap<(&str, &str), &Span> = spans
+        .iter()
+        .map(|s| ((s.trace_id.as_str(), s.span_id.as_str()), s))
+        .collect();
     let trace_ids: BTreeSet<&str> = spans.iter().map(|s| s.trace_id.as_str()).collect();
     let mut total_self: i64 = 0;
     let mut best: Option<(&Span, i64)> = None;
     for trace_id in &trace_ids {
         for row in waterfall_rows(spans, trace_id) {
             total_self += row.self_time_nanos;
-            let span = spans
-                .iter()
-                .find(|s| s.trace_id == *trace_id && s.span_id == row.span_id)
-                .expect("a waterfall row names a span in its trace");
+            let span = by_id[&(*trace_id, row.span_id.as_str())];
             let better = match best {
                 None => true,
                 Some((best_span, best_self)) => {

@@ -271,14 +271,19 @@ fn cmd_incident(args: &[String]) -> Result<String, String> {
     Ok(text)
 }
 
+const FRAMES_FLAGS: [&str; 5] = ["--logs", "--spans", "--dialect", "--out", "--html"];
+
 fn cmd_frames(args: &[String]) -> Result<String, String> {
     let mut i = 0;
     while i < args.len() {
-        match args[i].as_str() {
-            "--logs" | "--spans" | "--dialect" | "--out" | "--html" => i += 2,
-            other => {
-                return Err(format!("unknown frames argument {other:?}\n{}", usage()));
-            }
+        if FRAMES_FLAGS.contains(&args[i].as_str()) {
+            i += 2;
+        } else {
+            return Err(format!(
+                "unknown frames argument {:?}\n{}",
+                args[i],
+                usage()
+            ));
         }
     }
     let Some(out_path) = flag(args, "--out")? else {

@@ -42,7 +42,7 @@ frame for the model. Its structured content carries each frame's
 scene and findings. The final frame rides the usual view
 payload, and every frame rides alongside it, so the view opens
 on the completed session and its stepper walks back and forth
-through the delivered frames by replacing the picture whole.
+through the delivered frames by replacing the whole picture.
 
 Findings ride every frame. A frame's findings derive from that
 frame's prefix alone, so the ranked list an investigator reads
