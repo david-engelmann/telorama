@@ -7,6 +7,7 @@
 
 pub mod agent;
 pub mod compose;
+pub mod investigate;
 pub mod derive;
 pub mod field;
 pub mod profile;
@@ -19,6 +20,7 @@ pub use agent::{
     AgentRun, AgentStep, AgentTurn, Coverage, ModelCall, Pricing, SubagentRun, ToolCall,
 };
 pub use compose::incident_scene;
+pub use investigate::{Finding, investigate};
 pub use derive::{
     Exemplar, FlameNode, HeatmapGrid, HeatmapRow, MapEdge, RedStats, ServiceGraph, WaterfallRow,
     content_hash, critical_path, flame_from_spans, flame_tree, heatmap_grid, percentile_nanos,
