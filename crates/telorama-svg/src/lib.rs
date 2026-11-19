@@ -12,9 +12,9 @@
 use std::collections::BTreeMap;
 use std::fmt;
 use telorama_scene::{
-    AgentRun, AgentStep, FlameNode, Panel, RedStats, Scene, ServiceGraph, Span, StackSample,
-    StatKind, Thresholds, Unit, critical_path, flame_from_spans, flame_tree, heatmap_grid,
-    percentile_nanos, red_by_service, service_graph, waterfall_rows,
+    AgentRun, AgentStep, Finding, FlameNode, Panel, RedStats, Scene, ServiceGraph, Span,
+    StackSample, StatKind, Thresholds, Unit, critical_path, flame_from_spans, flame_tree,
+    heatmap_grid, percentile_nanos, red_by_service, service_graph, waterfall_rows,
 };
 
 /// Canonical float formatting for emitted geometry. The implementation
@@ -1658,6 +1658,9 @@ pub struct SceneData<'a> {
     pub spans: &'a [Span],
     pub stacks: &'a [StackSample],
     pub agent_run: Option<&'a AgentRun>,
+    /// The investigation layer for this render, ranked findings from
+    /// `telorama_scene::investigate`. Empty draws no strip.
+    pub findings: &'a [Finding],
 }
 
 /// Render a scene over a span set to a deterministic SVG document.
@@ -1670,6 +1673,7 @@ pub fn render_scene(scene: &Scene, spans: &[Span]) -> Result<String, RenderError
             spans,
             stacks: &[],
             agent_run: None,
+            findings: &[],
         },
     )
 }
@@ -1726,6 +1730,38 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
         scene.title.clone(),
     );
     y += 12.0;
+
+    // The investigation strip. Ranked findings sit directly under the
+    // headline so the first thing a reader sees after the title is
+    // where to look, with the evidence stated on each line.
+    if !data.findings.is_empty() {
+        y += 10.0;
+        text(
+            &mut prims,
+            MARGIN,
+            y,
+            12.0,
+            INK,
+            true,
+            false,
+            "Look here first".to_string(),
+        );
+        y += 16.0;
+        for finding in data.findings {
+            text(
+                &mut prims,
+                MARGIN,
+                y,
+                12.0,
+                INK,
+                false,
+                false,
+                format!("{} · {}", finding.rank, finding.statement),
+            );
+            y += 15.0;
+        }
+        y -= 3.0;
+    }
 
     for panel in &scene.panels {
         y += 18.0;

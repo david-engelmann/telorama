@@ -103,6 +103,7 @@ fn golden_agent_run_scene() {
             spans: &[],
             stacks: &[],
             agent_run: Some(&run),
+            findings: &[],
         },
     )
     .expect("agent run scene must render");
@@ -124,6 +125,7 @@ fn golden_flame_scene() {
             spans: &[],
             stacks: &stacks,
             agent_run: None,
+            findings: &[],
         },
     )
     .expect("flame scene must render");
@@ -212,6 +214,7 @@ fn flame_declared_count_mismatch_is_a_render_error() {
             spans: &[],
             stacks: &stacks,
             agent_run: None,
+            findings: &[],
         },
     )
     .unwrap_err();
@@ -314,6 +317,7 @@ fn golden_agent_run_codex_scene() {
             spans: &[],
             stacks: &[],
             agent_run: Some(&run),
+            findings: &[],
         },
     )
     .expect("codex scene must render");
@@ -327,6 +331,7 @@ fn html_export_wraps_the_svg_without_external_references() {
         spans: &spans,
         stacks: &[],
         agent_run: None,
+        findings: &[],
     };
     let html = telorama_svg::render_scene_html(&scene, &data).expect("html must render");
     let again = telorama_svg::render_scene_html(&scene, &data).expect("html must render");
@@ -364,6 +369,7 @@ fn golden_agent_run_codex_unpriced_scene() {
             spans: &[],
             stacks: &[],
             agent_run: Some(&run),
+            findings: &[],
         },
     )
     .expect("unpriced scene must render");
@@ -387,6 +393,7 @@ fn golden_agent_run_genai_scene() {
             spans: &spans,
             stacks: &[],
             agent_run: Some(&run),
+            findings: &[],
         },
     )
     .expect("genai scene must render");
@@ -408,8 +415,38 @@ fn golden_incident_checkout_scene() {
             spans: &spans,
             stacks: &[],
             agent_run: None,
+            findings: &[],
         },
     )
     .expect("incident scene must render");
     assert_golden("incident_checkout_scene.svg", &svg);
+}
+
+#[test]
+fn golden_incident_findings_scene() {
+    let spans = telorama_ingest::parse_otlp_traces(&workspace_file(
+        "tests/fixtures/otel-demo-checkout.json",
+    ))
+    .expect("checkout fixture must parse");
+    let scene =
+        telorama_scene::incident_scene(&spans, None, "agent").expect("composition must succeed");
+    let window_seconds =
+        (scene.context.range.to_unix_ms - scene.context.range.from_unix_ms) as f64 / 1000.0;
+    let findings = telorama_scene::investigate(&spans, None, window_seconds);
+    assert_eq!(findings.len(), 2);
+    assert_eq!(findings[0].kind, "errors");
+    assert_eq!(findings[0].subject, "email");
+    assert_eq!(findings[1].kind, "latency");
+    let svg = telorama_svg::render_scene_with_data(
+        &scene,
+        &telorama_svg::SceneData {
+            spans: &spans,
+            stacks: &[],
+            agent_run: None,
+            findings: &findings,
+        },
+    )
+    .expect("incident scene with findings must render");
+    assert!(svg.contains("Look here first"));
+    assert_golden("incident_findings_scene.svg", &svg);
 }

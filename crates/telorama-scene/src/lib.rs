@@ -9,6 +9,7 @@ pub mod agent;
 pub mod compose;
 pub mod derive;
 pub mod field;
+pub mod investigate;
 pub mod profile;
 pub mod schema;
 pub mod spec;
@@ -28,6 +29,7 @@ pub use field::{
     ThresholdStep, Thresholds, format_bytes, format_duration_nanos, format_number, format_ratio,
     format_value,
 };
+pub use investigate::{Finding, investigate};
 pub use profile::StackSample;
 pub use schema::{scene_schema, scene_schema_text};
 pub use spec::{

@@ -15,9 +15,9 @@
 
 use serde_json::{Value, json};
 use telorama_scene::{
-    AgentRun, Panel, Scene, Span, StackSample, StatKind, content_hash, critical_path,
-    flame_from_spans, flame_tree, heatmap_grid, percentile_nanos, red_by_service, service_graph,
-    waterfall_rows,
+    AgentRun, Finding, Panel, Scene, Span, StackSample, StatKind, content_hash, critical_path,
+    flame_from_spans, flame_tree, heatmap_grid, investigate, percentile_nanos, red_by_service,
+    service_graph, waterfall_rows,
 };
 
 /// The MCP Apps view resource the render tool links to.
@@ -391,6 +391,29 @@ fn tool_inspect(args: &Value) -> Value {
     )
 }
 
+/// The investigation layer for a scene and its inputs. Every render
+/// path computes it automatically; no argument suppresses it.
+fn investigate_inputs(scene: &Scene, inputs: &Inputs) -> Vec<Finding> {
+    investigate(
+        &inputs.spans,
+        inputs.run.as_ref(),
+        scene.context.range.seconds(),
+    )
+}
+
+/// The findings as one text run, appended to a tool's text result so
+/// the model reader gets the same ranking the human reader sees.
+fn findings_text(findings: &[Finding]) -> String {
+    if findings.is_empty() {
+        return String::new();
+    }
+    let mut text = " Look here first:".to_string();
+    for finding in findings {
+        text.push_str(&format!(" {}. {}", finding.rank, finding.statement));
+    }
+    text
+}
+
 fn tool_render(args: &Value) -> Value {
     let scene = match parse_scene_arg(args) {
         Ok(s) => s,
@@ -400,17 +423,19 @@ fn tool_render(args: &Value) -> Value {
         Ok(i) => i,
         Err(m) => return tool_error(&m),
     };
+    let findings = investigate_inputs(&scene, &inputs);
     let data = telorama_svg::SceneData {
         spans: &inputs.spans,
         stacks: &inputs.stacks,
         agent_run: inputs.run.as_ref(),
+        findings: &findings,
     };
     let svg = match telorama_svg::render_scene_with_data(&scene, &data) {
         Ok(s) => s,
         Err(e) => return tool_error(&e.to_string()),
     };
     let types: Vec<&str> = scene.panels.iter().map(|p| p.type_name()).collect();
-    let text = format!(
+    let mut text = format!(
         "{}. {} Panels: {}. SVG {} bytes, fnv1a64 {}.",
         scene.title,
         scene.headline,
@@ -418,7 +443,9 @@ fn tool_render(args: &Value) -> Value {
         svg.len(),
         content_hash(svg.as_bytes())
     );
-    let structured = scene_summary(&scene, &inputs, &svg);
+    text.push_str(&findings_text(&findings));
+    let mut structured = scene_summary(&scene, &inputs, &svg);
+    structured["investigation"] = serde_json::to_value(&findings).expect("findings must serialize");
     tool_ok(text, structured, Some(json!({"telorama/svg": svg})))
 }
 
@@ -484,7 +511,11 @@ fn tool_session(args: &Value) -> Value {
             ));
         }
     }
-    let structured = serde_json::to_value(&run).expect("the run model must serialize");
+    let run_findings = investigate(&[], Some(&run), 0.0);
+    text.push_str(&findings_text(&run_findings));
+    let mut structured = serde_json::to_value(&run).expect("the run model must serialize");
+    structured["investigation"] =
+        serde_json::to_value(&run_findings).expect("findings must serialize");
     tool_ok(text, structured, None)
 }
 
@@ -501,10 +532,12 @@ fn tool_incident(args: &Value) -> Value {
             Ok(s) => s,
             Err(m) => return tool_error(&m),
         };
+    let findings = investigate_inputs(&scene, &inputs);
     let data = telorama_svg::SceneData {
         spans: &inputs.spans,
         stacks: &inputs.stacks,
         agent_run: inputs.run.as_ref(),
+        findings: &findings,
     };
     let svg = match telorama_svg::render_scene_with_data(&scene, &data) {
         Ok(s) => s,
@@ -512,8 +545,9 @@ fn tool_incident(args: &Value) -> Value {
     };
     let mut structured = scene_summary(&scene, &inputs, &svg);
     structured["scene"] = serde_json::to_value(&scene).expect("the composed scene must serialize");
+    structured["investigation"] = serde_json::to_value(&findings).expect("findings must serialize");
     let types: Vec<&str> = scene.panels.iter().map(|p| p.type_name()).collect();
-    let text = format!(
+    let mut text = format!(
         "{}. {} Panels: {}. SVG {} bytes, fnv1a64 {}.",
         scene.title,
         scene.headline,
@@ -521,6 +555,7 @@ fn tool_incident(args: &Value) -> Value {
         svg.len(),
         telorama_scene::content_hash(svg.as_bytes())
     );
+    text.push_str(&findings_text(&findings));
     tool_ok(text, structured, Some(json!({"telorama/svg": svg})))
 }
 
