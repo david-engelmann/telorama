@@ -40,7 +40,11 @@ pub fn parse_agent_state(text: &str) -> Result<Vec<AgentStateEntry>, IngestError
     let entries: Vec<AgentStateEntry> = entries
         .into_iter()
         .map(|mut entry| {
-            if entry.waiting_on.as_deref().is_some_and(|w| w.trim().is_empty()) {
+            if entry
+                .waiting_on
+                .as_deref()
+                .is_some_and(|w| w.trim().is_empty())
+            {
                 entry.waiting_on = None;
             }
             if entry.next.as_deref().is_some_and(|n| n.trim().is_empty()) {
