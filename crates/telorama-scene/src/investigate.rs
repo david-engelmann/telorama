@@ -12,7 +12,7 @@
 use crate::agent::{AgentRun, AgentStep};
 use crate::derive::{critical_path, red_by_service, waterfall_rows};
 use crate::field::{Thresholds, format_duration_nanos};
-use crate::trace::Span;
+use crate::trace::{Span, SpanKind};
 use serde::Serialize;
 use std::collections::BTreeSet;
 
@@ -72,9 +72,19 @@ fn errors_finding(spans: &[Span], window_seconds: f64) -> Option<Finding> {
             .then_with(|| a.service.cmp(&b.service))
     });
     let leader = leaders[0];
+    // The exemplar comes from the same basis RED counts on: the
+    // service's server spans when it has any, all its spans when
+    // it has none.
+    let server_basis = spans
+        .iter()
+        .any(|s| s.service == leader.service && s.kind == SpanKind::Server);
     let mut error_spans: Vec<&Span> = spans
         .iter()
-        .filter(|s| s.service == leader.service && s.is_error)
+        .filter(|s| {
+            s.service == leader.service
+                && s.is_error
+                && (!server_basis || s.kind == SpanKind::Server)
+        })
         .collect();
     if error_spans.is_empty() {
         return None;

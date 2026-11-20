@@ -439,3 +439,55 @@ fn codex_pre_prompt_events_land_in_the_first_turns_coverage() {
     let sum: u64 = run.turns.iter().map(|t| t.coverage.log_events).sum();
     assert_eq!(sum, run.coverage.log_events);
 }
+
+#[test]
+fn claude_blocked_child_merges_once_per_turn_however_many_steps_it_prices() {
+    let logs = r#"{"resourceLogs":[{"scopeLogs":[{"logRecords":[
+      {"attributes":[{"key":"event.name","value":{"stringValue":"claude_code.user_prompt"}},{"key":"session.id","value":{"stringValue":"s-fuse"}},{"key":"prompt.id","value":{"stringValue":"p-1"}}],"timeUnixNano":"1000000000"},
+      {"attributes":[{"key":"event.name","value":{"stringValue":"claude_code.tool_result"}},{"key":"session.id","value":{"stringValue":"s-fuse"}},{"key":"prompt.id","value":{"stringValue":"p-1"}},{"key":"tool_name","value":{"stringValue":"Bash"}},{"key":"success","value":{"boolValue":true}},{"key":"duration_ms","value":{"intValue":"500"}}],"timeUnixNano":"10000000000"},
+      {"attributes":[{"key":"event.name","value":{"stringValue":"claude_code.tool_result"}},{"key":"session.id","value":{"stringValue":"s-fuse"}},{"key":"prompt.id","value":{"stringValue":"p-1"}},{"key":"tool_name","value":{"stringValue":"Bash"}},{"key":"success","value":{"boolValue":true}},{"key":"duration_ms","value":{"intValue":"500"}}],"timeUnixNano":"20000000000"}
+    ]}]}]}"#;
+    let spans_text = r#"{"resourceSpans":[{"scopeSpans":[{"spans":[
+      {"traceId":"f00df00df00df00df00df00df00df00d","spanId":"1111111111111111","name":"claude_code.tool","startTimeUnixNano":"9000000000","endTimeUnixNano":"21000000000"},
+      {"traceId":"f00df00df00df00df00df00df00df00d","spanId":"2222222222222222","parentSpanId":"1111111111111111","name":"claude_code.tool.blocked_on_user","startTimeUnixNano":"9500000000","endTimeUnixNano":"14500000000"}
+    ]}]}]}"#;
+    let spans = telorama_ingest::parse_otlp_traces(spans_text).expect("spans must parse");
+    let run = telorama_ingest::parse_claude_code_session(logs, &spans).expect("run must parse");
+    assert_eq!(run.turns.len(), 1);
+    assert_eq!(
+        run.turns[0].coverage.spans_merged, 1,
+        "one blocked child folded into the turn counts once, not once per step it priced"
+    );
+    assert_eq!(run.coverage.spans_merged, 1);
+    let waits: Vec<i64> = run.turns[0]
+        .steps
+        .iter()
+        .map(|s| match s {
+            telorama_scene::AgentStep::ToolCall(t) => t.wait_nanos,
+            _ => 0,
+        })
+        .collect();
+    assert_eq!(waits, vec![5_000_000_000, 5_000_000_000]);
+}
+
+#[test]
+fn claude_decision_only_export_folds_to_zero_coverage() {
+    let logs = r#"{"resourceLogs":[{"scopeLogs":[{"logRecords":[
+      {"attributes":[{"key":"event.name","value":{"stringValue":"claude_code.tool_decision"}},{"key":"session.id","value":{"stringValue":"s-zero"}},{"key":"prompt.id","value":{"stringValue":"p-0"}},{"key":"tool_name","value":{"stringValue":"Bash"}},{"key":"decision","value":{"stringValue":"accept"}}],"timeUnixNano":"1000000000"}
+    ]}]}]}"#;
+    let run = telorama_ingest::parse_claude_code_session(logs, &[]).expect("run must parse");
+    assert_eq!(run.turns.len(), 0, "a decision-only export has no turns");
+    assert_eq!(run.coverage.log_events, 0);
+    assert_eq!(run.coverage.spans_seen, 0);
+    assert_eq!(run.coverage.spans_merged, 0);
+}
+
+#[test]
+fn agent_state_blank_optional_fields_normalize_away() {
+    let entries = telorama_ingest::parse_agent_state(
+        r#"[{"agent":"builder","doing":"building","why":"the gate needs it","waiting_on":"  ","next":""}]"#,
+    )
+    .expect("state must parse");
+    assert_eq!(entries[0].waiting_on, None);
+    assert_eq!(entries[0].next, None);
+}
