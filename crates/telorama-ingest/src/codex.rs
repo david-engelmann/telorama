@@ -281,6 +281,7 @@ pub fn parse_codex_session(logs_text: &str, spans: &[Span]) -> Result<AgentRun, 
             turns[idx].coverage.spans_seen += 1;
         }
     }
+    let no_turns = turns.is_empty();
     Ok(AgentRun {
         session_id,
         dialect: "codex".to_string(),
@@ -288,12 +289,12 @@ pub fn parse_codex_session(logs_text: &str, spans: &[Span]) -> Result<AgentRun, 
         coverage: Coverage {
             // Coverage counts what the run's turns folded; a run
             // with no turns folded nothing.
-            log_events: if turns.is_empty() {
+            log_events: if no_turns {
                 0
             } else {
                 relevant.len() as u64
             },
-            spans_seen: if turns.is_empty() {
+            spans_seen: if no_turns {
                 0
             } else {
                 spans.len() as u64
