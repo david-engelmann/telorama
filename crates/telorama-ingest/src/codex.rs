@@ -289,16 +289,8 @@ pub fn parse_codex_session(logs_text: &str, spans: &[Span]) -> Result<AgentRun, 
         coverage: Coverage {
             // Coverage counts what the run's turns folded; a run
             // with no turns folded nothing.
-            log_events: if no_turns {
-                0
-            } else {
-                relevant.len() as u64
-            },
-            spans_seen: if no_turns {
-                0
-            } else {
-                spans.len() as u64
-            },
+            log_events: if no_turns { 0 } else { relevant.len() as u64 },
+            spans_seen: if no_turns { 0 } else { spans.len() as u64 },
             spans_merged: 0,
         },
         pricing: Some(Pricing {
