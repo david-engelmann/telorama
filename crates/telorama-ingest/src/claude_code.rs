@@ -33,7 +33,7 @@ struct TurnBuilder {
     cache_creation_tokens: u64,
     cost_usd: f64,
     events: u64,
-    merged: u64,
+    merged_ids: BTreeSet<String>,
 }
 
 impl TurnBuilder {
@@ -47,7 +47,7 @@ impl TurnBuilder {
             cache_creation_tokens: 0,
             cost_usd: 0.0,
             events: 0,
-            merged: 0,
+            merged_ids: BTreeSet::new(),
         }
     }
 }
@@ -188,7 +188,6 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
     }
 
     // Fusion. Spans contribute what logs cannot prove.
-    let mut merged_ids: BTreeSet<&str> = BTreeSet::new();
     // Permission waits: a tool span containing a tool step, with
     // blocked_on_user children, sets the step's wait to the sum of
     // those children's durations.
@@ -217,9 +216,8 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
                     let wait: i64 = children.iter().map(|c| c.duration_nanos()).sum();
                     if wait > tool.wait_nanos {
                         tool.wait_nanos = wait;
-                        turn.merged += children.len() as u64;
                         for child in children {
-                            merged_ids.insert(child.span_id.as_str());
+                            turn.merged_ids.insert(child.span_id.clone());
                         }
                     }
                 }
@@ -261,8 +259,7 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
                     steps: taken,
                 };
                 kept.insert(insert_at.unwrap_or(kept.len()), AgentStep::Subagent(run));
-                turn.merged += 1;
-                merged_ids.insert(span.span_id.as_str());
+                turn.merged_ids.insert(span.span_id.clone());
             } else {
                 // No steps captured: place an empty run by start time
                 // when the window overlaps this turn's steps.
@@ -284,8 +281,7 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
                             steps: Vec::new(),
                         }),
                     );
-                    turn.merged += 1;
-                    merged_ids.insert(span.span_id.as_str());
+                    turn.merged_ids.insert(span.span_id.clone());
                 }
             }
             turn.steps = kept;
@@ -307,6 +303,7 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
     }
     let mut turns = Vec::new();
     let mut carry = 0u64;
+    let mut kept_merged: BTreeSet<String> = BTreeSet::new();
     for prompt_id in order {
         let builder = builders.remove(&prompt_id).expect("builder exists");
         if builder.steps.is_empty() && builder.prompt_time.is_none() {
@@ -326,6 +323,7 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
             .map(|s| s.end_unix_nano())
             .max()
             .unwrap_or(start);
+        kept_merged.extend(builder.merged_ids.iter().cloned());
         turns.push(AgentTurn {
             prompt_id,
             start_unix_nano: start,
@@ -336,7 +334,7 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
             cache_read_tokens: builder.cache_read_tokens,
             cache_creation_tokens: builder.cache_creation_tokens,
             cost_usd: builder.cost_usd,
-            coverage: Coverage::logs(builder.events + carry, builder.merged),
+            coverage: Coverage::logs(builder.events + carry, builder.merged_ids.len() as u64),
         });
         carry = 0;
     }
@@ -360,14 +358,18 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
             turns[idx].coverage.spans_seen += 1;
         }
     }
+    // Coverage counts what the run's turns folded. A run whose
+    // turns all dropped away folded nothing, so its counts are
+    // zero and the turn sums still equal the run totals.
+    let folded = !turns.is_empty();
     Ok(AgentRun {
         session_id,
         dialect: "claude_code".to_string(),
         turns,
         coverage: Coverage {
-            log_events: relevant.len() as u64,
-            spans_seen: spans.len() as u64,
-            spans_merged: merged_ids.len() as u64,
+            log_events: if folded { relevant.len() as u64 } else { 0 },
+            spans_seen: if folded { spans.len() as u64 } else { 0 },
+            spans_merged: kept_merged.len() as u64,
         },
         pricing: None,
     })

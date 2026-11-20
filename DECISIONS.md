@@ -390,3 +390,26 @@ duration, which the RED row itself prints under its own
 threshold rule. The latency finding's subject is one span's
 self time, which no standing verdict judges, so no crossing
 sentence is added there.
+
+## M5 red-team follow-ups, 2026-11-19
+
+The red team's full report reached the seat after the spec
+follow-ups and named one Major the repair pass had not
+covered. The Claude Code fusion counted merged spans per
+application, so one blocked child pricing two steps in its
+turn counted twice in the turn and once in the run. Merged
+spans are now counted per turn as a set of span ids, the run
+total is the union over kept turns, and a test with two steps
+inside one waited tool span pins it. The same pass answers
+the report's remaining Minors and Notes. A run whose turns
+all drop away now reports zero coverage on every axis in both
+log dialects, so the turn sums equal the run totals for every
+run, not only runs with turns. The errors finding's exemplar
+now comes from the same server-span basis RED counts on. A
+blank waiting_on or next in an agent-state report normalizes
+away at parse instead of rendering an empty line. The frame
+stream's text says one turn when it means one turn. The
+report's other items were already answered by the passes it
+predated: frame coverage is a true prefix sum, the threshold
+literal is read from the field system, the cost finding names
+its model, and findings carry their evidence as data.

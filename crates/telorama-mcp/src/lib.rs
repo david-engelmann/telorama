@@ -570,10 +570,11 @@ fn tool_frames(args: &Value) -> Value {
         let output: u64 = frame.run.turns.iter().map(|t| t.output_tokens).sum();
         let cost: f64 = frame.run.turns.iter().map(|t| t.cost_usd).sum();
         lines.push(format!(
-            "Frame {} of {}: {} turns, {} in, {} out, {}.",
+            "Frame {} of {}: {} {}, {} in, {} out, {}.",
             frame.index + 1,
             frames.len(),
             frame.turns,
+            if frame.turns == 1 { "turn" } else { "turns" },
             input,
             output,
             fmt_cost(cost)
