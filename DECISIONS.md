@@ -413,3 +413,19 @@ report's other items were already answered by the passes it
 predated: frame coverage is a true prefix sum, the threshold
 literal is read from the field system, the cost finding names
 its model, and findings carry their evidence as data.
+
+## Post-M5 perfection pass, 2026-11-21
+
+The M4 audit carried one standing note out of that milestone:
+INV-44's legacy GenAI cache attribute forms were verified in
+the code but exercised by no fixture. That note is now
+discharged. A legacy-shape fixture spells cache read and
+cache creation with the pre-dotted attribute names
+(gen_ai.usage.cache_read_tokens and
+gen_ai.usage.cache_creation_tokens) and the provider with
+gen_ai.system, and a dialect test pins the parsed run to the
+same totals the dotted forms produce, with cache creation
+counted in the turn totals and never priced. The showcase
+media pass of the same period landed as PR 12: the README
+and the worked examples now carry the frame-stepping GIF
+and three stills, all of them the renderer's own output.

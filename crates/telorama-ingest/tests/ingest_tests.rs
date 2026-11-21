@@ -312,6 +312,27 @@ fn genai_session_maps_spans_to_a_run() {
 }
 
 #[test]
+fn genai_session_reads_the_legacy_cache_attribute_names() {
+    let spans = telorama_ingest::parse_otlp_traces(&fixture_text(
+        "tests/fixtures/agents/genai-session-legacy-spans.json",
+    ))
+    .expect("legacy genai fixture must parse");
+    let run = telorama_ingest::parse_genai_session(&spans).expect("spans must adapt");
+    assert_eq!(run.session_id, "conv-genai-legacy");
+    assert_eq!(run.turns.len(), 1);
+    let turn = &run.turns[0];
+    // The legacy spellings carry the same figures as the dotted
+    // ones. Gross input enters net of cache read, and cache
+    // creation is counted in the totals even though the pricing
+    // table never prices it.
+    assert_eq!(turn.input_tokens, 6200);
+    assert_eq!(turn.output_tokens, 1500);
+    assert_eq!(turn.cache_read_tokens, 3000);
+    assert_eq!(turn.cache_creation_tokens, 400);
+    assert!((turn.cost_usd - 0.023125).abs() < 1e-9, "{}", turn.cost_usd);
+}
+
+#[test]
 fn genai_session_refuses_two_conversations() {
     let spans = telorama_ingest::parse_otlp_traces(&fixture_text(
         "tests/fixtures/agents/genai-session-spans.json",
