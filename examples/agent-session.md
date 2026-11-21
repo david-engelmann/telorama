@@ -20,6 +20,8 @@ decision and which calls were subagents. The run's coverage block
 reports the fusion honestly, eleven log events read, six spans
 read, two spans merged into steps.
 
+![The demo session rendered as a run diagram](<../docs/media/agent-run.png>)
+
 ## Codex
 
 ```sh

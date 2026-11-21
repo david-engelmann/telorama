@@ -4,6 +4,8 @@ This directory packages telorama for Claude Code as a plugin. It
 registers the telorama MCP server and ships the telorama skill,
 which teaches an agent when to render what.
 
+![An agent state panel drawn from a working agent's own report](<../docs/media/agent-state.png>)
+
 ## What you need first
 
 The plugin starts a binary named `telorama-mcp`, so that binary
@@ -31,8 +33,8 @@ registration in `.mcp.json`, and the skill in
 
 ## What it gives the agent
 
-Six MCP tools covering scene validation, trace inspection, scene
+Seven MCP tools covering scene validation, trace inspection, scene
 rendering with the triple contract, agent session adaptation
 across the Claude Code, Codex, GenAI, and OpenInference dialects,
-incident composition, and an app-only panel drill-down for hosts
-that render MCP Apps.
+incident composition, the session frame stream, and an app-only
+panel drill-down for hosts that render MCP Apps.

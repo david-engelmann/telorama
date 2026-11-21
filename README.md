@@ -2,6 +2,8 @@
 
 telorama is a visualization engine for OpenTelemetry data. An AI agent describes the diagram it wants in a small structured document called a scene spec. telorama checks the spec against a set of honesty rules, works out the geometry itself, and renders a finished diagram that can appear inside an AI chat, a pull request, or a plain file.
 
+![A live session stepping through its frames, the whole picture replaced at each turn boundary](docs/media/frames.gif)
+
 ## What it does
 
 - It turns a trace into a waterfall diagram that shows where one request spent its time and which part of the work sits on the critical path.
@@ -19,6 +21,8 @@ telorama is a visualization engine for OpenTelemetry data. An AI agent describes
 - It renders every diagram deterministically. The same spec and the same data always produce the same file, byte for byte, so a rendered diagram can be checked in tests and compared across changes.
 - It prints the source, the query, the time window, and the sampling state on every scene, so a reader can tell where each number came from.
 - It serves scenes over MCP as short text a model can read, structured figures, and an interactive view for chat surfaces that can render one, and it can write any scene as a single standalone HTML file with nothing left to fetch.
+
+![The incident scene telorama composes for the checkout window, headed by the ranked findings strip](docs/media/incident.png)
 
 ## How it is used
 

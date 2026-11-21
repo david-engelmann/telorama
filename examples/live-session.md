@@ -14,6 +14,8 @@ telorama frames \
   --html framebook.html
 ```
 
+![The demo session stepping through its two frames](<../docs/media/frames.gif>)
+
 The output file carries one JSON payload per frame. Each payload
 names its frame number, how many turns it covers, the frame's
 scene spec, the findings the investigation layer derives from
