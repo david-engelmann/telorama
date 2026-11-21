@@ -14,6 +14,8 @@ to write the spec to a file and `--render` to write the rendered
 SVG alongside it. The same composition is available over MCP as
 the `incident_scene` tool.
 
+![The incident scene composed for the checkout window](<../docs/media/incident.png>)
+
 ## What the template composes
 
 Four panels, in the order an investigator reads them. A service
