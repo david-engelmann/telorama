@@ -1006,7 +1006,7 @@ fn render_sankey(
     let top = *y + 20.0;
     let mut positions: BTreeMap<(usize, String, bool), (f64, f64, f64)> = BTreeMap::new();
     let mut stage_heights: Vec<f64> = vec![0.0; flow.stages];
-    for stage in 0..flow.stages {
+    for (stage, height) in stage_heights.iter_mut().enumerate() {
         let mut cursor = top;
         for node in flow.nodes.iter().filter(|n| n.stage == stage) {
             let h = node.value as f64 * unit;
@@ -1016,7 +1016,7 @@ fn render_sankey(
             );
             cursor += h + gap;
         }
-        stage_heights[stage] = cursor - gap - top;
+        *height = cursor - gap - top;
     }
     // Links first, so the blocks draw over their ends. Stacking order
     // at both faces follows the node order, so the picture is a pure
@@ -2049,12 +2049,6 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
             Panel::Sankey { .. } => "Sankey",
             Panel::AgentRun { .. } => "Agent run",
             Panel::AgentState { .. } => "Agent state",
-            other => {
-                return Err(fail(format!(
-                    "panel type {} is in the spec but has no renderer yet: it lands in a later milestone",
-                    other.type_name()
-                )));
-            }
         };
         text(&mut prims, MARGIN, y, 14.0, INK, true, false, heading);
         y += 8.0;
@@ -2085,7 +2079,6 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
             }
             Panel::AgentRun { .. } => render_agent_run(scene, data, panel, &mut prims, &mut y)?,
             Panel::AgentState { .. } => render_agent_state(scene, data, panel, &mut prims, &mut y)?,
-            _ => unreachable!("heading match already returned for unsupported panels"),
         }
     }
 
