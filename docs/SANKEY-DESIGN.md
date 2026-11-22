@@ -29,7 +29,7 @@ decide where a span's unit enters:
   at stage zero in its own service's node.
 - A span whose parent is in the data links from its parent's
   node, one stage deeper, whatever service either side belongs
-  to. Same-service steps are real flow and are drawn; dropping
+  to. Same-service steps are real flow and are drawn. Dropping
   them would break conservation and hide depth.
 - A span whose parent is named but absent from the data, or
   whose ancestry cycles back on itself, cannot be staged on
@@ -59,7 +59,7 @@ filled trapezoids from the right face of the source block to
 the left face of the target block, stacked in node order at
 both ends, filled with the source service's color at reduced
 opacity. The residual block and its links are gray. The
-DisplayList gains a polygon primitive to carry the trapezoids;
+DisplayList gains a polygon primitive to carry the trapezoids.
 every existing primitive keeps its current bytes.
 
 Sub-pixel slivers are a known limit of exact geometry at large
@@ -79,6 +79,6 @@ checkout fixture, and the derivation gains tests over
 hand-built span sets for the root, same-service, orphan, and
 cycle cases. The golden test that used the sankey panel as its
 example of an unsupported type retires with the gap it was
-guarding; the guard arm in the renderer stays for panel types
+guarding. The guard arm in the renderer stays for panel types
 the spec may gain later. The README's sentence about the
 missing renderer comes out in the landing.

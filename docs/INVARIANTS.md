@@ -404,7 +404,7 @@ later milestones are marked as validator-side.
   every span in the panel's data set is exactly one unit of
   flow in exactly one node, staged by its depth in its own
   trace. A span whose parent is in the set links from its
-  parent's node; a root span enters at stage zero; a span
+  parent's node. A root span enters at stage zero. A span
   whose parent is named but absent, or whose ancestry cycles,
   enters through the residual node and is counted there.
   Enforced by derive_tests sankey_stages_spans_by_depth,
@@ -423,7 +423,7 @@ later milestones are marked as validator-side.
   Enforced by golden_tests sankey_scene_matches_golden.
 - INV-61. The panel prints beneath the diagram how many spans
   entered through the residual bucket, naming the bucket,
-  whenever that count is nonzero; when it is zero, no
+  whenever that count is nonzero. When it is zero, no
   residual node is drawn.
   Enforced by golden_tests sankey_scene_matches_golden and
   sankey_orphans_are_named_under_the_diagram.
