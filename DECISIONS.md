@@ -429,3 +429,19 @@ counted in the turn totals and never priced. The showcase
 media pass of the same period landed as PR 12: the README
 and the worked examples now carry the frame-stepping GIF
 and three stills, all of them the renderer's own output.
+
+## crates.io publish, 2026-11-22
+
+David approved the publish on 2026-11-22 and it is done.
+All five crates stand on crates.io at version 0.1.0,
+published in dependency order and each confirmed live
+before the next was sent: telorama-scene, telorama-ingest,
+telorama-svg, telorama, telorama-mcp. The stored crates.io
+credential carried the publishes; the first publish doubled
+as the auth test and no replacement token was needed. The
+packaged files were built on a CI runner because this
+machine refuses local binary writes, and the publish
+metadata was derived from the packaged manifest inside
+each crate file and checked dependency by dependency
+before each upload. The README now records the published
+state and the cargo install lines.
