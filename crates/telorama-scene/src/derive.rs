@@ -566,7 +566,14 @@ pub fn service_graph(spans: &[Span], window_seconds: f64) -> ServiceGraph {
 pub struct SankeyNode {
     pub stage: usize,
     pub service: String,
+    /// Spans staged at this node: inflow plus the root and residual
+    /// entries staged there, exactly.
     pub value: u64,
+    /// Child spans this node's spans produced. A span parents many
+    /// children, so outflow can exceed the value: fan-out is real
+    /// flow, and the renderer draws the block at the greater of the
+    /// two so no ribbon ever overflows it.
+    pub outflow: u64,
     pub residual: bool,
 }
 
@@ -614,12 +621,14 @@ enum SankeyEntry {
 /// but absent, or whose ancestry cycles back on itself, cannot be
 /// staged on evidence: it enters through the residual node, a
 /// single stage-zero source named by the panel, at stage one, and
-/// its descendants stage normally beneath it. Conservation holds
-/// by construction: for every real node, inflow plus the root
-/// spans staged there equals the node's value, and the residual
-/// node's outflow is exactly the count of spans that entered
-/// through it. Nodes are ordered by stage, then value descending,
-/// then service name; links by their source node, then target.
+/// its descendants stage normally beneath it. The accounting is
+/// exact: for every real node, inflow plus the root and residual
+/// entries staged there equals the node's span count, and the
+/// residual node's outflow is exactly the count of spans that
+/// entered through it. Outflow is a separate figure, the count of
+/// child spans, and fan-out can push it past the span count.
+/// Nodes are ordered by stage, then value descending, then
+/// service name; links by their source node, then target.
 pub fn sankey_flow(spans: &[Span], residual_name: &str) -> SankeyFlow {
     // Stage every span, trace by trace, walking parent links.
     let mut staged: BTreeMap<(&str, &str), (usize, SankeyEntry)> = BTreeMap::new();
@@ -752,13 +761,26 @@ pub fn sankey_flow(spans: &[Span], residual_name: &str) -> SankeyFlow {
     if residual_spans > 0 {
         node_values.insert((0, residual_name.to_string(), true), residual_spans);
     }
+    let mut outflow: BTreeMap<(usize, String, bool), u64> = BTreeMap::new();
+    for ((from_stage, from_service, from_residual, _, _), value) in &link_values {
+        *outflow
+            .entry((*from_stage, from_service.clone(), *from_residual))
+            .or_default() += value;
+    }
     let mut nodes: Vec<SankeyNode> = node_values
         .into_iter()
-        .map(|((stage, service, residual), value)| SankeyNode {
-            stage,
-            service,
-            value,
-            residual,
+        .map(|((stage, service, residual), value)| {
+            let out = outflow
+                .get(&(stage, service.clone(), residual))
+                .copied()
+                .unwrap_or(0);
+            SankeyNode {
+                stage,
+                service,
+                value,
+                outflow: out,
+                residual,
+            }
         })
         .collect();
     nodes.sort_by(|a, b| {

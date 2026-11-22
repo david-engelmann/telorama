@@ -986,9 +986,10 @@ fn render_sankey(
         return Err(fail("sankey has no spans in its data set"));
     }
     let flow = sankey_flow(&set_owned, residual);
-    // Layout: stages are columns, a node's block height is its value
-    // on one scale set by the tallest stage, and links are trapezoids
-    // stacked in node order at both ends.
+    // Layout: stages are columns, a node's block height is the
+    // greater of its span count and its outflow on one scale set by
+    // the tallest stage, and links are trapezoids stacked in node
+    // order at both ends.
     let node_w = 120.0;
     let gap = 18.0;
     let plot_w = WIDTH - 2.0 * MARGIN;
@@ -999,7 +1000,7 @@ fn render_sankey(
     };
     let mut stage_totals: Vec<u64> = vec![0; flow.stages];
     for node in &flow.nodes {
-        stage_totals[node.stage] += node.value;
+        stage_totals[node.stage] += node.value.max(node.outflow);
     }
     let max_total = stage_totals.iter().copied().max().unwrap_or(1).max(1);
     let unit = (340.0 / max_total as f64).min(6.0);
@@ -1009,7 +1010,7 @@ fn render_sankey(
     for (stage, height) in stage_heights.iter_mut().enumerate() {
         let mut cursor = top;
         for node in flow.nodes.iter().filter(|n| n.stage == stage) {
-            let h = node.value as f64 * unit;
+            let h = node.value.max(node.outflow) as f64 * unit;
             positions.insert(
                 (node.stage, node.service.clone(), node.residual),
                 (MARGIN + stage as f64 * step, cursor, h),

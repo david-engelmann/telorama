@@ -410,11 +410,14 @@ later milestones are marked as validator-side.
   Enforced by derive_tests sankey_stages_spans_by_depth,
   sankey_same_service_steps_are_flow, and
   sankey_orphans_and_cycles_enter_through_the_residual.
-- INV-59. Conservation holds by construction: for every node,
-  inflow plus root spans staged there equals the node's
-  value, outflow never exceeds the value, and the residual
-  node's outflow equals the number of spans that could not
-  be staged on evidence.
+- INV-59. The accounting is exact: for every node, total
+  inflow (parent links plus residual entries) plus the root
+  spans staged there equals the node's span count, and the
+  residual node's outflow equals the number of spans that
+  could not be staged on evidence. Outflow, the count of
+  child spans, is a separate figure: fan-out can push it past
+  the span count, and the renderer draws each block at the
+  greater of the two so no ribbon ever overflows its block.
   Enforced by derive_tests sankey_flow_conserves_on_the_fixtures.
 - INV-60. Node order within a stage is value descending then
   service name ascending, and link stacking follows node

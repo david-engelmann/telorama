@@ -958,6 +958,7 @@ fn panel_detail(scene: &Scene, inputs: &Inputs, panel: &Panel) -> Value {
                     "stage": n.stage,
                     "service": n.service,
                     "spans": n.value,
+                    "outflow": n.outflow,
                     "residual": n.residual
                 })).collect::<Vec<_>>(),
                 "links": flow.links.iter().map(|l| json!({

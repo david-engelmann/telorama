@@ -415,8 +415,11 @@ fn sankey_flow_conserves_on_the_fixtures() {
         .map(|n| n.value)
         .sum();
     assert_eq!(counted, spans.len() as u64);
-    // Per node: inflow plus the root spans staged there equals the
-    // value, and outflow never exceeds the value.
+    // Per node: total inflow (parent links plus residual entries)
+    // plus the root spans staged there equals the span count
+    // exactly. Fan-out lives in the outflow figure, checked node by
+    // node against the fixture: the web root parents two spans, the
+    // api node parents one, the db node none.
     for node in flow.nodes.iter().filter(|n| !n.residual) {
         let inflow: u64 = flow
             .links
@@ -424,27 +427,38 @@ fn sankey_flow_conserves_on_the_fixtures() {
             .filter(|l| l.to_stage == node.stage && l.to_service == node.service)
             .map(|l| l.value)
             .sum();
-        let outflow: u64 = flow
-            .links
-            .iter()
-            .filter(|l| {
-                l.from_stage == node.stage && l.from_service == node.service && !l.from_residual
-            })
-            .map(|l| l.value)
-            .sum();
         let roots = spans
             .iter()
-            .filter(|s| s.parent_span_id.is_none() && s.service == node.service && node.stage == 0)
+            .filter(|s| {
+                s.parent_span_id.is_none() && s.service == node.service && node.stage == 0
+            })
             .count() as u64;
         assert_eq!(
             inflow + roots,
             node.value,
-            "node {} at stage {} must conserve",
+            "node {} at stage {} must account for every staged span",
             node.service,
             node.stage
         );
-        assert!(outflow <= node.value);
     }
+    let node = |stage: usize, service: &str| {
+        flow.nodes
+            .iter()
+            .find(|n| n.stage == stage && n.service == service && !n.residual)
+            .unwrap_or_else(|| panic!("node {service} at stage {stage} exists"))
+    };
+    assert_eq!(node(0, "web").outflow, 2, "the root fans out to two");
+    assert_eq!(node(1, "api").outflow, 1);
+    assert_eq!(node(2, "db").outflow, 0);
+    // Total real outflow equals the number of spans whose parent is
+    // in the set: three in this fixture.
+    let total_out: u64 = flow
+        .nodes
+        .iter()
+        .filter(|n| !n.residual)
+        .map(|n| n.outflow)
+        .sum();
+    assert_eq!(total_out, 3);
     // The residual node's outflow is exactly the orphan count.
     let residual_out: u64 = flow
         .links

@@ -38,15 +38,29 @@ decide where a span's unit enters:
   links from there into the node's own service at stage one.
   Its descendants stage normally beneath it.
 
-Conservation then holds by construction. For every node, the
-inflow plus the root spans staged there equals the node's
-value, and the outflow is the value minus the spans that end
-at that node. The residual node's outflow is exactly the count
-of spans that could not be staged on evidence, and the panel
-prints that count under the diagram, naming the bucket,
-whenever it is nonzero. When it is zero, no residual node is
-drawn. The derivation lives in telorama-scene beside the
-service map derivation and follows its evidence discipline.
+The accounting then holds exactly. For every node, the total
+inflow (parent links plus residual entries) plus the root
+spans staged there equals the node's span count, and the
+residual node's outflow is exactly the count of spans that
+could not be staged on evidence. Outflow is a separate figure,
+the count of child spans: one span parents many children, so
+fan-out can push a node's outflow past its span count, and the
+renderer draws each block at the greater of the two figures
+so no ribbon ever overflows its block. The panel prints the
+residual count under the diagram, naming the bucket, whenever
+it is nonzero. When it is zero, no residual node is drawn. The
+derivation lives in telorama-scene beside the service map
+derivation and follows its evidence discipline.
+
+Amendment, 2026-11-22, before the build landed: the first
+draft of this record claimed outflow as the span count minus
+the spans that end at a node. The conservation test disproved
+it on a root with two children, whose outflow is two against
+a span count of one. The accounting above is the corrected
+statement, and the test now pins the fan-out figures node by
+node. The same pass retired the renderer's unsupported-panel
+guard in favor of exhaustive matches, so a future panel type
+fails at compile time rather than at render time.
 
 ## The drawing
 
@@ -79,6 +93,6 @@ checkout fixture, and the derivation gains tests over
 hand-built span sets for the root, same-service, orphan, and
 cycle cases. The golden test that used the sankey panel as its
 example of an unsupported type retires with the gap it was
-guarding. The guard arm in the renderer stays for panel types
-the spec may gain later. The README's sentence about the
+guarding. The amendment below records what happened to the
+guard arm. The README's sentence about the
 missing renderer comes out in the landing.
