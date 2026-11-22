@@ -68,7 +68,7 @@ first build could panic on, now stages by one canonical copy
 of the id, chosen by the span's own fields alone, with every
 other copy staging by its own parent chain against that
 staging. The caption under the diagram no longer claims a
-missing parent for cycle entries; it says the parent chain
+missing parent for cycle entries. It says the parent chain
 could not stage them, which is true of both entry cases. And
 deep traces, past seven stages, narrow their columns instead
 of overlapping, as the drawing section now states.
