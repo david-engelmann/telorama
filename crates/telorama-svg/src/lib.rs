@@ -1037,7 +1037,11 @@ fn render_sankey(
     let mut out_cursor: BTreeMap<(usize, String, bool), f64> = BTreeMap::new();
     let mut in_cursor: BTreeMap<(usize, String, bool), f64> = BTreeMap::new();
     for link in links {
-        let fkey = (link.from_stage, link.from_service.clone(), link.from_residual);
+        let fkey = (
+            link.from_stage,
+            link.from_service.clone(),
+            link.from_residual,
+        );
         let tkey = (link.to_stage, link.to_service.clone(), false);
         let (fx, ftop, _) = positions[&fkey];
         let (tx, ttop, _) = positions[&tkey];
@@ -2076,7 +2080,9 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
             Panel::ServiceMap { .. } => {
                 render_service_map(scene, spans, panel, &colors, &mut prims, &mut y)?
             }
-            Panel::Sankey { .. } => render_sankey(scene, spans, panel, &colors, &mut prims, &mut y)?,
+            Panel::Sankey { .. } => {
+                render_sankey(scene, spans, panel, &colors, &mut prims, &mut y)?
+            }
             Panel::AgentRun { .. } => render_agent_run(scene, data, panel, &mut prims, &mut y)?,
             Panel::AgentState { .. } => render_agent_state(scene, data, panel, &mut prims, &mut y)?,
             _ => unreachable!("heading match already returned for unsupported panels"),

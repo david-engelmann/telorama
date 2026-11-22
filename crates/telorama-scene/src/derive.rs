@@ -694,10 +694,7 @@ pub fn sankey_flow(spans: &[Span], residual_name: &str) -> SankeyFlow {
                 path.push(parent);
             }
             for (member, (stage, entry)) in path.iter().zip(assignments.iter()) {
-                staged.insert(
-                    (*trace_id, member.span_id.as_str()),
-                    (*stage, *entry),
-                );
+                staged.insert((*trace_id, member.span_id.as_str()), (*stage, *entry));
             }
         }
     }
@@ -720,8 +717,14 @@ pub fn sankey_flow(spans: &[Span], residual_name: &str) -> SankeyFlow {
         match entry {
             SankeyEntry::Root => {}
             SankeyEntry::Parent => {
-                let parent = by_key[&(span.trace_id.as_str(), span.parent_span_id.as_deref().expect("a parent entry names a parent"))];
-                let (parent_stage, _) = staged[&(parent.trace_id.as_str(), parent.span_id.as_str())];
+                let parent = by_key[&(
+                    span.trace_id.as_str(),
+                    span.parent_span_id
+                        .as_deref()
+                        .expect("a parent entry names a parent"),
+                )];
+                let (parent_stage, _) =
+                    staged[&(parent.trace_id.as_str(), parent.span_id.as_str())];
                 *link_values
                     .entry((
                         parent_stage,
@@ -735,7 +738,13 @@ pub fn sankey_flow(spans: &[Span], residual_name: &str) -> SankeyFlow {
             SankeyEntry::Residual => {
                 residual_spans += 1;
                 *link_values
-                    .entry((0, residual_name.to_string(), true, stage, span.service.clone()))
+                    .entry((
+                        0,
+                        residual_name.to_string(),
+                        true,
+                        stage,
+                        span.service.clone(),
+                    ))
                     .or_default() += 1;
             }
         }
@@ -762,15 +771,13 @@ pub fn sankey_flow(spans: &[Span], residual_name: &str) -> SankeyFlow {
     let links: Vec<SankeyLink> = link_values
         .into_iter()
         .map(
-            |((from_stage, from_service, from_residual, to_stage, to_service), value)| {
-                SankeyLink {
-                    from_stage,
-                    from_service,
-                    from_residual,
-                    to_stage,
-                    to_service,
-                    value,
-                }
+            |((from_stage, from_service, from_residual, to_stage, to_service), value)| SankeyLink {
+                from_stage,
+                from_service,
+                from_residual,
+                to_stage,
+                to_service,
+                value,
             },
         )
         .collect();
