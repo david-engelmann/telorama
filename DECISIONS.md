@@ -445,3 +445,39 @@ metadata was derived from the packaged manifest inside
 each crate file and checked dependency by dependency
 before each upload. The README now records the published
 state and the cargo install lines.
+
+## Round 1, the sankey renderer, 2026-11-22
+
+The roadmap's first round is landed. The sankey panel from
+docs/SANKEY-DESIGN.md is built and the README no longer
+carries the sentence that admitted the gap. Span flow is
+staged by call depth and counted in spans, with orphans and
+cycles entering through the panel's named residual bucket,
+under invariants INV-58 to INV-61. The golden corpus stands
+at thirteen scenes and the suite at 129 tests.
+
+Two design points moved during the build, both recorded in
+the design record itself. The first draft's conservation
+claim failed on fan-out, a root with two children carries
+more outflow than span count, so the accounting now states
+the exact identities and the renderer draws each block at
+the greater of its span count and its outflow. The
+renderer's unsupported-panel guard retired in favor of
+exhaustive matches, which clippy requires and which fail a
+future panel type at compile time rather than at render
+time.
+
+The pre-landing reviews earned their keep. The red team
+found that a repeated span id within a trace could panic
+the derivation; the fix stages one canonical copy of the
+id, chosen by the span's own fields alone, and stages every
+other copy by its own parent chain, pinned by a determinism
+test the first build would have failed. The same pass
+corrected the residual caption, which had claimed a missing
+parent for cycle entries, and narrowed deep-trace columns
+past seven stages instead of letting them overlap. One
+review point was dismissed with its reason: the MCP panel
+summary keeps reporting counts, matching the service map
+summary beside it, while the detail tool carries the full
+node and link arrays. A new tool test pins both surfaces so
+neither can drift silently.
