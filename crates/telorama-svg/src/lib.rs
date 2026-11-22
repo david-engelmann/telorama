@@ -12,9 +12,10 @@
 use std::collections::BTreeMap;
 use std::fmt;
 use telorama_scene::{
-    AgentRun, AgentStateEntry, AgentStep, Finding, FlameNode, Panel, RedStats, Scene, ServiceGraph,
-    Span, StackSample, StatKind, Thresholds, Unit, critical_path, flame_from_spans, flame_tree,
-    heatmap_grid, percentile_nanos, red_by_service, service_graph, waterfall_rows,
+    AgentRun, AgentStateEntry, AgentStep, Finding, FlameNode, Panel, RedStats, SankeyLink, Scene,
+    ServiceGraph, Span, StackSample, StatKind, Thresholds, Unit, critical_path, flame_from_spans,
+    flame_tree, heatmap_grid, percentile_nanos, red_by_service, sankey_flow, service_graph,
+    waterfall_rows,
 };
 
 /// Canonical float formatting for emitted geometry. The implementation
@@ -96,6 +97,11 @@ pub enum Prim {
         y2: f64,
         stroke: String,
         width: f64,
+    },
+    Polygon {
+        points: Vec<(f64, f64)>,
+        fill: String,
+        opacity: Option<f64>,
     },
     Text {
         x: f64,
@@ -187,6 +193,26 @@ impl DisplayList {
                         escape_xml(stroke),
                         fmt_num(*width)
                     ));
+                }
+                Prim::Polygon {
+                    points,
+                    fill,
+                    opacity,
+                } => {
+                    let joined = points
+                        .iter()
+                        .map(|(x, y)| format!("{},{}", fmt_num(*x), fmt_num(*y)))
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    out.push_str(&format!(
+                        "<polygon points=\"{}\" fill=\"{}\"",
+                        joined,
+                        escape_xml(fill)
+                    ));
+                    if let Some(o) = opacity {
+                        out.push_str(&format!(" fill-opacity=\"{}\"", fmt_num(*o)));
+                    }
+                    out.push_str("/>\n");
                 }
                 Prim::Text {
                     x,
@@ -941,6 +967,185 @@ fn map_positions(graph: &ServiceGraph) -> Vec<(String, usize, usize)> {
         }
     }
     out
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_sankey(
+    scene: &Scene,
+    spans: &[Span],
+    panel: &Panel,
+    colors: &BTreeMap<String, String>,
+    prims: &mut Vec<Prim>,
+    y: &mut f64,
+) -> Result<(), RenderError> {
+    let Panel::Sankey { data, residual } = panel else {
+        return Err(fail("render_sankey called on a non-sankey panel"));
+    };
+    let set_owned: Vec<Span> = dataset(scene, spans, data).into_iter().cloned().collect();
+    if set_owned.is_empty() {
+        return Err(fail("sankey has no spans in its data set"));
+    }
+    let flow = sankey_flow(&set_owned, residual);
+    // Layout: stages are columns, a node's block height is the
+    // greater of its span count and its outflow on one scale set by
+    // the tallest stage, and links are trapezoids stacked in node
+    // order at both ends. Past seven stages the columns narrow
+    // instead of overlapping: the block width shrinks with the
+    // column step and the labels shorten to fit.
+    let plot_w = WIDTH - 2.0 * MARGIN;
+    let nominal_step = if flow.stages > 1 {
+        (plot_w - 120.0) / (flow.stages - 1) as f64
+    } else {
+        0.0
+    };
+    let node_w = if flow.stages > 7 {
+        (nominal_step * 0.6).max(8.0)
+    } else {
+        120.0
+    };
+    let label_chars = if flow.stages > 7 {
+        ((nominal_step / 6.5) as usize).max(4)
+    } else {
+        24
+    };
+    let gap = 18.0;
+    let step = if flow.stages > 1 {
+        (plot_w - node_w) / (flow.stages - 1) as f64
+    } else {
+        0.0
+    };
+    let mut stage_totals: Vec<u64> = vec![0; flow.stages];
+    for node in &flow.nodes {
+        stage_totals[node.stage] += node.value.max(node.outflow);
+    }
+    let max_total = stage_totals.iter().copied().max().unwrap_or(1).max(1);
+    let unit = (340.0 / max_total as f64).min(6.0);
+    let top = *y + 20.0;
+    let mut positions: BTreeMap<(usize, String, bool), (f64, f64, f64)> = BTreeMap::new();
+    let mut stage_heights: Vec<f64> = vec![0.0; flow.stages];
+    for (stage, height) in stage_heights.iter_mut().enumerate() {
+        let mut cursor = top;
+        for node in flow.nodes.iter().filter(|n| n.stage == stage) {
+            let h = node.value.max(node.outflow) as f64 * unit;
+            positions.insert(
+                (node.stage, node.service.clone(), node.residual),
+                (MARGIN + stage as f64 * step, cursor, h),
+            );
+            cursor += h + gap;
+        }
+        *height = cursor - gap - top;
+    }
+    // Links first, so the blocks draw over their ends. Stacking order
+    // at both faces follows the node order, so the picture is a pure
+    // function of the derived flow.
+    let order: BTreeMap<(usize, String, bool), usize> = flow
+        .nodes
+        .iter()
+        .enumerate()
+        .map(|(i, n)| ((n.stage, n.service.clone(), n.residual), i))
+        .collect();
+    let mut links: Vec<&SankeyLink> = flow.links.iter().collect();
+    links.sort_by_key(|l| {
+        (
+            order[&(l.from_stage, l.from_service.clone(), l.from_residual)],
+            order[&(l.to_stage, l.to_service.clone(), false)],
+        )
+    });
+    let mut out_cursor: BTreeMap<(usize, String, bool), f64> = BTreeMap::new();
+    let mut in_cursor: BTreeMap<(usize, String, bool), f64> = BTreeMap::new();
+    for link in links {
+        let fkey = (
+            link.from_stage,
+            link.from_service.clone(),
+            link.from_residual,
+        );
+        let tkey = (link.to_stage, link.to_service.clone(), false);
+        let (fx, ftop, _) = positions[&fkey];
+        let (tx, ttop, _) = positions[&tkey];
+        let h = link.value as f64 * unit;
+        let out_at = out_cursor.entry(fkey).or_insert(ftop);
+        let s1 = *out_at;
+        *out_at += h;
+        let in_at = in_cursor.entry(tkey).or_insert(ttop);
+        let t1 = *in_at;
+        *in_at += h;
+        let fill = if link.from_residual {
+            "#999999".to_string()
+        } else {
+            colors
+                .get(&link.from_service)
+                .cloned()
+                .unwrap_or_else(|| "#999999".to_string())
+        };
+        prims.push(Prim::Polygon {
+            points: vec![
+                (fx + node_w, s1),
+                (tx, t1),
+                (tx, t1 + h),
+                (fx + node_w, s1 + h),
+            ],
+            fill,
+            opacity: Some(0.45),
+        });
+    }
+    // Blocks, each labeled in the gap above it with its service and
+    // its span count. The residual block is gray: it is a bucket,
+    // not a service.
+    for node in &flow.nodes {
+        let (x, ntop, h) = positions[&(node.stage, node.service.clone(), node.residual)];
+        let fill = if node.residual {
+            "#999999".to_string()
+        } else {
+            colors
+                .get(&node.service)
+                .cloned()
+                .unwrap_or_else(|| "#999999".to_string())
+        };
+        text(
+            prims,
+            x,
+            ntop - 5.0,
+            11.0,
+            INK,
+            false,
+            false,
+            format!(
+                "{} · {}",
+                truncate_label(&node.service, label_chars),
+                plural(node.value, "span", "spans")
+            ),
+        );
+        prims.push(Prim::Rect {
+            x,
+            y: ntop,
+            w: node_w,
+            h,
+            fill,
+            opacity: None,
+            stroke: None,
+        });
+    }
+    let tallest = stage_heights.iter().copied().fold(0.0, f64::max);
+    *y = top + tallest + 6.0;
+    if flow.residual_spans > 0 {
+        text(
+            prims,
+            MARGIN,
+            *y + 12.0,
+            11.0,
+            MUTED,
+            false,
+            false,
+            format!(
+                "{} entered through the {} bucket because their parent chain could not stage them",
+                plural(flow.residual_spans, "span", "spans"),
+                residual
+            ),
+        );
+        *y += 15.0;
+    }
+    *y += 7.0;
+    Ok(())
 }
 
 fn render_service_map(
@@ -1858,14 +2063,9 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
             Panel::Heatmap { .. } => "Latency heatmap",
             Panel::Flame { .. } => "Flame graph",
             Panel::ServiceMap { .. } => "Service map",
+            Panel::Sankey { .. } => "Sankey",
             Panel::AgentRun { .. } => "Agent run",
             Panel::AgentState { .. } => "Agent state",
-            other => {
-                return Err(fail(format!(
-                    "panel type {} is in the spec but has no renderer yet: it lands in a later milestone",
-                    other.type_name()
-                )));
-            }
         };
         text(&mut prims, MARGIN, y, 14.0, INK, true, false, heading);
         y += 8.0;
@@ -1891,9 +2091,11 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
             Panel::ServiceMap { .. } => {
                 render_service_map(scene, spans, panel, &colors, &mut prims, &mut y)?
             }
+            Panel::Sankey { .. } => {
+                render_sankey(scene, spans, panel, &colors, &mut prims, &mut y)?
+            }
             Panel::AgentRun { .. } => render_agent_run(scene, data, panel, &mut prims, &mut y)?,
             Panel::AgentState { .. } => render_agent_state(scene, data, panel, &mut prims, &mut y)?,
-            _ => unreachable!("heading match already returned for unsupported panels"),
         }
     }
 

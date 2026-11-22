@@ -558,3 +558,325 @@ pub fn service_graph(spans: &[Span], window_seconds: f64) -> ServiceGraph {
         edges,
     }
 }
+
+/// One node of a sankey flow: one service at one call-depth stage,
+/// holding the number of spans staged there. The residual node is a
+/// bucket, not a service, and carries the flag that says so.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SankeyNode {
+    pub stage: usize,
+    pub service: String,
+    /// Spans staged at this node: inflow plus the root and residual
+    /// entries staged there, exactly.
+    pub value: u64,
+    /// Child spans this node's spans produced. A span parents many
+    /// children, so outflow can exceed the value: fan-out is real
+    /// flow, and the renderer draws the block at the greater of the
+    /// two so no ribbon ever overflows it.
+    pub outflow: u64,
+    pub residual: bool,
+}
+
+/// One aggregated step of sankey flow between two nodes: the number
+/// of spans whose parent step lands between them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SankeyLink {
+    pub from_stage: usize,
+    pub from_service: String,
+    pub from_residual: bool,
+    pub to_stage: usize,
+    pub to_service: String,
+    pub value: u64,
+}
+
+/// The derived sankey flow over a span set: nodes in stage order,
+/// links between them, and the count of spans that entered through
+/// the residual bucket.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SankeyFlow {
+    pub nodes: Vec<SankeyNode>,
+    pub links: Vec<SankeyLink>,
+    pub residual_spans: u64,
+    pub stages: usize,
+}
+
+/// How one span's unit of flow entered its node.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SankeyEntry {
+    /// The span begins its trace: no parent at all.
+    Root,
+    /// The span's parent is in the set and stages it.
+    Parent,
+    /// The span's parent is named but absent, or its ancestry
+    /// cycles: the residual bucket stages it.
+    Residual,
+}
+
+/// Derive the sankey flow over a span set.
+///
+/// The unit of flow is one span, and every span is counted exactly
+/// once, in exactly one node, staged by its depth in its own trace.
+/// A span whose parent is in the set links from its parent's node.
+/// A root span enters at stage zero. A span whose parent is named
+/// but absent, or whose ancestry cycles back on itself, cannot be
+/// staged on evidence: it enters through the residual node, a
+/// single stage-zero source named by the panel, at stage one, and
+/// its descendants stage normally beneath it. A span id that
+/// repeats within a trace is malformed telemetry: one canonical
+/// copy of the id, chosen by the span's own fields alone, drives
+/// the staging walk, and every other copy stages by its own
+/// parent chain against that staging, so no copy is dropped,
+/// none is double-counted, and the result never depends on
+/// input order. The accounting is
+/// exact: for every real node, inflow plus the root and residual
+/// entries staged there equals the node's span count, and the
+/// residual node's outflow is exactly the count of spans that
+/// entered through it. Outflow is a separate figure, the count of
+/// child spans, and fan-out can push it past the span count.
+/// Nodes are ordered by stage, then value descending, then
+/// service name; links by their source node, then target.
+pub fn sankey_flow(spans: &[Span], residual_name: &str) -> SankeyFlow {
+    // Choose the canonical copy of every span id, per trace. The
+    // choice compares the spans' own fields only, so it is the
+    // same whatever order the spans arrived in.
+    let canon_key = |s: &Span| {
+        (
+            s.parent_span_id.clone(),
+            s.service.clone(),
+            s.name.clone(),
+            s.start_unix_nano,
+            s.end_unix_nano,
+        )
+    };
+    let mut traces: BTreeMap<&str, Vec<(usize, &Span)>> = BTreeMap::new();
+    for (idx, span) in spans.iter().enumerate() {
+        traces
+            .entry(span.trace_id.as_str())
+            .or_default()
+            .push((idx, span));
+    }
+    let mut canonical_index: BTreeMap<(&str, &str), usize> = BTreeMap::new();
+    let mut canonical_by_key: BTreeMap<(&str, &str), &Span> = BTreeMap::new();
+    for (trace_id, members) in &traces {
+        let mut best: BTreeMap<&str, (usize, &Span)> = BTreeMap::new();
+        for &(idx, member) in members {
+            match best.get(member.span_id.as_str()) {
+                Some((_, current)) if canon_key(current) <= canon_key(member) => {}
+                _ => {
+                    best.insert(member.span_id.as_str(), (idx, member));
+                }
+            }
+        }
+        for (span_id, (idx, member)) in best {
+            canonical_index.insert((*trace_id, span_id), idx);
+            canonical_by_key.insert((*trace_id, span_id), member);
+        }
+    }
+
+    // Stage the canonical spans, trace by trace, walking parent
+    // links. Ids are unique in this pass by construction.
+    let mut staged: BTreeMap<(&str, &str), (usize, SankeyEntry)> = BTreeMap::new();
+    for trace_id in traces.keys() {
+        let by_id: BTreeMap<&str, &Span> = canonical_by_key
+            .iter()
+            .filter(|((t, _), _)| t == trace_id)
+            .map(|((_, id), s)| (*id, *s))
+            .collect();
+        for span in by_id.values() {
+            if staged.contains_key(&(*trace_id, span.span_id.as_str())) {
+                continue;
+            }
+            // Walk up from this span until the path anchors on a
+            // root, a resolved span, a missing parent, or a cycle.
+            let mut path: Vec<&Span> = vec![span];
+            let mut cur: &Span = span;
+            let mut assignments: Vec<(usize, SankeyEntry)> = Vec::new();
+            loop {
+                let Some(parent_id) = cur.parent_span_id.as_deref() else {
+                    // The top of the path is a root.
+                    let top = path.len() - 1;
+                    for (i, _) in path.iter().enumerate() {
+                        let entry = if i == top {
+                            SankeyEntry::Root
+                        } else {
+                            SankeyEntry::Parent
+                        };
+                        assignments.push((top - i, entry));
+                    }
+                    break;
+                };
+                if let Some((stage, _)) = staged.get(&(*trace_id, parent_id)) {
+                    // The parent is already staged: hang the path
+                    // beneath it, nearest first.
+                    let base = *stage;
+                    for (i, _) in path.iter().enumerate() {
+                        assignments.push((base + 1 + (path.len() - 1 - i), SankeyEntry::Parent));
+                    }
+                    break;
+                }
+                let Some(parent) = by_id.get(parent_id) else {
+                    // The top of the path names a parent the data
+                    // does not contain: it enters through the
+                    // residual bucket at stage one.
+                    let top = path.len() - 1;
+                    for (i, _) in path.iter().enumerate() {
+                        let entry = if i == top {
+                            SankeyEntry::Residual
+                        } else {
+                            SankeyEntry::Parent
+                        };
+                        assignments.push((1 + (top - i), entry));
+                    }
+                    break;
+                };
+                if let Some(cycle_at) = path.iter().position(|s| s.span_id == *parent_id) {
+                    // The ancestry cycles. Every span in the cycle
+                    // enters through the residual bucket at stage
+                    // one; the spans below the cycle stage beneath
+                    // the cycle member they hang from.
+                    for (i, _) in path.iter().enumerate() {
+                        if i >= cycle_at {
+                            assignments.push((1, SankeyEntry::Residual));
+                        } else {
+                            assignments.push((1 + (cycle_at - i), SankeyEntry::Parent));
+                        }
+                    }
+                    break;
+                }
+                path.push(parent);
+                cur = parent;
+            }
+            for (member, (stage, entry)) in path.iter().zip(assignments.iter()) {
+                staged.insert((*trace_id, member.span_id.as_str()), (*stage, *entry));
+            }
+        }
+    }
+
+    // Aggregate nodes and links over every span. A canonical span
+    // takes the walked stage and entry. A repeated copy stages by
+    // its own parent chain against the canonical staging: beneath
+    // its parent id when that id staged, through the residual
+    // when it did not, at stage zero when it names no parent.
+    // Every span is counted exactly once and brings exactly the
+    // inflow its entry names, so the accounting identities hold
+    // for malformed sets too, and nothing here can panic.
+    let mut node_values: BTreeMap<(usize, String, bool), u64> = BTreeMap::new();
+    let mut link_values: BTreeMap<(usize, String, bool, usize, String), u64> = BTreeMap::new();
+    let mut residual_spans: u64 = 0;
+    let mut max_stage: usize = 0;
+    for (idx, span) in spans.iter().enumerate() {
+        let key = (span.trace_id.as_str(), span.span_id.as_str());
+        let (stage, entry) = if canonical_index.get(&key) == Some(&idx) {
+            staged[&key]
+        } else {
+            match span.parent_span_id.as_deref() {
+                None => (0, SankeyEntry::Root),
+                Some(parent_id) => match staged.get(&(key.0, parent_id)) {
+                    Some((parent_stage, _)) => (*parent_stage + 1, SankeyEntry::Parent),
+                    None => (1, SankeyEntry::Residual),
+                },
+            }
+        };
+        max_stage = max_stage.max(stage);
+        *node_values
+            .entry((stage, span.service.clone(), false))
+            .or_default() += 1;
+        match entry {
+            SankeyEntry::Root => {}
+            SankeyEntry::Parent => {
+                let parent_id = span.parent_span_id.as_deref().unwrap_or_default();
+                match canonical_by_key.get(&(key.0, parent_id)) {
+                    Some(parent) => {
+                        let (parent_stage, _) = staged[&(key.0, parent_id)];
+                        *link_values
+                            .entry((
+                                parent_stage,
+                                parent.service.clone(),
+                                false,
+                                stage,
+                                span.service.clone(),
+                            ))
+                            .or_default() += 1;
+                    }
+                    None => {
+                        // Unreachable by construction; degrade to
+                        // the residual rather than drop the unit.
+                        residual_spans += 1;
+                        *link_values
+                            .entry((
+                                0,
+                                residual_name.to_string(),
+                                true,
+                                stage,
+                                span.service.clone(),
+                            ))
+                            .or_default() += 1;
+                    }
+                }
+            }
+            SankeyEntry::Residual => {
+                residual_spans += 1;
+                *link_values
+                    .entry((
+                        0,
+                        residual_name.to_string(),
+                        true,
+                        stage,
+                        span.service.clone(),
+                    ))
+                    .or_default() += 1;
+            }
+        }
+    }
+    if residual_spans > 0 {
+        node_values.insert((0, residual_name.to_string(), true), residual_spans);
+    }
+    let mut outflow: BTreeMap<(usize, String, bool), u64> = BTreeMap::new();
+    for ((from_stage, from_service, from_residual, _, _), value) in &link_values {
+        *outflow
+            .entry((*from_stage, from_service.clone(), *from_residual))
+            .or_default() += value;
+    }
+    let mut nodes: Vec<SankeyNode> = node_values
+        .into_iter()
+        .map(|((stage, service, residual), value)| {
+            let out = outflow
+                .get(&(stage, service.clone(), residual))
+                .copied()
+                .unwrap_or(0);
+            SankeyNode {
+                stage,
+                service,
+                value,
+                outflow: out,
+                residual,
+            }
+        })
+        .collect();
+    nodes.sort_by(|a, b| {
+        a.stage
+            .cmp(&b.stage)
+            .then_with(|| b.value.cmp(&a.value))
+            .then_with(|| a.service.cmp(&b.service))
+            .then_with(|| a.residual.cmp(&b.residual))
+    });
+    let links: Vec<SankeyLink> = link_values
+        .into_iter()
+        .map(
+            |((from_stage, from_service, from_residual, to_stage, to_service), value)| SankeyLink {
+                from_stage,
+                from_service,
+                from_residual,
+                to_stage,
+                to_service,
+                value,
+            },
+        )
+        .collect();
+    SankeyFlow {
+        stages: if spans.is_empty() { 0 } else { max_stage + 1 },
+        nodes,
+        links,
+        residual_spans,
+    }
+}

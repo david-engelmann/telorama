@@ -246,6 +246,49 @@ fn panel_detail_drills_into_one_panel() {
 }
 
 #[test]
+fn sankey_panel_reports_its_flow_through_both_tools() {
+    let scene = workspace_file("tests/fixtures/scenes/sankey_scene.json");
+    let traces = workspace_file("tests/fixtures/otel-demo-checkout.json");
+    let rendered = call_tool(
+        12,
+        "render_scene",
+        json!({"scene": scene, "traces": traces}),
+    );
+    assert_eq!(rendered["isError"], false);
+    let panels = rendered["structuredContent"]["panels"]
+        .as_array()
+        .expect("panels");
+    let sankey = &panels[0];
+    assert_eq!(sankey["type"], "sankey");
+    assert_eq!(sankey["stages"], 4);
+    assert_eq!(sankey["nodes"], 9);
+    assert_eq!(sankey["links"], 8);
+    assert_eq!(sankey["residual_spans"], 0);
+    let detail = call_tool(
+        13,
+        "scene_panel_detail",
+        json!({"scene": scene, "traces": traces, "panel_index": 0}),
+    );
+    assert_eq!(detail["isError"], false);
+    let flow = &detail["structuredContent"];
+    assert_eq!(flow["type"], "sankey");
+    let nodes = flow["nodes"].as_array().expect("nodes");
+    assert_eq!(nodes.len(), 9);
+    let checkout = nodes
+        .iter()
+        .find(|n| n["stage"] == 1 && n["service"] == "checkout")
+        .expect("the checkout node is reported");
+    assert_eq!(checkout["spans"], 1);
+    assert_eq!(
+        checkout["outflow"], 6,
+        "fan-out is reported as its own figure"
+    );
+    let links = flow["links"].as_array().expect("links");
+    assert_eq!(links.len(), 8);
+    assert!(links.iter().all(|l| l["from_residual"] == false));
+}
+
+#[test]
 fn session_run_tool_maps_genai_spans() {
     let result = call_tool(
         10,

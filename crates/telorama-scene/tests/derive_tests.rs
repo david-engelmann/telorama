@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use telorama_scene::{
     Span, SpanKind, StackSample, TimeRange, critical_path, flame_from_spans, flame_tree,
-    heatmap_grid, percentile_nanos, red_by_service, service_graph, waterfall_rows,
+    heatmap_grid, percentile_nanos, red_by_service, sankey_flow, service_graph, waterfall_rows,
 };
 
 fn ms(v: i64) -> i64 {
@@ -297,4 +297,268 @@ fn service_graph_edges_come_from_span_parents() {
     assert_eq!(email.from, "checkout");
     assert_eq!(email.calls, 1);
     assert_eq!(email.errors, 1);
+}
+
+#[test]
+fn sankey_stages_spans_by_depth() {
+    let spans = vec![
+        span("a", None, "web", SpanKind::Server, 0, 100, false),
+        span("b", Some("a"), "api", SpanKind::Server, 10, 80, false),
+        span("c", Some("b"), "db", SpanKind::Client, 20, 50, false),
+    ];
+    let flow = sankey_flow(&spans, "other");
+    assert_eq!(flow.stages, 3);
+    assert_eq!(flow.residual_spans, 0);
+    assert_eq!(flow.nodes.len(), 3);
+    assert_eq!(flow.nodes[0].stage, 0);
+    assert_eq!(flow.nodes[0].service, "web");
+    assert_eq!(flow.nodes[1].stage, 1);
+    assert_eq!(flow.nodes[1].service, "api");
+    assert_eq!(flow.nodes[2].stage, 2);
+    assert_eq!(flow.nodes[2].service, "db");
+    assert_eq!(flow.links.len(), 2);
+    assert!(flow.links.iter().all(|l| l.value == 1 && !l.from_residual));
+}
+
+#[test]
+fn sankey_same_service_steps_are_flow() {
+    let spans = vec![
+        span("a", None, "web", SpanKind::Server, 0, 100, false),
+        span("b", Some("a"), "web", SpanKind::Internal, 10, 60, false),
+    ];
+    let flow = sankey_flow(&spans, "other");
+    assert_eq!(flow.nodes.len(), 2);
+    assert_eq!(flow.nodes[0].stage, 0);
+    assert_eq!(flow.nodes[1].stage, 1);
+    assert_eq!(flow.nodes[1].service, "web");
+    assert_eq!(flow.links.len(), 1);
+    assert_eq!(flow.links[0].from_service, "web");
+    assert_eq!(flow.links[0].to_service, "web");
+    assert_eq!(flow.links[0].value, 1);
+}
+
+#[test]
+fn sankey_orphans_and_cycles_enter_through_the_residual() {
+    // An orphan whose parent is absent, with a child beneath it.
+    let spans = vec![
+        span("o", Some("missing"), "api", SpanKind::Server, 0, 90, false),
+        span("p", Some("o"), "db", SpanKind::Client, 10, 40, false),
+    ];
+    let flow = sankey_flow(&spans, "other");
+    assert_eq!(flow.residual_spans, 1);
+    let residual = flow
+        .nodes
+        .iter()
+        .find(|n| n.residual)
+        .expect("the residual node exists");
+    assert_eq!(residual.stage, 0);
+    assert_eq!(residual.service, "other");
+    assert_eq!(residual.value, 1);
+    let api = flow
+        .nodes
+        .iter()
+        .find(|n| n.service == "api")
+        .expect("the orphan stages under its own service");
+    assert_eq!(api.stage, 1);
+    let entry = flow
+        .links
+        .iter()
+        .find(|l| l.from_residual)
+        .expect("the orphan links from the residual node");
+    assert_eq!(entry.to_service, "api");
+    assert_eq!(entry.value, 1);
+    let child = flow
+        .links
+        .iter()
+        .find(|l| l.to_service == "db")
+        .expect("the child links from the orphan's node");
+    assert_eq!(child.from_service, "api");
+    assert!(!child.from_residual);
+
+    // A two-span cycle: neither side can stage the other, so both
+    // enter through the residual bucket.
+    let cyclic = vec![
+        span("x", Some("y"), "a", SpanKind::Server, 0, 50, false),
+        span("y", Some("x"), "b", SpanKind::Server, 0, 50, false),
+    ];
+    let flow = sankey_flow(&cyclic, "other");
+    assert_eq!(flow.residual_spans, 2);
+    assert!(
+        flow.nodes
+            .iter()
+            .filter(|n| !n.residual)
+            .all(|n| n.stage == 1),
+        "both cycle members stage at stage one"
+    );
+    assert_eq!(
+        flow.links.iter().filter(|l| l.from_residual).count(),
+        2,
+        "both cycle members link from the residual node"
+    );
+}
+
+#[test]
+fn sankey_flow_conserves_on_the_fixtures() {
+    let spans = vec![
+        span("a", None, "web", SpanKind::Server, 0, 100, false),
+        span("b", Some("a"), "api", SpanKind::Server, 10, 80, false),
+        span("c", Some("a"), "api", SpanKind::Server, 15, 60, false),
+        span("d", Some("b"), "db", SpanKind::Client, 20, 50, false),
+        span("o", Some("missing"), "api", SpanKind::Server, 0, 30, false),
+    ];
+    let flow = sankey_flow(&spans, "other");
+    // Every span is counted exactly once across the real nodes.
+    let counted: u64 = flow
+        .nodes
+        .iter()
+        .filter(|n| !n.residual)
+        .map(|n| n.value)
+        .sum();
+    assert_eq!(counted, spans.len() as u64);
+    // Per node: total inflow (parent links plus residual entries)
+    // plus the root spans staged there equals the span count
+    // exactly. Fan-out lives in the outflow figure, checked node by
+    // node against the fixture: the web root parents two spans, the
+    // api node parents one, the db node none.
+    for node in flow.nodes.iter().filter(|n| !n.residual) {
+        let inflow: u64 = flow
+            .links
+            .iter()
+            .filter(|l| l.to_stage == node.stage && l.to_service == node.service)
+            .map(|l| l.value)
+            .sum();
+        let roots = spans
+            .iter()
+            .filter(|s| s.parent_span_id.is_none() && s.service == node.service && node.stage == 0)
+            .count() as u64;
+        assert_eq!(
+            inflow + roots,
+            node.value,
+            "node {} at stage {} must account for every staged span",
+            node.service,
+            node.stage
+        );
+    }
+    let node = |stage: usize, service: &str| {
+        flow.nodes
+            .iter()
+            .find(|n| n.stage == stage && n.service == service && !n.residual)
+            .unwrap_or_else(|| panic!("node {service} at stage {stage} exists"))
+    };
+    assert_eq!(node(0, "web").outflow, 2, "the root fans out to two");
+    assert_eq!(node(1, "api").outflow, 1);
+    assert_eq!(node(2, "db").outflow, 0);
+    // Total real outflow equals the number of spans whose parent is
+    // in the set: three in this fixture.
+    let total_out: u64 = flow
+        .nodes
+        .iter()
+        .filter(|n| !n.residual)
+        .map(|n| n.outflow)
+        .sum();
+    assert_eq!(total_out, 3);
+    // The residual node's outflow is exactly the orphan count.
+    let residual_out: u64 = flow
+        .links
+        .iter()
+        .filter(|l| l.from_residual)
+        .map(|l| l.value)
+        .sum();
+    assert_eq!(residual_out, flow.residual_spans);
+    assert_eq!(flow.residual_spans, 1);
+}
+
+#[test]
+fn sankey_duplicate_span_ids_stage_deterministically() {
+    // Malformed telemetry: one id, two copies, one parented and
+    // one a root. The canonical copy (the root, since a missing
+    // parent sorts first) drives the staging walk; the parented
+    // copy stages beneath its own parent. Nothing panics, every
+    // copy is counted, and the flow is identical with the input
+    // reversed.
+    let spans = vec![
+        span("x", Some("r"), "api", SpanKind::Server, 10, 50, false),
+        span("r", None, "web", SpanKind::Server, 0, 100, false),
+        span("x", None, "api", SpanKind::Server, 0, 90, false),
+    ];
+    let flow = sankey_flow(&spans, "other");
+    let mut reversed = spans.clone();
+    reversed.reverse();
+    assert_eq!(flow, sankey_flow(&reversed, "other"));
+    assert_eq!(flow.residual_spans, 0);
+    let counted: u64 = flow
+        .nodes
+        .iter()
+        .filter(|n| !n.residual)
+        .map(|n| n.value)
+        .sum();
+    assert_eq!(counted, 3, "every copy is counted exactly once");
+    let node = |stage: usize, service: &str| {
+        flow.nodes
+            .iter()
+            .find(|n| n.stage == stage && n.service == service && !n.residual)
+            .unwrap_or_else(|| panic!("node {service} at stage {stage} exists"))
+    };
+    assert_eq!(node(0, "web").value, 1);
+    assert_eq!(
+        node(0, "api").value,
+        1,
+        "the canonical root copy stages at zero"
+    );
+    assert_eq!(
+        node(1, "api").value,
+        1,
+        "the parented copy stages beneath its parent"
+    );
+    assert_eq!(node(0, "web").outflow, 1);
+}
+
+#[test]
+fn sankey_edge_cases_hold() {
+    // A span that is its own parent cycles on itself and enters
+    // through the residual.
+    let selfish = vec![span("s", Some("s"), "api", SpanKind::Server, 0, 10, false)];
+    let flow = sankey_flow(&selfish, "other");
+    assert_eq!(flow.residual_spans, 1);
+    assert_eq!(flow.stages, 2);
+    // A tail hanging into a cycle stages beneath the cycle member
+    // it hangs from; only the cycle members enter through the
+    // residual.
+    let spans = vec![
+        span("x", Some("y"), "api", SpanKind::Server, 0, 50, false),
+        span("y", Some("x"), "db", SpanKind::Server, 0, 50, false),
+        span("z", Some("x"), "web", SpanKind::Client, 10, 20, false),
+    ];
+    let flow = sankey_flow(&spans, "other");
+    assert_eq!(flow.residual_spans, 2);
+    let z = flow
+        .nodes
+        .iter()
+        .find(|n| n.service == "web")
+        .expect("the tail stages");
+    assert_eq!(z.stage, 2);
+    // Span ids shared across traces stage independently: the same
+    // id is a root in both traces and parents a child in one.
+    let mut t2_root = span("a", None, "web", SpanKind::Server, 0, 100, false);
+    t2_root.trace_id = "t2".to_string();
+    let mut t2_child = span("b", Some("a"), "api", SpanKind::Server, 10, 50, false);
+    t2_child.trace_id = "t2".to_string();
+    let spans = vec![
+        span("a", None, "web", SpanKind::Server, 0, 100, false),
+        t2_root,
+        t2_child,
+    ];
+    let flow = sankey_flow(&spans, "other");
+    let web = flow
+        .nodes
+        .iter()
+        .find(|n| n.service == "web" && n.stage == 0)
+        .expect("the roots stage");
+    assert_eq!(web.value, 2);
+    assert_eq!(web.outflow, 1);
+    // Empty input is an empty flow.
+    let flow = sankey_flow(&[], "other");
+    assert_eq!(flow.stages, 0);
+    assert!(flow.nodes.is_empty());
+    assert_eq!(flow.residual_spans, 0);
 }

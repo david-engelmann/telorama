@@ -38,29 +38,58 @@ decide where a span's unit enters:
   links from there into the node's own service at stage one.
   Its descendants stage normally beneath it.
 
-Conservation then holds by construction. For every node, the
-inflow plus the root spans staged there equals the node's
-value, and the outflow is the value minus the spans that end
-at that node. The residual node's outflow is exactly the count
-of spans that could not be staged on evidence, and the panel
-prints that count under the diagram, naming the bucket,
-whenever it is nonzero. When it is zero, no residual node is
-drawn. The derivation lives in telorama-scene beside the
-service map derivation and follows its evidence discipline.
+The accounting then holds exactly. For every node, the total
+inflow (parent links plus residual entries) plus the root
+spans staged there equals the node's span count, and the
+residual node's outflow is exactly the count of spans that
+could not be staged on evidence. Outflow is a separate figure,
+the count of child spans: one span parents many children, so
+fan-out can push a node's outflow past its span count, and the
+renderer draws each block at the greater of the two figures
+so no ribbon ever overflows its block. The panel prints the
+residual count under the diagram, naming the bucket, whenever
+it is nonzero. When it is zero, no residual node is drawn. The
+derivation lives in telorama-scene beside the service map
+derivation and follows its evidence discipline.
+
+Amendment, 2026-11-22, before the build landed: the first
+draft of this record claimed outflow as the span count minus
+the spans that end at a node. The conservation test disproved
+it on a root with two children, whose outflow is two against
+a span count of one. The accounting above is the corrected
+statement, and the test now pins the fan-out figures node by
+node. The same pass retired the renderer's unsupported-panel
+guard in favor of exhaustive matches, so a future panel type
+fails at compile time rather than at render time.
+
+Second amendment, 2026-11-22, from the pre-landing reviews:
+three repairs. A repeated span id within a trace, which the
+first build could panic on, now stages by one canonical copy
+of the id, chosen by the span's own fields alone, with every
+other copy staging by its own parent chain against that
+staging. The caption under the diagram no longer claims a
+missing parent for cycle entries. It says the parent chain
+could not stage them, which is true of both entry cases. And
+deep traces, past seven stages, narrow their columns instead
+of overlapping, as the drawing section now states.
 
 ## The drawing
 
 Nodes in a stage stack in a fixed order, value descending and
 then service name ascending, so the same data draws the same
 picture regardless of the order spans arrived in. A node is a
-block whose height is its value on a scale set by the tallest
-stage, labeled with its service name and its count. Links are
+block whose height is the greater of its span count and its
+outflow on a scale set by the tallest stage, labeled with its
+service name and its count. Links are
 filled trapezoids from the right face of the source block to
 the left face of the target block, stacked in node order at
 both ends, filled with the source service's color at reduced
 opacity. The residual block and its links are gray. The
 DisplayList gains a polygon primitive to carry the trapezoids.
-every existing primitive keeps its current bytes.
+every existing primitive keeps its current bytes. Past seven
+stages the columns narrow instead of overlapping: the block
+width shrinks with the column step and the labels shorten to
+fit, so depth alone never folds the picture back on itself.
 
 Sub-pixel slivers are a known limit of exact geometry at large
 volumes: a one-span node among ten thousand is thinner than a
@@ -79,6 +108,6 @@ checkout fixture, and the derivation gains tests over
 hand-built span sets for the root, same-service, orphan, and
 cycle cases. The golden test that used the sankey panel as its
 example of an unsupported type retires with the gap it was
-guarding. The guard arm in the renderer stays for panel types
-the spec may gain later. The README's sentence about the
+guarding. The amendment below records what happened to the
+guard arm. The README's sentence about the
 missing renderer comes out in the landing.
