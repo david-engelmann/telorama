@@ -500,7 +500,11 @@ fn sankey_duplicate_span_ids_stage_deterministically() {
             .unwrap_or_else(|| panic!("node {service} at stage {stage} exists"))
     };
     assert_eq!(node(0, "web").value, 1);
-    assert_eq!(node(0, "api").value, 1, "the canonical root copy stages at zero");
+    assert_eq!(
+        node(0, "api").value,
+        1,
+        "the canonical root copy stages at zero"
+    );
     assert_eq!(
         node(1, "api").value,
         1,

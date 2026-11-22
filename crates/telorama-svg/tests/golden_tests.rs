@@ -202,10 +202,7 @@ fn sankey_orphans_are_named_under_the_diagram() {
     // The same caption must stay true when the entry came from a
     // cycle, whose parents are in the data: the wording names the
     // unstageable chain, not a missing parent.
-    let cycle = vec![
-        span("x", Some("y"), "api"),
-        span("y", Some("x"), "db"),
-    ];
+    let cycle = vec![span("x", Some("y"), "api"), span("y", Some("x"), "db")];
     let svg = telorama_svg::render_scene(&scene, &cycle).expect("the cycle scene must render");
     assert!(
         svg.contains(
