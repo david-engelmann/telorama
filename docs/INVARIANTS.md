@@ -397,3 +397,33 @@ later milestones are marked as validator-side.
   render_agent_run_scene_from_a_session, and mcp_tests
   render_scene_returns_the_triple_contract and
   session_run_tool_prices_a_codex_session.
+
+## Sankey (telorama-scene derive.rs, telorama-svg)
+
+- INV-58. The sankey derivation counts spans, never calls:
+  every span in the panel's data set is exactly one unit of
+  flow in exactly one node, staged by its depth in its own
+  trace. A span whose parent is in the set links from its
+  parent's node. A root span enters at stage zero. A span
+  whose parent is named but absent, or whose ancestry cycles,
+  enters through the residual node and is counted there.
+  Enforced by derive_tests sankey_stages_spans_by_depth,
+  sankey_same_service_steps_are_flow, and
+  sankey_orphans_and_cycles_enter_through_the_residual.
+- INV-59. Conservation holds by construction: for every node,
+  inflow plus root spans staged there equals the node's
+  value, outflow never exceeds the value, and the residual
+  node's outflow equals the number of spans that could not
+  be staged on evidence.
+  Enforced by derive_tests sankey_flow_conserves_on_the_fixtures.
+- INV-60. Node order within a stage is value descending then
+  service name ascending, and link stacking follows node
+  order, so the same data renders byte-identically whatever
+  order the spans arrived in.
+  Enforced by golden_tests sankey_scene_matches_golden.
+- INV-61. The panel prints beneath the diagram how many spans
+  entered through the residual bucket, naming the bucket,
+  whenever that count is nonzero. When it is zero, no
+  residual node is drawn.
+  Enforced by golden_tests sankey_scene_matches_golden and
+  sankey_orphans_are_named_under_the_diagram.
