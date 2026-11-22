@@ -676,7 +676,7 @@ pub fn sankey_flow(spans: &[Span], residual_name: &str) -> SankeyFlow {
     // Stage the canonical spans, trace by trace, walking parent
     // links. Ids are unique in this pass by construction.
     let mut staged: BTreeMap<(&str, &str), (usize, SankeyEntry)> = BTreeMap::new();
-    for (trace_id, _) in &traces {
+    for trace_id in traces.keys() {
         let by_id: BTreeMap<&str, &Span> = canonical_by_key
             .iter()
             .filter(|((t, _), _)| t == trace_id)
