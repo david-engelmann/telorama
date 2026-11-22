@@ -429,9 +429,7 @@ fn sankey_flow_conserves_on_the_fixtures() {
             .sum();
         let roots = spans
             .iter()
-            .filter(|s| {
-                s.parent_span_id.is_none() && s.service == node.service && node.stage == 0
-            })
+            .filter(|s| s.parent_span_id.is_none() && s.service == node.service && node.stage == 0)
             .count() as u64;
         assert_eq!(
             inflow + roots,
