@@ -26,7 +26,7 @@ telorama is a visualization engine for OpenTelemetry data. An AI agent describes
 
 ## How it is used
 
-The command line tool reads a scene spec plus the data its panels name and writes an SVG image. The data can be an OpenTelemetry trace export in OTLP JSON form, a folded stack profile, or an agent session export of OTLP logs and spans.
+The command line tool reads a scene spec plus the data its panels name and writes an SVG image. The data can be an OpenTelemetry trace export in OTLP JSON form, a folded stack profile, or an agent session export of OTLP logs and spans. The tool and the MCP server install from crates.io with `cargo install telorama` and `cargo install telorama-mcp`.
 
 ```text
 telorama render --scene scene.json --traces traces.json --out scene.svg
@@ -48,7 +48,7 @@ The same engine also runs as an MCP server, the telorama-mcp program, speaking J
 
 ## Current state
 
-Milestones 1 through 5 are complete. The scene spec, the honesty validator, the field system of units and thresholds, the OTLP trace and profile readers, the session adapters for Claude Code, Codex, GenAI, and OpenInference, the deterministic SVG renderer, the standalone HTML export, the MCP server with its interactive view, incident composition, the Claude Code plugin and agent skill packaging, and worked examples are in place. The live observability milestone is landed on top of that static core. Renders carry a ranked investigation layer whose findings derive from the same numbers the panels print, scenes can carry an agent state panel whose entries must say what the agent is doing and why, and a session renders as a stream of prefix frames that the view steps through by replacement. The renderer covers waterfall, stat, and RED panels, service maps, latency heatmaps, flame graphs, agent run diagrams, and agent state panels, with a golden test corpus of twelve scenes built from realistic fixtures in the shape of the OpenTelemetry Demo and recorded agent sessions in all four dialects. Sankey panels are specified and validated but have no renderer yet. Every crate carries full package metadata and the hosted gate proves all five package cleanly, so the crates stand ready to publish.
+Milestones 1 through 5 are complete. The scene spec, the honesty validator, the field system of units and thresholds, the OTLP trace and profile readers, the session adapters for Claude Code, Codex, GenAI, and OpenInference, the deterministic SVG renderer, the standalone HTML export, the MCP server with its interactive view, incident composition, the Claude Code plugin and agent skill packaging, and worked examples are in place. The live observability milestone is landed on top of that static core. Renders carry a ranked investigation layer whose findings derive from the same numbers the panels print, scenes can carry an agent state panel whose entries must say what the agent is doing and why, and a session renders as a stream of prefix frames that the view steps through by replacement. The renderer covers waterfall, stat, and RED panels, service maps, latency heatmaps, flame graphs, agent run diagrams, and agent state panels, with a golden test corpus of twelve scenes built from realistic fixtures in the shape of the OpenTelemetry Demo and recorded agent sessions in all four dialects. Sankey panels are specified and validated but have no renderer yet. Every crate carries full package metadata, and all five crates are published on crates.io at version 0.1.0.
 
 ## Licence
 
