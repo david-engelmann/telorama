@@ -147,17 +147,55 @@ fn rendering_is_byte_identical_across_runs_and_input_orders() {
 }
 
 #[test]
-fn unsupported_panel_type_is_a_specific_error() {
-    let (mut scene, spans) = load("api_scene.json", "single-service-api.json");
-    scene.panels.push(telorama_scene::Panel::Sankey {
-        data: "trace".to_string(),
-        residual: "other".to_string(),
-    });
-    let err = telorama_svg::render_scene(&scene, &spans).unwrap_err();
+fn sankey_scene_matches_golden() {
+    golden(
+        "sankey_scene.svg",
+        "sankey_scene.json",
+        "otel-demo-checkout.json",
+    );
+    // The standing determinism pattern: input order must not leak
+    // into the render.
+    let (scene, spans) = load("sankey_scene.json", "otel-demo-checkout.json");
+    let first = telorama_svg::render_scene(&scene, &spans).unwrap();
+    let mut reversed = spans.clone();
+    reversed.reverse();
+    let second = telorama_svg::render_scene(&scene, &reversed).unwrap();
+    assert_eq!(first, second, "input order must not leak into the render");
+}
+
+#[test]
+fn sankey_orphans_are_named_under_the_diagram() {
+    use std::collections::BTreeMap;
+    use telorama_scene::SpanKind;
+    let scene = telorama_scene::parse_scene(
+        r#"{"context":{"filter":{"env":"prod"},"provenance":{"generated_by":"agent","question":"Where does this flow enter?"},"range":{"from_unix_ms":1794841200000,"to_unix_ms":1794841201000}},"data":[{"id":"trace","sampled":"unknown","source":{"kind":"otlp_file","trace_id":"t1"}}],"headline":"A flow with a gap in its evidence","narrative":[{"panel":0,"text":"One span names a parent the data does not contain."}],"panels":[{"data":"trace","residual":"other","type":"sankey"}],"scene":"0.1","title":"Orphan flow"}"#,
+    )
+    .expect("the orphan scene must validate");
+    let span = |id: &str, parent: Option<&str>, service: &str| Span {
+        trace_id: "t1".to_string(),
+        span_id: id.to_string(),
+        parent_span_id: parent.map(|p| p.to_string()),
+        name: format!("op-{id}"),
+        kind: SpanKind::Server,
+        start_unix_nano: 0,
+        end_unix_nano: 1_000_000,
+        is_error: false,
+        service: service.to_string(),
+        attributes: BTreeMap::new(),
+    };
+    let spans = vec![
+        span("root", None, "web"),
+        span("child", Some("root"), "api"),
+        span("orphan", Some("missing"), "db"),
+    ];
+    let svg = telorama_svg::render_scene(&scene, &spans).expect("the scene must render");
     assert!(
-        err.message.contains("no renderer yet"),
-        "got: {}",
-        err.message
+        svg.contains("1 span entered through the other bucket with no parent in the data"),
+        "the residual entry must be named under the diagram"
+    );
+    assert!(
+        svg.contains("other · 1 span"),
+        "the residual bucket must be drawn as its own block"
     );
 }
 

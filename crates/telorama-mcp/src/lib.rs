@@ -17,7 +17,7 @@ use serde_json::{Value, json};
 use telorama_scene::{
     AgentRun, Finding, Panel, Scene, Span, StackSample, StatKind, content_hash, critical_path,
     flame_from_spans, flame_tree, heatmap_grid, investigate, percentile_nanos, red_by_service,
-    service_graph, waterfall_rows,
+    sankey_flow, service_graph, waterfall_rows,
 };
 
 /// The MCP Apps view resource the render tool links to.
@@ -799,7 +799,16 @@ fn panel_summary(scene: &Scene, inputs: &Inputs, panel: &Panel) -> Value {
             let worst = red.iter().map(|r| r.error_ratio).fold(0.0f64, f64::max);
             json!({"type": "red_row", "services": red.len(), "worst_error_ratio": worst})
         }
-        Panel::Sankey { .. } => json!({"type": "sankey", "rendered": false}),
+        Panel::Sankey { data, residual } => {
+            let flow = sankey_flow(&dataset(scene, &inputs.spans, data), residual);
+            json!({
+                "type": "sankey",
+                "stages": flow.stages,
+                "nodes": flow.nodes.len(),
+                "links": flow.links.len(),
+                "residual_spans": flow.residual_spans
+            })
+        }
         Panel::Flame { data, .. } => {
             let tree = flame_tree_for(scene, inputs, data);
             json!({"type": "flame", "total": tree.value, "top_frames": tree.children.len()})
@@ -940,11 +949,28 @@ fn panel_detail(scene: &Scene, inputs: &Inputs, panel: &Panel) -> Value {
                 "rows": red.iter().map(red_json).collect::<Vec<_>>()
             })
         }
-        Panel::Sankey { .. } => json!({
-            "type": "sankey",
-            "rendered": false,
-            "note": "sankey panels are validated but have no renderer yet"
-        }),
+        Panel::Sankey { data, residual } => {
+            let flow = sankey_flow(&dataset(scene, &inputs.spans, data), residual);
+            json!({
+                "type": "sankey",
+                "stages": flow.stages,
+                "nodes": flow.nodes.iter().map(|n| json!({
+                    "stage": n.stage,
+                    "service": n.service,
+                    "spans": n.value,
+                    "residual": n.residual
+                })).collect::<Vec<_>>(),
+                "links": flow.links.iter().map(|l| json!({
+                    "from_stage": l.from_stage,
+                    "from": l.from_service,
+                    "from_residual": l.from_residual,
+                    "to_stage": l.to_stage,
+                    "to": l.to_service,
+                    "spans": l.value
+                })).collect::<Vec<_>>(),
+                "residual_spans": flow.residual_spans
+            })
+        }
         Panel::Flame { data, .. } => {
             let tree = flame_tree_for(scene, inputs, data);
             let frames: Vec<Value> = tree
