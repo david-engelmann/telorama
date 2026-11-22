@@ -467,3 +467,94 @@ fn sankey_flow_conserves_on_the_fixtures() {
     assert_eq!(residual_out, flow.residual_spans);
     assert_eq!(flow.residual_spans, 1);
 }
+
+#[test]
+fn sankey_duplicate_span_ids_stage_deterministically() {
+    // Malformed telemetry: one id, two copies, one parented and
+    // one a root. The canonical copy (the root, since a missing
+    // parent sorts first) drives the staging walk; the parented
+    // copy stages beneath its own parent. Nothing panics, every
+    // copy is counted, and the flow is identical with the input
+    // reversed.
+    let spans = vec![
+        span("x", Some("r"), "api", SpanKind::Server, 10, 50, false),
+        span("r", None, "web", SpanKind::Server, 0, 100, false),
+        span("x", None, "api", SpanKind::Server, 0, 90, false),
+    ];
+    let flow = sankey_flow(&spans, "other");
+    let mut reversed = spans.clone();
+    reversed.reverse();
+    assert_eq!(flow, sankey_flow(&reversed, "other"));
+    assert_eq!(flow.residual_spans, 0);
+    let counted: u64 = flow
+        .nodes
+        .iter()
+        .filter(|n| !n.residual)
+        .map(|n| n.value)
+        .sum();
+    assert_eq!(counted, 3, "every copy is counted exactly once");
+    let node = |stage: usize, service: &str| {
+        flow.nodes
+            .iter()
+            .find(|n| n.stage == stage && n.service == service && !n.residual)
+            .unwrap_or_else(|| panic!("node {service} at stage {stage} exists"))
+    };
+    assert_eq!(node(0, "web").value, 1);
+    assert_eq!(node(0, "api").value, 1, "the canonical root copy stages at zero");
+    assert_eq!(
+        node(1, "api").value,
+        1,
+        "the parented copy stages beneath its parent"
+    );
+    assert_eq!(node(0, "web").outflow, 1);
+}
+
+#[test]
+fn sankey_edge_cases_hold() {
+    // A span that is its own parent cycles on itself and enters
+    // through the residual.
+    let selfish = vec![span("s", Some("s"), "api", SpanKind::Server, 0, 10, false)];
+    let flow = sankey_flow(&selfish, "other");
+    assert_eq!(flow.residual_spans, 1);
+    assert_eq!(flow.stages, 2);
+    // A tail hanging into a cycle stages beneath the cycle member
+    // it hangs from; only the cycle members enter through the
+    // residual.
+    let spans = vec![
+        span("x", Some("y"), "api", SpanKind::Server, 0, 50, false),
+        span("y", Some("x"), "db", SpanKind::Server, 0, 50, false),
+        span("z", Some("x"), "web", SpanKind::Client, 10, 20, false),
+    ];
+    let flow = sankey_flow(&spans, "other");
+    assert_eq!(flow.residual_spans, 2);
+    let z = flow
+        .nodes
+        .iter()
+        .find(|n| n.service == "web")
+        .expect("the tail stages");
+    assert_eq!(z.stage, 2);
+    // Span ids shared across traces stage independently: the same
+    // id is a root in both traces and parents a child in one.
+    let mut t2_root = span("a", None, "web", SpanKind::Server, 0, 100, false);
+    t2_root.trace_id = "t2".to_string();
+    let mut t2_child = span("b", Some("a"), "api", SpanKind::Server, 10, 50, false);
+    t2_child.trace_id = "t2".to_string();
+    let spans = vec![
+        span("a", None, "web", SpanKind::Server, 0, 100, false),
+        t2_root,
+        t2_child,
+    ];
+    let flow = sankey_flow(&spans, "other");
+    let web = flow
+        .nodes
+        .iter()
+        .find(|n| n.service == "web" && n.stage == 0)
+        .expect("the roots stage");
+    assert_eq!(web.value, 2);
+    assert_eq!(web.outflow, 1);
+    // Empty input is an empty flow.
+    let flow = sankey_flow(&[], "other");
+    assert_eq!(flow.stages, 0);
+    assert!(flow.nodes.is_empty());
+    assert_eq!(flow.residual_spans, 0);
+}

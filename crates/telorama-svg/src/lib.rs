@@ -989,10 +989,26 @@ fn render_sankey(
     // Layout: stages are columns, a node's block height is the
     // greater of its span count and its outflow on one scale set by
     // the tallest stage, and links are trapezoids stacked in node
-    // order at both ends.
-    let node_w = 120.0;
-    let gap = 18.0;
+    // order at both ends. Past seven stages the columns narrow
+    // instead of overlapping: the block width shrinks with the
+    // column step and the labels shorten to fit.
     let plot_w = WIDTH - 2.0 * MARGIN;
+    let nominal_step = if flow.stages > 1 {
+        (plot_w - 120.0) / (flow.stages - 1) as f64
+    } else {
+        0.0
+    };
+    let node_w = if flow.stages > 7 {
+        (nominal_step * 0.6).max(8.0)
+    } else {
+        120.0
+    };
+    let label_chars = if flow.stages > 7 {
+        ((nominal_step / 6.5) as usize).max(4)
+    } else {
+        24
+    };
+    let gap = 18.0;
     let step = if flow.stages > 1 {
         (plot_w - node_w) / (flow.stages - 1) as f64
     } else {
@@ -1095,7 +1111,7 @@ fn render_sankey(
             false,
             format!(
                 "{} · {}",
-                truncate_label(&node.service, 24),
+                truncate_label(&node.service, label_chars),
                 plural(node.value, "span", "spans")
             ),
         );
@@ -1121,7 +1137,7 @@ fn render_sankey(
             false,
             false,
             format!(
-                "{} entered through the {} bucket with no parent in the data",
+                "{} entered through the {} bucket because their parent chain could not stage them",
                 plural(flow.residual_spans, "span", "spans"),
                 residual
             ),

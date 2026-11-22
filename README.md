@@ -9,7 +9,7 @@ telorama is a visualization engine for OpenTelemetry data. An AI agent describes
 - It turns a trace into a waterfall diagram that shows where one request spent its time and which part of the work sits on the critical path.
 - It summarizes a service with rate, error, and duration figures drawn from the same trace data, with duration reported as percentiles and never as an average.
 - It draws service maps whose edges come only from calls the traces actually contain, with a ranked rate, error, and duration summary beneath the map.
-- It draws sankey diagrams of span flow staged by call depth and counted span by span, with any span whose parent is missing from the data entering through a named residual bucket in the open instead of being silently staged as a root.
+- It draws sankey diagrams of span flow staged by call depth and counted span by span, with any span whose parent is missing from the data or whose ancestry cycles entering through a named residual bucket in the open instead of being silently staged as a root.
 - It draws latency heatmaps from declared histogram buckets and names one real span from the data as the exemplar of the busiest cell, never an invented link.
 - It draws flame graphs from sampled profiles, and it checks that a profile carries exactly the sample count the spec declares before it renders.
 - It turns an agent session into a run diagram that shows each turn, each model call and tool call, the time spent waiting on permissions, and what the session cost in tokens and money.

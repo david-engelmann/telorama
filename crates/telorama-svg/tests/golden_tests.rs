@@ -190,12 +190,28 @@ fn sankey_orphans_are_named_under_the_diagram() {
     ];
     let svg = telorama_svg::render_scene(&scene, &spans).expect("the scene must render");
     assert!(
-        svg.contains("1 span entered through the other bucket with no parent in the data"),
+        svg.contains(
+            "1 span entered through the other bucket because their parent chain could not stage them"
+        ),
         "the residual entry must be named under the diagram"
     );
     assert!(
         svg.contains("other · 1 span"),
         "the residual bucket must be drawn as its own block"
+    );
+    // The same caption must stay true when the entry came from a
+    // cycle, whose parents are in the data: the wording names the
+    // unstageable chain, not a missing parent.
+    let cycle = vec![
+        span("x", Some("y"), "api"),
+        span("y", Some("x"), "db"),
+    ];
+    let svg = telorama_svg::render_scene(&scene, &cycle).expect("the cycle scene must render");
+    assert!(
+        svg.contains(
+            "2 spans entered through the other bucket because their parent chain could not stage them"
+        ),
+        "the caption must describe cycle entry truthfully"
     );
 }
 

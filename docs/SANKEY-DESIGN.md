@@ -62,19 +62,34 @@ node. The same pass retired the renderer's unsupported-panel
 guard in favor of exhaustive matches, so a future panel type
 fails at compile time rather than at render time.
 
+Second amendment, 2026-11-22, from the pre-landing reviews:
+three repairs. A repeated span id within a trace, which the
+first build could panic on, now stages by one canonical copy
+of the id, chosen by the span's own fields alone, with every
+other copy staging by its own parent chain against that
+staging. The caption under the diagram no longer claims a
+missing parent for cycle entries; it says the parent chain
+could not stage them, which is true of both entry cases. And
+deep traces, past seven stages, narrow their columns instead
+of overlapping, as the drawing section now states.
+
 ## The drawing
 
 Nodes in a stage stack in a fixed order, value descending and
 then service name ascending, so the same data draws the same
 picture regardless of the order spans arrived in. A node is a
-block whose height is its value on a scale set by the tallest
-stage, labeled with its service name and its count. Links are
+block whose height is the greater of its span count and its
+outflow on a scale set by the tallest stage, labeled with its
+service name and its count. Links are
 filled trapezoids from the right face of the source block to
 the left face of the target block, stacked in node order at
 both ends, filled with the source service's color at reduced
 opacity. The residual block and its links are gray. The
 DisplayList gains a polygon primitive to carry the trapezoids.
-every existing primitive keeps its current bytes.
+every existing primitive keeps its current bytes. Past seven
+stages the columns narrow instead of overlapping: the block
+width shrinks with the column step and the labels shorten to
+fit, so depth alone never folds the picture back on itself.
 
 Sub-pixel slivers are a known limit of exact geometry at large
 volumes: a one-span node among ten thousand is thinner than a
