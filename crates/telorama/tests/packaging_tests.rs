@@ -82,12 +82,7 @@ fn every_crate_readme_is_its_own_and_absolute() {
             let trimmed = line.trim();
             if trimmed.starts_with('[') {
                 if let Some((_, target)) = trimmed.split_once("]: ") {
-                    targets.push(
-                        target
-                            .chars()
-                            .take_while(|c| !c.is_whitespace())
-                            .collect(),
-                    );
+                    targets.push(target.chars().take_while(|c| !c.is_whitespace()).collect());
                 }
             }
             if let Some(at) = trimmed.find("src=\"") {
