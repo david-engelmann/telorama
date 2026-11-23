@@ -1307,3 +1307,25 @@ pinned deliberately by the packaging test. The
 publish follows in this round's own record,
 each version confirmed live before the next is
 sent.
+
+## Round 13 publish record (2026-11-23)
+
+All five crates published at 0.3.0 on
+2026-11-23 in the settled order, scene, ingest,
+svg, telorama, telorama-mcp, each PUT answered
+200 and each version confirmed live by an
+independent read before the next was sent.
+Every crate now lists 0.3.0 as its newest
+version over 0.2.0 and 0.1.0. The rendered
+registry readmes verify firsthand. The ingest
+readme renders the agent run image, the svg
+readme the incident image, the command line
+readme the frames animation, and the MCP readme
+the agent state image, every source the
+absolute raw address the registry requires, and
+the scene readme renders with no image, as
+designed. The docs.rs pages for all five
+crates serve 0.3.0, and the worked example
+stands on the scene front page. The packaging
+ran on a CI runner through the vendored staging
+route, and the packaging branch is deleted.
