@@ -617,3 +617,82 @@ and span-cost pins, and the per-figure price pins above
 all came out of that pass. One standards note needed no
 action, the price match's first arm taking block form
 under rustfmt while its neighbours keep expression form.
+
+## Round 4, scale and performance proof, 2026-11-23
+
+The scale round landed under docs/SCALE-DESIGN.md with
+invariants INV-69 through INV-73. The fixtures are
+generated inside the tests from fixed arithmetic. Ten
+thousand spans in one deep trace, a wide trace of ten
+thousand spans at depth two, ten thousand spans across
+one thousand traces, five hundred session turns, and one
+hundred thousand stack samples. Every fixture pins its
+renders by FNV-1a hash and its headline counts by
+assertion, and every scale test carries a wall-clock
+ceiling at ten times its first measured hosted figure
+under INV-70. The suite stands at 150 tests.
+
+The round convicted one suspect and cleared one. The
+sankey staging walk rebuilt its per-trace span index by
+filtering the whole canonical map once per trace, and
+the thousand-trace fixture measured 717 milliseconds
+against the single trace fixture's 114 at the same span
+count. The fix groups each trace's canonical spans once
+in the canonical pass, and the fixed code measures 82
+milliseconds on the same fixture. The frame stream's
+prefix cloning was cleared with evidence. Five hundred
+frames build in 97 milliseconds, and the rendered
+stream totals 104,428,401 bytes, held under INV-71 as
+the quadratic bound the design states.
+
+One defect the suspect list did not name was a panic.
+The service map's label budget reached zero on the
+trace fixture's cyclic service graph and the truncation
+helper subtracted from zero. The helper is now total at
+a zero budget, the service map floors its box width and
+label budget the way the sankey narrows past seven
+stages, and INV-73 states the rule. The layering itself
+still relaxes around a cycle up to the node-count bound.
+That is recorded in the design record as an observation,
+and a cycle-aware layering is design work for a later
+round. A neighbouring hazard is named here on the red
+team's evidence. The waterfall's critical path walk has
+no cycle guard, so a cyclic trace rendered as a
+waterfall would hang rather than error. It predates this
+round, the scale fixtures are acyclic, and no fix is
+made here.
+
+The flame renderer holds a standing bound of 48 levels
+on flame trees, set before this round. The deep
+fixture's span tree stands a thousand levels past it, so
+the flame render is proven on the wide fixture at the
+same span count and the deep trace's refusal is pinned
+as a named error. The design record's amendments carry
+the full account.
+
+The checkpoint reviews ran on the pre-repair head and
+found the code fixes correct and output-preserving. The
+grouping change was verified identical in construction
+by both lanes. Their findings were that the paper trail
+claimed renders the build had not produced, that the
+many-trace ceiling was set from the convicted code's
+measurement and so could never catch that code
+returning, that the per-node conservation identity was
+checked only in aggregate, and that the zero budget
+guard had no test through its one live caller. Every
+finding was closed in the repair pass, and the repairs
+were verified by the hosted gate on the final head,
+which names each new and strengthened test. Two
+informational notes needed no action. The duplicated
+scale recipes across the scene and svg test files are
+forced by the per-file test binary structure and match
+the repo's established pattern, and the measurement
+lines beside the ceiling asserts are the re-measurement
+instrument the ceiling method depends on.
+
+One process incident is owned plainly. A scripted edit
+through the shell truncated the derive test file to zero
+bytes mid-round, against the house rule that edits go
+through the file tools. The file was restored byte-exact
+from the pushed branch blob and verified by hash before
+work continued. No content was lost.
