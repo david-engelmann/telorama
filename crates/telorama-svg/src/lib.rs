@@ -8,6 +8,44 @@
 //! M1 layout uses fixed columns rather than measured text. The text
 //! crate (fontdb plus harfrust over an embedded subset font) replaces
 //! the fixed label column with measured widths in a later milestone.
+//!
+//! # Example
+//!
+//! Render a validated scene and its spans to an SVG string.
+//!
+//! ```rust
+//! let scene_text = r#"{
+//!     "scene": "0.1",
+//!     "title": "One request",
+//!     "context": {
+//!         "range": {"from_unix_ms": 0, "to_unix_ms": 1000},
+//!         "provenance": {"generated_by": "agent", "question": "How long did it take?"}
+//!     },
+//!     "data": [{
+//!         "id": "trace",
+//!         "sampled": "unknown",
+//!         "source": {"kind": "otlp_file", "trace_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+//!     }],
+//!     "panels": [{"type": "waterfall", "data": "trace"}]
+//! }"#;
+//! let export = r#"{"resourceSpans": [{
+//!     "resource": {"attributes": [
+//!         {"key": "service.name", "value": {"stringValue": "checkout"}}
+//!     ]},
+//!     "scopeSpans": [{"spans": [{
+//!         "traceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+//!         "spanId": "bbbbbbbbbbbbbbbb",
+//!         "name": "GET /checkout",
+//!         "kind": 2,
+//!         "startTimeUnixNano": "0",
+//!         "endTimeUnixNano": "500000000"
+//!     }]}]
+//! }]}"#;
+//! let scene = telorama_scene::parse_scene(scene_text).expect("the scene must validate");
+//! let spans = telorama_ingest::parse_otlp_traces(export).expect("the export must parse");
+//! let svg = telorama_svg::render_scene(&scene, &spans).expect("the scene must render");
+//! assert!(svg.contains("One request"));
+//! ```
 
 use std::collections::BTreeMap;
 use std::fmt;

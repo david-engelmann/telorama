@@ -5,6 +5,17 @@
 //! per line, from a file's text. Live backend adapters and the agent
 //! dialect adapters arrive in later milestones behind this same
 //! canonical output.
+//!
+//! # Example
+//!
+//! Parse an OTLP trace export into canonical spans. An export with
+//! no spans in it parses to an empty vector.
+//!
+//! ```rust
+//! let spans = telorama_ingest::parse_otlp_traces(r#"{"resourceSpans": []}"#)
+//!     .expect("the export must parse");
+//! assert!(spans.is_empty());
+//! ```
 
 pub mod claude_code;
 pub mod codex;

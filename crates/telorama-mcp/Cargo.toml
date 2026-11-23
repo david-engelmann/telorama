@@ -1,13 +1,13 @@
 [package]
 name = "telorama-mcp"
-version = "0.1.0"
+version = "0.2.0"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 description = "MCP server for the telorama visualization engine"
 repository = "https://github.com/david-engelmann/telorama"
 homepage = "https://github.com/david-engelmann/telorama"
-readme = "../../README.md"
+readme = "README.md"
 keywords = ["opentelemetry", "visualization", "mcp", "mcp-apps", "observability"]
 categories = ["visualization"]
 
