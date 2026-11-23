@@ -131,7 +131,7 @@ pub struct AgentTurn {
     /// carries pricing.
     pub cost_usd: f64,
     /// What the sources contributed to this turn alone. The run's
-    /// coverage is the session total; a frame's coverage is the sum
+    /// coverage is the session total. A frame's coverage is the sum
     /// over its prefix turns, plus the session's supplied span count
     /// where the dialect counts spans as an input statistic.
     #[serde(default)]

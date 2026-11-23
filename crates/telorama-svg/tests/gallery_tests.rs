@@ -8,17 +8,15 @@
 //! assembly, byte for byte.
 //!
 //! The findings rule, stated once here because the tools wire
-//! it in two places. Session scenes follow the session wiring
-//! both tools share, findings ranked over the run alone, the
-//! way the CLI session invocation and the MCP session_run tool
-//! compute them. The GenAI scene is the exception. Its spans
-//! are the scene's declared data, they sit in the render's
-//! data, and the investigation ranks them alongside the run,
-//! as the MCP render path does with its input spans. The CLI
-//! session invocation ranks the run alone even there, because
-//! its session spans never reach the investigation. That
-//! divergence is recorded in DECISIONS.md with the Round 2
-//! entry.
+//! it in several places. Every surface ranks a session's
+//! findings over the session's spans plus the agent run
+//! (INV-81): the CLI render and incident paths, the MCP render
+//! path over its input spans, and this page. A session whose
+//! export carries no spans, like the Codex log fixtures below,
+//! ranks over the run alone because its span set is empty. The
+//! MCP session_run tool and the frame stream rank the run
+//! alone by design, because their results carry no span
+//! channel.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -112,7 +110,7 @@ fn sections() -> Vec<Section> {
             &[],
             Some(&run),
             &[],
-            &[],
+            &spans,
         ));
     }
     for (scene_file, logs_file) in [
