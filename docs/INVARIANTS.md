@@ -510,7 +510,9 @@ later milestones are marked as validator-side.
   turns it carries. Each scale test also carries a
   wall-clock ceiling set at ten times its first measured
   hosted time, a gross-regression gate and never a
-  benchmark claim.
+  benchmark claim. Figures under ten milliseconds carry
+  a one hundred millisecond floor, the smallest ceiling
+  a shared runner can hold.
   Enforced by the scale tests named under INV-69.
 - INV-71. The frame stream's total output is quadratic
   in the turn count by construction, because every frame
@@ -540,4 +542,6 @@ later milestones are marked as validator-side.
   stages, so deep traces and cyclic service graphs
   narrow instead of failing. Enforced by
   golden_tests scale_trace_renders_pin_by_hash,
-  whose service graph is a cycle.
+  whose service graph is a cycle, and golden_tests
+  deep_subagent_nesting_renders_with_an_empty_label_budget
+  for the zero budget guard.

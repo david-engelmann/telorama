@@ -567,7 +567,8 @@ fn sankey_edge_cases_hold() {
 // Round 4 scale proof. The recipes are fixed arithmetic, so the
 // shapes below are the same on every run and every machine.
 // Each ceiling is ten times the first hosted run's measured
-// figure, rounded up to whole seconds, per INV-70.
+// figure, rounded up to the nearest hundred milliseconds,
+// per INV-70.
 
 const SCALE_SERVICES: [&str; 8] = [
     "web", "api", "db", "cache", "queue", "worker", "auth", "search",
@@ -633,9 +634,11 @@ fn sankey_flow_conserves_at_ten_thousand_spans() {
     let spans = scale_spans_single_trace();
     let started = std::time::Instant::now();
     let flow = sankey_flow(&spans, "other");
-    // Measured at 114 milliseconds on the first hosted run.
+    // Measured at 102 milliseconds on the first hosted run
+    // of the final code. The ceiling is ten times that,
+    // rounded up to the nearest hundred milliseconds.
     assert!(
-        started.elapsed() < std::time::Duration::from_secs(2),
+        started.elapsed() < std::time::Duration::from_millis(1100),
         "sankey at scale took {:?}",
         started.elapsed()
     );
@@ -656,6 +659,38 @@ fn sankey_flow_conserves_at_ten_thousand_spans() {
     let inflow: u64 = flow.links.iter().map(|l| l.value).sum();
     let roots = spans.iter().filter(|s| s.parent_span_id.is_none()).count() as u64;
     assert_eq!(inflow + roots, 10_000);
+    // The per-node identity of INV-59, checked at scale. For
+    // every node, inflow plus the roots staged there equals
+    // the node's count exactly.
+    for node in flow.nodes.iter().filter(|n| !n.residual) {
+        let node_inflow: u64 = flow
+            .links
+            .iter()
+            .filter(|l| l.to_stage == node.stage && l.to_service == node.service)
+            .map(|l| l.value)
+            .sum();
+        let node_roots = spans
+            .iter()
+            .filter(|s| {
+                s.parent_span_id.is_none() && s.service == node.service && node.stage == 0
+            })
+            .count() as u64;
+        assert_eq!(
+            node_inflow + node_roots,
+            node.value,
+            "node {} at stage {} must account for every staged span",
+            node.service,
+            node.stage
+        );
+    }
+    // The residual node's outflow is exactly the orphan count.
+    let residual_out: u64 = flow
+        .links
+        .iter()
+        .filter(|l| l.from_residual)
+        .map(|l| l.value)
+        .sum();
+    assert_eq!(residual_out, flow.residual_spans);
 }
 
 #[test]
@@ -670,7 +705,7 @@ fn sankey_flow_holds_across_a_thousand_traces() {
             let mut s = span(
                 &format!("s{i}"),
                 (i > 0).then(|| format!("s{}", i - 1)).as_deref(),
-                SCALE_SERVICES[i % 8],
+                SCALE_SERVICES[(t + i) % 8],
                 SpanKind::Server,
                 i as i64,
                 i as i64 + 2,
@@ -683,10 +718,11 @@ fn sankey_flow_holds_across_a_thousand_traces() {
     assert_eq!(spans.len(), 10_000);
     let started = std::time::Instant::now();
     let flow = sankey_flow(&spans, "other");
-    // Measured at 717 milliseconds on the first hosted run,
-    // before the grouping fix in sankey_flow.
+    // The pre-fix code measured 717 milliseconds here. The
+    // fixed code measures 82, and the ceiling is ten times
+    // that, so the convicted shape cannot pass if it returns.
     assert!(
-        started.elapsed() < std::time::Duration::from_secs(8),
+        started.elapsed() < std::time::Duration::from_millis(900),
         "many-trace sankey took {:?}",
         started.elapsed()
     );
@@ -747,9 +783,11 @@ fn profile_holds_at_a_hundred_thousand_samples() {
     let bucketed: u64 = grid.rows.iter().map(|r| r.total).sum();
     assert_eq!(bucketed + grid.outside_window as u64, 10_000);
     assert_eq!(grid.outside_window, 0);
-    // Measured at 21 milliseconds on the first hosted run.
+    // Measured at 16 milliseconds on the first hosted run
+    // of the final code. The ceiling is ten times that,
+    // rounded up to the nearest hundred milliseconds.
     assert!(
-        started.elapsed() < std::time::Duration::from_secs(1),
+        started.elapsed() < std::time::Duration::from_millis(200),
         "profile at scale took {:?}",
         started.elapsed()
     );

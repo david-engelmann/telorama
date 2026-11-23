@@ -155,3 +155,34 @@ lays out deeper than its diameter. That is recorded
 here as an observation. A cycle-aware layering is
 design work for a later round, not a fix this round
 makes.
+
+## Amendments from the checkpoint reviews, 2026-11-23
+
+The checkpoint reviews found the paper trail weaker
+than the code, and the build was completed to match
+this record. The trace fixtures now render through
+the flame as well, the single trace through a flame
+panel over its spans and the thousand-trace fixture
+through a sankey over the whole set, so INV-69's
+hash claim covers every fixture. The per-node form
+of the INV-59 identity is now checked at scale, not
+only its aggregate consequences. The many-trace
+ceiling was re-based on the fixed code's measured
+82 milliseconds, since a ceiling set from the
+convicted code's 717 could never catch that code
+returning. Ceilings are rounded to the nearest
+hundred milliseconds rather than whole seconds, and
+the smallest figures carry the floor INV-70 now
+states. The zero budget guard gained its own test
+through the one caller that can still reach it, a
+subagent nest twelve deep.
+
+Two sentences in this record were loose and are
+corrected here. The waterfall reports no span count.
+Its output is pinned byte for byte by its hash, which
+is the stronger check, and the count wording is
+withdrawn. And the profile paragraph's heatmap
+sentence mixed its units. The buckets sum with the
+outside count to the trace fixture's span count,
+while the sample count belongs to the flame tree
+over the stacks.

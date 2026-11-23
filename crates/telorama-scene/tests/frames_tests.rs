@@ -162,6 +162,7 @@ fn session_frames_hold_at_five_hundred_turns() {
     let frames = session_frames(&run, "test");
     let elapsed = started.elapsed();
     // Measured at 97 milliseconds on the first hosted run.
+    // The ceiling is ten times that, rounded up.
     assert!(
         elapsed < std::time::Duration::from_secs(1),
         "the frame stream at 500 turns took {elapsed:?}"

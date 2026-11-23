@@ -685,8 +685,8 @@ pub fn sankey_flow(spans: &[Span], residual_name: &str) -> SankeyFlow {
         // above. Filtering the whole canonical map once per
         // trace made staging quadratic in the trace count,
         // convicted by the thousand-trace scale fixture.
-        let by_id = &canonical_by_trace[*trace_id];
-        for span in by_id.values() {
+        let trace_by_id = &canonical_by_trace[*trace_id];
+        for span in trace_by_id.values() {
             if staged.contains_key(&(*trace_id, span.span_id.as_str())) {
                 continue;
             }
@@ -718,7 +718,7 @@ pub fn sankey_flow(spans: &[Span], residual_name: &str) -> SankeyFlow {
                     }
                     break;
                 }
-                let Some(parent) = by_id.get(parent_id) else {
+                let Some(parent) = trace_by_id.get(parent_id) else {
                     // The top of the path names a parent the data
                     // does not contain: it enters through the
                     // residual bucket at stage one.
