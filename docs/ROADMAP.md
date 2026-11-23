@@ -128,6 +128,16 @@ and one nesting budget of 512, enforced where
 nesting is built, bounds every run tree.
 Design record docs/AGENT-TREE-DESIGN.md.
 
+## Round 13: the registry, refreshed
+
+The crates stand at 0.2.0 while six rounds of
+documenting and hardening have landed since.
+Round 13 versions all five crates together at
+0.3.0 and publishes them in the settled order,
+with the readmes' state passages rewritten for
+the finished surface and no behavior change.
+Design record docs/REGISTRY-REFRESH-DESIGN.md.
+
 ## Standing lanes between rounds
 
 - The A2UI watch in docs/A2UI-SPIKE.md stays a watch item,
