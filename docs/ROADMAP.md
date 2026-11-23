@@ -138,6 +138,18 @@ with the readmes' state passages rewritten for
 the finished surface and no behavior change.
 Design record docs/REGISTRY-REFRESH-DESIGN.md.
 
+## Round 14: the long session
+
+Round 4 proved the frame stream at five
+hundred turns. Round 14 proves the session
+side at five thousand turns and ten thousand
+events, under the same generated-fixture and
+ten-times-ceiling rules, and states the
+practical session ceiling in the record if
+the frame stream's quadratic cost convicts
+itself. Design record
+docs/LONG-SESSION-DESIGN.md.
+
 ## Standing lanes between rounds
 
 - The A2UI watch in docs/A2UI-SPIKE.md stays a watch item,
