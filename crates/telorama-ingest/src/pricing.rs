@@ -86,20 +86,21 @@ fn price_exact(model: &str) -> Option<ModelPrice> {
 
 /// Strip one trailing date suffix from a model id, in either the
 /// YYYYMMDD shape or the YYYY-MM-DD shape, returning the base id.
-/// Anything else returns None, so only a real date suffix is ever
-/// stripped (INV-84).
+/// Anything else returns None, so only a date-shaped suffix is
+/// ever stripped (INV-84). The cut is made only where the byte
+/// before it is an ASCII dash, which keeps the slice on a char
+/// boundary for any input.
 fn strip_date_suffix(model: &str) -> Option<&str> {
     let bytes = model.as_bytes();
     let digits = |b: &[u8]| b.iter().all(|c| c.is_ascii_digit());
-    if bytes.len() > 9 {
-        let (base, tail) = model.split_at(bytes.len() - 9);
-        if tail.starts_with('-') && digits(&bytes[bytes.len() - 8..]) {
-            return Some(base);
-        }
+    if bytes.len() > 9
+        && bytes[bytes.len() - 9] == b'-'
+        && digits(&bytes[bytes.len() - 8..])
+    {
+        return Some(&model[..bytes.len() - 9]);
     }
     if bytes.len() > 11 {
-        let (base, tail) = model.split_at(bytes.len() - 11);
-        let t = tail.as_bytes();
+        let t = &bytes[bytes.len() - 11..];
         if t[0] == b'-'
             && digits(&t[1..5])
             && t[5] == b'-'
@@ -107,7 +108,7 @@ fn strip_date_suffix(model: &str) -> Option<&str> {
             && t[8] == b'-'
             && digits(&t[9..11])
         {
-            return Some(base);
+            return Some(&model[..bytes.len() - 11]);
         }
     }
     None
@@ -277,5 +278,14 @@ mod tests {
         assert!(price_call(&call("claude-sonnet-9-9-20250101", 1_000, 0, 1_000)).is_none());
         assert!(price_call(&call("gpt-9.9-2025-01-01", 1_000, 0, 1_000)).is_none());
         assert!(price_call(&call("claude-sonnet-4-5-2025", 1_000, 0, 1_000)).is_none());
+    }
+
+    #[test]
+    fn a_non_ascii_model_id_is_unpriced_not_a_panic() {
+        // INV-84 on hostile input: the suffix cut must stay on a
+        // char boundary, so an id whose bytes put a multi-byte
+        // character at the cut point prices nothing and returns.
+        assert!(price_call(&call("ab\u{00e9}20250929", 1_000, 0, 1_000)).is_none());
+        assert!(price_call(&call("\u{00e9}\u{00e9}\u{00e9}\u{00e9}\u{00e9}", 1_000, 0, 1_000)).is_none());
     }
 }

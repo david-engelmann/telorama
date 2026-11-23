@@ -656,13 +656,13 @@ pub fn service_graph(spans: &[Span], window_seconds: f64) -> ServiceGraph {
 }
 
 /// The layer of every service in a service graph, keyed by service
-/// name. Layers are longest paths over the graph's condensation:
-/// services in one strongly connected component share a layer, and
+/// name. Layers are longest paths over the graph's condensation.
+/// Services in one strongly connected component share a layer, and
 /// a component's layer is one more than the greatest layer among
 /// the components that call into it, or zero when none do. On an
 /// acyclic graph every component is a single service and the
 /// layers are the longest-path layers the renderer has always
-/// used; on a cyclic graph the cycle collapses to one layer
+/// used. On a cyclic graph the cycle collapses to one layer
 /// instead of inflating the count (INV-82).
 pub fn service_layers(graph: &ServiceGraph) -> std::collections::BTreeMap<String, usize> {
     use std::collections::{BTreeMap, BTreeSet};

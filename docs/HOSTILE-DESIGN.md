@@ -95,20 +95,45 @@ discipline from Round 3.
 
 ## Amendments, 2026-11-23
 
-The build found a fourth walk the recon missed:
+The build found a fourth walk the recon missed.
 flame_from_spans built its tree by unbounded
 recursion, so a cyclic trace overflowed the
 stack instead of hanging. It now builds each
 span id once, under the same rule as the
-waterfall rows. The recon's two named sites and
-the layering are fixed as designed; the rows
-walk, named in INV-82's every-derivation
-letter, carries the same guard.
+waterfall rows. The reviews then found two more
+walks in the span dialect session builder, its
+subtree count and its step emitter, and both now
+apply the same emit-once rule, pinned by a
+cyclic session fixture. The recon's two named
+sites and the layering are fixed as designed.
+The rows walk, named in INV-82's
+every-derivation letter, carries the same guard.
+
+The fence above says the scale hashes stand
+untouched, and one moved. The scale fixture's
+services form a ring along its chain, so its
+service map hash had pinned the layering the old
+relaxation inflated on a cyclic graph. The hash
+is re-pinned to the collapsed layout with the
+reason recorded at the pin, and the waterfall
+and sankey hashes stand unchanged. INV-82 now
+states the byte-identity claim with its
+qualifier, unique span ids, because the guards
+act on repeated ids and no fixture in the corpus
+carries a duplicate id within a trace.
+
+The pricing suffix rule reads digit shapes, not
+calendar dates, and the record now says so. The
+reviews also found the suffix cut could panic on
+a non-ASCII model id whose bytes put a multi-byte
+character at the cut point. The cut is now made
+only where the byte before it is an ASCII dash,
+and a test pins the behavior.
 
 The refusal paragraph above first said the
 investigation's errors ranking would see the
 refusal. That was wrong about the existing
-behavior: the errors ranking is span-based, and
+behavior. The errors ranking is span-based, and
 failed model calls, api_error calls included,
 surface in the turn's step list and the error
 drawing, not in the ranking. The build gives a
