@@ -525,9 +525,10 @@ fn render_session_findings_cover_the_session_spans() {
 #[test]
 fn incident_composes_over_the_session_spans() {
     // INV-85: the incident command composes over the combined
-    // set, so a service that exists only in the session input
-    // appears in the composed scene. The GenAI session's service
-    // is agent-app, which the checkout traces never name.
+    // set, so the composed scene's window covers the session's
+    // spans. The GenAI session ends after the checkout traces,
+    // at 1794852012000 ms, so a scene composed from the traces
+    // alone closes earlier.
     let traces = workspace_file("tests/fixtures/otel-demo-checkout.json");
     let session = workspace_file("tests/fixtures/agents/genai-session-error-spans.json");
     let only = telorama(&[
@@ -541,8 +542,8 @@ fn incident_composes_over_the_session_spans() {
         String::from_utf8_lossy(&only.stderr)
     );
     assert!(
-        !stdout(&only).contains("agent-app"),
-        "the traces alone must not name the session's service"
+        !stdout(&only).contains("1794852012000"),
+        "the traces alone must close before the session ends"
     );
     let both = telorama(&[
         "incident",
@@ -559,8 +560,8 @@ fn incident_composes_over_the_session_spans() {
         String::from_utf8_lossy(&both.stderr)
     );
     assert!(
-        stdout(&both).contains("agent-app"),
-        "the composed scene must cover the session's spans: {}",
+        stdout(&both).contains("\"to_unix_ms\": 1794852012000"),
+        "the composed scene's window must cover the session's spans: {}",
         stdout(&both)
     );
 }
