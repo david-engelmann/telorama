@@ -427,3 +427,43 @@ fn render_with_state_refuses_a_misbound_agent_state_panel() {
         "state supplied for another kind of entry must not satisfy the panel"
     );
 }
+
+#[test]
+fn render_html_honours_a_dark_scene() {
+    // INV-77. A scene declaring the dark theme exports as a
+    // dark page, ground and drawing alike.
+    let scene_text =
+        std::fs::read_to_string(workspace_file("tests/fixtures/scenes/checkout_scene.json"))
+            .unwrap();
+    let dark_text = scene_text.replacen('{', "{\"theme\":\"dark\",", 1);
+    let pid = std::process::id();
+    let tmp_scene = std::env::temp_dir().join(format!("telorama-dark-scene-{pid}.json"));
+    std::fs::write(&tmp_scene, &dark_text).unwrap();
+    let traces = workspace_file("tests/fixtures/otel-demo-checkout.json");
+    let tmp = std::env::temp_dir().join(format!("telorama-dark-{pid}.html"));
+    let out = telorama(&[
+        "render-html",
+        "--scene",
+        tmp_scene.to_str().unwrap(),
+        "--traces",
+        traces.to_str().unwrap(),
+        "--out",
+        tmp.to_str().unwrap(),
+    ]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let rendered = std::fs::read_to_string(&tmp).unwrap();
+    assert!(
+        rendered.contains("background:#121212"),
+        "the page ground must be the dark background"
+    );
+    assert!(
+        rendered.contains("fill=\"#121212\""),
+        "the drawing ground must be the dark background"
+    );
+    let _ = std::fs::remove_file(&tmp);
+    let _ = std::fs::remove_file(&tmp_scene);
+}

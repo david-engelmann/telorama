@@ -238,3 +238,37 @@ fn agent_state_panel_must_read_an_agent_state_entry() {
         "the fixture as shipped must validate"
     );
 }
+
+#[test]
+fn theme_dark_is_accepted_and_parsed() {
+    let mut scene = valid_scene();
+    scene["theme"] = json!("dark");
+    let errors = validate_scene_json(&scene);
+    assert!(errors.is_empty(), "{}", messages(&errors));
+    let parsed = parse_scene(&serde_json::to_string(&scene).unwrap())
+        .expect("a dark scene must parse");
+    assert_eq!(parsed.theme, telorama_scene::Theme::Dark);
+    let text = serde_json::to_string(&parsed).unwrap();
+    assert!(text.contains("\"theme\":\"dark\""), "{text}");
+}
+
+#[test]
+fn theme_absent_means_light_and_serializes_without_the_field() {
+    let parsed = parse_scene(&serde_json::to_string(&valid_scene()).unwrap())
+        .expect("the fixture scene must parse");
+    assert_eq!(parsed.theme, telorama_scene::Theme::Light);
+    let text = serde_json::to_string(&parsed).unwrap();
+    assert!(!text.contains("\"theme\""), "{text}");
+}
+
+#[test]
+fn theme_rejects_any_other_value_with_a_named_error() {
+    let mut scene = valid_scene();
+    scene["theme"] = json!("sepia");
+    let errors = validate_scene_json(&scene);
+    assert!(
+        errors.iter().any(|e| e.path == "$.theme"),
+        "{}",
+        messages(&errors)
+    );
+}

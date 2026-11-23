@@ -130,6 +130,15 @@ pub fn validate_scene_json(v: &Value) -> Vec<ValidationError> {
     if non_empty_str(v, "title").is_none() {
         err(&mut errors, "$.title", "title must be a non-empty string");
     }
+    match obj.get("theme") {
+        None => {}
+        Some(Value::String(t)) if t == "light" || t == "dark" => {}
+        Some(other) => err(
+            &mut errors,
+            "$.theme",
+            format!("theme must be \"light\" or \"dark\", not {other}"),
+        ),
+    }
     if non_empty_str(v, "headline").is_none() {
         err(
             &mut errors,

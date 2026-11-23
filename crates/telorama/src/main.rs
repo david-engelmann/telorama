@@ -195,7 +195,11 @@ fn cmd_render_like(args: &[String], html: bool) -> Result<String, String> {
     };
     let svg = telorama_svg::render_scene_with_data(&scene, &data).map_err(|e| e.to_string())?;
     let out_text = if html {
-        telorama_svg::standalone_html(&scene.title, &svg)
+        telorama_svg::standalone_html_themed(
+            &scene.title,
+            &svg,
+            &telorama_svg::palette_for(scene.theme),
+        )
     } else {
         svg
     };

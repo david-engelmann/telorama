@@ -572,7 +572,8 @@ later milestones are marked as validator-side.
   Enforced by golden_tests themes_differ_only_in_color.
 - INV-77. The flagship scenes stand as goldens in both
   themes, and the HTML export paints its page
-  background to match the scene's theme. A bare SVG
-  carries no background rectangle in either theme.
+  background to match the scene's theme. The SVG's own
+  ground rectangle takes the palette's background in
+  both themes.
   Enforced by the dark goldens in golden_tests and the
   HTML export tests in cli_tests.

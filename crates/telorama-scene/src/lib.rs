@@ -21,7 +21,7 @@ pub use agent::{
     AgentRun, AgentStateEntry, AgentStep, AgentTurn, Coverage, ModelCall, Pricing, SubagentRun,
     ToolCall,
 };
-pub use compose::incident_scene;
+pub use compose::{incident_scene, incident_scene_with_theme};
 pub use derive::{
     Exemplar, FlameNode, HeatmapGrid, HeatmapRow, MapEdge, RedStats, SankeyFlow, SankeyLink,
     SankeyNode, ServiceGraph, WaterfallRow, content_hash, critical_path, flame_from_spans,
@@ -32,13 +32,13 @@ pub use field::{
     ThresholdStep, Thresholds, format_bytes, format_duration_nanos, format_number, format_ratio,
     format_value,
 };
-pub use frames::{Frame, session_frames};
+pub use frames::{Frame, session_frames, session_frames_with_theme};
 pub use investigate::{EvidencePoint, Finding, investigate};
 pub use profile::StackSample;
 pub use schema::{scene_schema, scene_schema_text};
 pub use spec::{
     Context, DataRef, NarrativeItem, Panel, Provenance, SCENE_VERSION, Sampling, Scene, Source,
-    StatKind, TimeRange, Unit,
+    StatKind, Theme, TimeRange, Unit,
 };
 pub use trace::{Span, SpanKind};
 pub use validate::{ValidationError, parse_scene, validate_scene_json};
