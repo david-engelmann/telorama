@@ -327,10 +327,12 @@ fn incident_scene_tool_composes_and_renders() {
 fn panel_detail_reads_a_very_deep_profile() {
     // INV-87: the detail path builds the folded tree
     // iteratively and dismantles it after reading, so a
-    // profile whose single stack runs twenty thousand
+    // profile whose single stack runs fifty thousand
     // frames deep returns its frames instead of
-    // overflowing on the way in or out.
-    let frames: Vec<String> = (0..20_000).map(|i| format!("f{i}")).collect();
+    // overflowing on the way in or out. Fifty thousand
+    // is the depth at which the drop itself is proven
+    // to overflow, so the dismantle is pinned too.
+    let frames: Vec<String> = (0..50_000).map(|i| format!("f{i}")).collect();
     let profile = format!("{} 970", frames.join(";"));
     let result = call_tool(
         15,
