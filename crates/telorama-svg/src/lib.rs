@@ -969,7 +969,16 @@ fn render_agent_run(
                 pricing.unpriced_models.join(", ")
             ));
         }
-        text(prims, MARGIN, *y + 12.0, 11.0, palette.muted, false, false, line);
+        text(
+            prims,
+            MARGIN,
+            *y + 12.0,
+            11.0,
+            palette.muted,
+            false,
+            false,
+            line,
+        );
         *y += 15.0;
     }
     *y += 7.0;
@@ -1417,7 +1426,11 @@ fn bar_text_fill(fill: &str, palette: &Palette) -> &'static str {
     }
     let channel = |i: usize| u32::from_str_radix(&hex[i..i + 2], 16).unwrap_or(0) as f64;
     let luminance = 0.299 * channel(0) + 0.587 * channel(2) + 0.114 * channel(4);
-    if luminance < 140.0 { "#FFFFFF" } else { palette.ink }
+    if luminance < 140.0 {
+        "#FFFFFF"
+    } else {
+        palette.ink
+    }
 }
 
 fn layout_flame(
@@ -1465,7 +1478,16 @@ fn layout_flame(
         let mut child_x = x;
         for child in &node.children {
             let child_w = w * (child.value as f64 / node.value as f64);
-            layout_flame(prims, palette, child, child_x, child_w, y + 16.0, total, depth + 1);
+            layout_flame(
+                prims,
+                palette,
+                child,
+                child_x,
+                child_w,
+                y + 16.0,
+                total,
+                depth + 1,
+            );
             child_x += child_w;
         }
     }
@@ -1539,7 +1561,16 @@ fn render_flame(
     let plot_w = WIDTH - 2.0 * MARGIN;
     layout_flame(prims, palette, &tree, MARGIN, plot_w, *y, tree.value, 0);
     *y += depth as f64 * 16.0 + 6.0;
-    text(prims, MARGIN, *y + 12.0, 11.0, palette.muted, false, false, note);
+    text(
+        prims,
+        MARGIN,
+        *y + 12.0,
+        11.0,
+        palette.muted,
+        false,
+        false,
+        note,
+    );
     *y += 22.0;
     Ok(())
 }
@@ -1674,7 +1705,10 @@ fn render_heatmap(
             let (fill, opacity) = if *count == 0 {
                 (palette.empty_cell.to_string(), None)
             } else {
-                (palette.heatmap_base.to_string(), cell_shade(*count, grid.max_count))
+                (
+                    palette.heatmap_base.to_string(),
+                    cell_shade(*count, grid.max_count),
+                )
             };
             prims.push(Prim::Rect {
                 x: plot_x0 + c as f64 * col_w + 0.5,
@@ -1868,7 +1902,16 @@ fn render_stat(
     if let Some(s) = service {
         label.push_str(&format!(" · {s}"));
     }
-    text(prims, MARGIN, *y + 12.0, 12.0, palette.muted, false, false, label);
+    text(
+        prims,
+        MARGIN,
+        *y + 12.0,
+        12.0,
+        palette.muted,
+        false,
+        false,
+        label,
+    );
     let value_fill = match raw {
         Some(v) if !thresholds.is_empty() => thresholds.color_for(v, palette.ink),
         _ => palette.ink.to_string(),
@@ -2187,7 +2230,16 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
             Panel::AgentRun { .. } => "Agent run",
             Panel::AgentState { .. } => "Agent state",
         };
-        text(&mut prims, MARGIN, y, 14.0, palette.ink, true, false, heading);
+        text(
+            &mut prims,
+            MARGIN,
+            y,
+            14.0,
+            palette.ink,
+            true,
+            false,
+            heading,
+        );
         y += 8.0;
         match panel {
             Panel::Waterfall {
@@ -2206,8 +2258,12 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
                 &mut y,
             )?,
             Panel::Stat { .. } => render_stat(scene, spans, panel, &mut prims, &palette, &mut y)?,
-            Panel::RedRow { .. } => render_red_row(scene, spans, panel, &mut prims, &palette, &mut y)?,
-            Panel::Heatmap { .. } => render_heatmap(scene, spans, panel, &mut prims, &palette, &mut y)?,
+            Panel::RedRow { .. } => {
+                render_red_row(scene, spans, panel, &mut prims, &palette, &mut y)?
+            }
+            Panel::Heatmap { .. } => {
+                render_heatmap(scene, spans, panel, &mut prims, &palette, &mut y)?
+            }
             Panel::Flame { .. } => render_flame(scene, data, panel, &mut prims, &palette, &mut y)?,
             Panel::ServiceMap { .. } => {
                 render_service_map(scene, spans, panel, &colors, &mut prims, &palette, &mut y)?
@@ -2215,8 +2271,12 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
             Panel::Sankey { .. } => {
                 render_sankey(scene, spans, panel, &colors, &mut prims, &palette, &mut y)?
             }
-            Panel::AgentRun { .. } => render_agent_run(scene, data, panel, &mut prims, &palette, &mut y)?,
-            Panel::AgentState { .. } => render_agent_state(scene, data, panel, &mut prims, &palette, &mut y)?,
+            Panel::AgentRun { .. } => {
+                render_agent_run(scene, data, panel, &mut prims, &palette, &mut y)?
+            }
+            Panel::AgentState { .. } => {
+                render_agent_state(scene, data, panel, &mut prims, &palette, &mut y)?
+            }
         }
     }
 

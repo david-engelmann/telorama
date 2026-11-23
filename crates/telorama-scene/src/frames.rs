@@ -46,11 +46,7 @@ pub fn session_frames(run: &AgentRun, generated_by: &str) -> Vec<Frame> {
 /// Build the frame stream with every frame's scene carrying the
 /// given theme. The light stream is byte-identical to the one
 /// session_frames has always produced.
-pub fn session_frames_with_theme(
-    run: &AgentRun,
-    generated_by: &str,
-    theme: Theme,
-) -> Vec<Frame> {
+pub fn session_frames_with_theme(run: &AgentRun, generated_by: &str, theme: Theme) -> Vec<Frame> {
     let total = run.turns.len();
     let mut frames = Vec::with_capacity(total);
     for k in 1..=total {

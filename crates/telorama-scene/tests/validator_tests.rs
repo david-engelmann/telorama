@@ -245,8 +245,8 @@ fn theme_dark_is_accepted_and_parsed() {
     scene["theme"] = json!("dark");
     let errors = validate_scene_json(&scene);
     assert!(errors.is_empty(), "{}", messages(&errors));
-    let parsed = parse_scene(&serde_json::to_string(&scene).unwrap())
-        .expect("a dark scene must parse");
+    let parsed =
+        parse_scene(&serde_json::to_string(&scene).unwrap()).expect("a dark scene must parse");
     assert_eq!(parsed.theme, telorama_scene::Theme::Dark);
     let text = serde_json::to_string(&parsed).unwrap();
     assert!(text.contains("\"theme\":\"dark\""), "{text}");
