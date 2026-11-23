@@ -580,3 +580,20 @@ later milestones are marked as validator-side.
   both themes.
   Enforced by the dark goldens in golden_tests and the
   HTML export tests in cli_tests.
+
+## Registry finish (all crates, packaging)
+
+- INV-78. Every crate ships its own readme at its
+  root and its manifest names that file. Media and
+  links in a crate readme are absolute URLs, because
+  the registries rewrite relative paths against the
+  crate directory, where the files do not live. The
+  repo root readme keeps relative media for GitHub.
+  Enforced by packaging_tests in the telorama crate.
+- INV-79. The five crates version together and
+  publish in one order, scene, ingest, svg, telorama,
+  telorama-mcp, each version confirmed live before
+  the next is sent.
+  Enforced by packaging_tests for the version
+  agreement and by the publish record in DECISIONS.md
+  for the order.
