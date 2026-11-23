@@ -622,16 +622,22 @@ later milestones are marked as validator-side.
   it. Enforced by the parity tests in cli_tests.
 - INV-86. Every public derivation tolerates a
   malformed graph or an extreme shape without
-  panicking. The MCP input assembly dedupes its
+  panicking, the two depth paths the Round 10
+  record names as leftovers excepted. The MCP
+  input assembly dedupes its
   spans by trace id and span id, first
   occurrence kept, so its tools report the same
   counts as the CLI on the same export.
   service_layers ignores an edge that names a
   service absent from the graph's nodes. The
-  flame builder assembles its tree iteratively,
-  so depth alone cannot overflow the stack.
-  Enforced by the leftover tests in the MCP and
-  derive suites.
+  flame builder assembles its tree iteratively
+  and the renderer's depth verdict is computed
+  iteratively, so a deep trace reaches the
+  named depth refusal instead of overflowing
+  inside the verdict, and the renderer takes
+  its tree apart iteratively when it is done
+  with it. Enforced by the leftover tests in
+  the MCP, derive, and golden suites.
 
 ## Hostile inputs (derive, ingest, pricing)
 

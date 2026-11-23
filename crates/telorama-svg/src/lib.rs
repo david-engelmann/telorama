@@ -1523,7 +1523,16 @@ fn name_hash(name: &str, palette_len: usize) -> usize {
 }
 
 fn flame_depth(node: &FlameNode) -> usize {
-    1 + node.children.iter().map(flame_depth).max().unwrap_or(0)
+    // Iterative, like the builder (INV-86): the depth verdict
+    // must not overflow the stack on the deep trees it exists
+    // to refuse.
+    let mut deepest = 0usize;
+    let mut stack: Vec<(&FlameNode, usize)> = vec![(node, 1)];
+    while let Some((node, depth)) = stack.pop() {
+        deepest = deepest.max(depth);
+        stack.extend(node.children.iter().map(|child| (child, depth + 1)));
+    }
+    deepest
 }
 
 /// WCAG relative luminance of a hex color, or None when the
@@ -1645,6 +1654,17 @@ fn layout_flame(
     }
 }
 
+/// Take a flame tree apart level by level. Dropping a very
+/// deep tree recurses through the drop glue and overflows the
+/// stack (INV-86), so a consumer that owns one dismantles it
+/// once it is done with it.
+fn dismantle_flame_tree(tree: &mut FlameNode) {
+    let mut pending: Vec<FlameNode> = std::mem::take(&mut tree.children);
+    while let Some(mut node) = pending.pop() {
+        pending.append(&mut node.children);
+    }
+}
+
 fn render_flame(
     scene: &Scene,
     data: &SceneData,
@@ -1667,7 +1687,7 @@ fn render_flame(
         .iter()
         .find(|d| d.id == *data_id)
         .ok_or_else(|| fail(format!("flame reads undeclared data id {data_id:?}")))?;
-    let (tree, note) = if let Some(trace_id) = entry.source.trace_id.as_deref() {
+    let (mut tree, note) = if let Some(trace_id) = entry.source.trace_id.as_deref() {
         let tree = flame_from_spans(data.spans, trace_id);
         if tree.children.is_empty() {
             return Err(fail(format!("no spans found for trace {trace_id}")));
@@ -1683,12 +1703,14 @@ fn render_flame(
                 "flame panel has no profile data: supply folded stacks, or point the panel's data at a trace for the span fallback",
             ));
         }
-        let tree = flame_tree(data.stacks);
+        let mut tree = flame_tree(data.stacks);
         if tree.value != *sample_count {
-            return Err(fail(format!(
+            let message = format!(
                 "declared sample count {sample_count} does not match the profile data total {}: a scene must not state a count its data does not carry",
                 tree.value
-            )));
+            );
+            dismantle_flame_tree(&mut tree);
+            return Err(fail(message));
         }
         let note = format!(
             "{} samples of {} from {} folded stacks.",
@@ -1699,16 +1721,19 @@ fn render_flame(
         (tree, note)
     };
     if tree.value < *min_samples {
-        return Err(fail(format!(
+        let message = format!(
             "flame graph has {} samples, below its stated floor of {}",
             tree.value, min_samples
-        )));
+        );
+        dismantle_flame_tree(&mut tree);
+        return Err(fail(message));
     }
     let depth = flame_depth(&tree);
     if depth > 48 {
-        return Err(fail(format!(
-            "flame tree is {depth} levels deep, beyond the 48-level render limit"
-        )));
+        let message =
+            format!("flame tree is {depth} levels deep, beyond the 48-level render limit");
+        dismantle_flame_tree(&mut tree);
+        return Err(fail(message));
     }
     let plot_w = WIDTH - 2.0 * MARGIN;
     layout_flame(prims, palette, &tree, MARGIN, plot_w, *y, tree.value, 0);
@@ -1724,6 +1749,7 @@ fn render_flame(
         note,
     );
     *y += 22.0;
+    dismantle_flame_tree(&mut tree);
     Ok(())
 }
 

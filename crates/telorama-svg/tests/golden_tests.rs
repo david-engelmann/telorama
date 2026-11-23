@@ -819,6 +819,49 @@ fn wide_trace_flame_renders_pin_by_hash() {
 }
 
 #[test]
+fn deep_flame_refusal_is_reached_at_extreme_depth() {
+    // INV-86: the depth verdict is iterative, so a flame panel
+    // over a chain far deeper than the call stack refuses by
+    // name instead of overflowing inside the verdict itself.
+    use std::collections::BTreeMap;
+    use telorama_scene::SpanKind;
+    let depth: i64 = 20_000;
+    let mut spans = Vec::new();
+    for i in 0..depth {
+        spans.push(Span {
+            trace_id: "t1".to_string(),
+            span_id: format!("s{i}"),
+            parent_span_id: (i > 0).then(|| format!("s{}", i - 1)),
+            name: format!("op-{i}"),
+            kind: SpanKind::Server,
+            start_unix_nano: i * 1_000_000,
+            end_unix_nano: (2 * depth - i) * 1_000_000,
+            is_error: false,
+            service: "svc".to_string(),
+            attributes: BTreeMap::new(),
+        });
+    }
+    let mut tree = telorama_scene::flame_from_spans(&spans, "t1");
+    let flame_total = tree.value;
+    // Dismantle iteratively, as the derive suite's deep-chain
+    // test does: dropping this tree would recurse.
+    let mut pending: Vec<telorama_scene::FlameNode> = std::mem::take(&mut tree.children);
+    while let Some(mut node) = pending.pop() {
+        pending.append(&mut node.children);
+    }
+    let scene = scale_scene(&format!(
+        "{{\"data\":\"trace\",\"min_samples\":1,\"sample_count\":{flame_total},\"sample_type\":\"cpu\",\"type\":\"flame\"}}"
+    ));
+    match telorama_svg::render_scene(&scene, &spans) {
+        Ok(_) => panic!("the deep flame must refuse"),
+        Err(e) => assert!(
+            e.to_string().contains("beyond the 48-level render limit"),
+            "{e}"
+        ),
+    }
+}
+
+#[test]
 fn profile_flame_renders_at_a_hundred_thousand_samples() {
     // The stack recipe mirrors the scene crate's profile test,
     // counts summing to exactly one hundred thousand.
