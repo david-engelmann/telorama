@@ -436,3 +436,23 @@ later milestones are marked as validator-side.
   residual node is drawn.
   Enforced by golden_tests sankey_scene_matches_golden and
   sankey_orphans_are_named_under_the_diagram.
+
+## Gallery (docs/gallery.html)
+
+- INV-62. Every picture in the gallery is the renderer's own
+  output through the tool render path, findings strip drawn
+  in when the investigation finds something, or a landed
+  media file that is itself renderer output. Nothing in the
+  page is drawn by hand and nothing is a screenshot.
+  Enforced by gallery_tests gallery_page_matches_the_current_renders.
+- INV-63. The committed gallery page contains the exact
+  current render of every golden scene family, byte for byte,
+  so the page cannot drift from the product it shows. Any
+  change to a fixture, a finding, or the renderer fails the
+  freshness test until the page is assembled again.
+  Enforced by gallery_tests gallery_page_matches_the_current_renders.
+- INV-64. The gallery is one static HTML file with no script
+  in it. Its head references the landed frame stream and
+  incident still from docs/media, and the README's first
+  screen links it.
+  Enforced by gallery_tests gallery_page_matches_the_current_renders.
