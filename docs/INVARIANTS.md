@@ -612,6 +612,14 @@ later milestones are marked as validator-side.
   the MCP server, and the gallery rank the same
   findings for the same session.
   Enforced by the parity test in cli_tests.
+- INV-85. A command that takes traces and a
+  session builds one combined span set, trace
+  spans first, with each trace id and span id
+  entering once and the first occurrence kept.
+  The incident command composes over that set,
+  the rule the MCP incident tool applies to its
+  input, and both commands rank findings over
+  it. Enforced by the parity tests in cli_tests.
 
 ## Hostile inputs (derive, ingest, pricing)
 
