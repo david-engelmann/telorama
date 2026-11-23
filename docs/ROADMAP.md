@@ -105,6 +105,17 @@ the flame builder's recursion can overflow on
 a very deep acyclic trace. Design record
 docs/LEFTOVERS-DESIGN.md.
 
+## Round 11: depth, finished
+
+Round 11 takes the two depth paths Round 10
+named: the folded-stack builder still inserts
+and freezes recursively, and the MCP panel
+summary and detail paths still drop the flame
+trees they own. One shared dismantle in
+telorama-scene, an iterative folded-stack
+builder, and the INV-86 exception clause
+retires. Design record docs/DEPTH-DESIGN.md.
+
 ## Standing lanes between rounds
 
 - The A2UI watch in docs/A2UI-SPIKE.md stays a watch item,

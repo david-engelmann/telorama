@@ -638,6 +638,14 @@ later milestones are marked as validator-side.
   its tree apart iteratively when it is done
   with it. Enforced by the leftover tests in
   the MCP, derive, and golden suites.
+- INV-87. No derivation, verdict, walk, or drop
+  in the workspace recurses over the depth of
+  its input. The folded-stack builder inserts
+  and freezes iteratively, and every consumer
+  that owns a flame tree takes it apart with
+  telorama-scene's dismantle_flame_tree once it
+  has read it. Enforced by the depth tests in
+  the derive and MCP suites.
 
 ## Hostile inputs (derive, ingest, pricing)
 
