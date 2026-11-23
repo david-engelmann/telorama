@@ -73,6 +73,17 @@ beyond it: Claude Code refusal events,
 dated-snapshot model ids, and cycle-aware
 service-map layering.
 
+## Round 8: hostile inputs
+
+Round 8 takes up the three candidates named
+above, which share one shape: real exports the
+code handles badly. A cyclic trace hangs the
+waterfall's critical path and inflates the
+service map's layers, a refused model call
+vanishes from the session record, and a dated
+snapshot model id silently goes unpriced. Design
+record docs/HOSTILE-DESIGN.md.
+
 ## Standing lanes between rounds
 
 - The A2UI watch in docs/A2UI-SPIKE.md stays a watch item,

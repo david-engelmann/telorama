@@ -612,3 +612,27 @@ later milestones are marked as validator-side.
   the MCP server, and the gallery rank the same
   findings for the same session.
   Enforced by the parity test in cli_tests.
+
+## Hostile inputs (derive, ingest, pricing)
+
+- INV-82. Every derivation terminates on cyclic
+  input. The critical path visits no span twice,
+  and service map layers come from the graph's
+  condensation, so one strongly connected
+  component shares a layer. Acyclic output is
+  byte-identical to the pre-cycle derivations.
+  Enforced by the cycle tests in derive_tests and
+  the scale suite, with the goldens unchanged.
+- INV-83. A claude_code.api_refusal event becomes
+  a model call in its turn with the error flag
+  set and zero tokens, so a refusal is visible in
+  the step list and the errors ranking.
+  Enforced by the refusal fixture tests in the
+  ingest and scene test suites.
+- INV-84. A dated or dash-form snapshot model id
+  prices by its base model only through exact
+  matches: strip one trailing date suffix, read
+  the dash version form as the dot form, and
+  require a table row at every step. An id that
+  matches nothing stays unpriced.
+  Enforced by the pricing tests in telorama-ingest.
