@@ -46,8 +46,8 @@ pub mod trace;
 pub mod validate;
 
 pub use agent::{
-    AgentRun, AgentStateEntry, AgentStep, AgentTurn, Coverage, ModelCall, Pricing, SubagentRun,
-    ToolCall,
+    AgentRun, AgentStateEntry, AgentStep, AgentTurn, Coverage, MAX_AGENT_NESTING, ModelCall,
+    Pricing, SubagentRun, ToolCall,
 };
 pub use compose::{incident_scene, incident_scene_with_theme};
 pub use derive::{

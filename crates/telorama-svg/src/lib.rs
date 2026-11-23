@@ -744,6 +744,30 @@ fn layout_agent_step(
     window_nano: i64,
     y: &mut f64,
 ) {
+    // A pre-order walk on an explicit stack (INV-87), drawing
+    // each step's row at its depth in visit order, the order
+    // the recursive walk drew them.
+    let mut stack: Vec<(&AgentStep, usize)> = vec![(step, depth)];
+    while let Some((step, depth)) = stack.pop() {
+        layout_agent_step_row(prims, palette, step, depth, from_nano, window_nano, y);
+        if let AgentStep::Subagent(sub) = step {
+            for child in sub.steps.iter().rev() {
+                stack.push((child, depth + 1));
+            }
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn layout_agent_step_row(
+    prims: &mut Vec<Prim>,
+    palette: &Palette,
+    step: &AgentStep,
+    depth: usize,
+    from_nano: i64,
+    window_nano: i64,
+    y: &mut f64,
+) {
     let plot_x0 = 200.0;
     let plot_x1 = WIDTH - MARGIN;
     let x_of =
@@ -852,11 +876,6 @@ fn layout_agent_step(
         );
     }
     *y += 18.0;
-    if let AgentStep::Subagent(sub) = step {
-        for child in &sub.steps {
-            layout_agent_step(prims, palette, child, depth + 1, from_nano, window_nano, y);
-        }
-    }
 }
 
 fn render_agent_state(

@@ -37,7 +37,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use telorama_scene::{
-    AgentRun, AgentStep, AgentTurn, Coverage, ModelCall, Pricing, Span, SubagentRun, ToolCall,
+    AgentRun, AgentStep, AgentTurn, Coverage, MAX_AGENT_NESTING, ModelCall, Pricing, Span,
+    SubagentRun, ToolCall,
 };
 
 use crate::IngestError;
@@ -264,7 +265,7 @@ fn build_run(spans: &[Span], dialect: &Dialect) -> Result<AgentRun, IngestError>
                 dialect,
                 &mut priced,
                 &mut unpriced,
-            ));
+            )?);
         }
     }
     turns.sort_by_key(|a| a.start_unix_nano);
@@ -291,7 +292,7 @@ fn build_turn(
     dialect: &Dialect,
     priced: &mut BTreeSet<String>,
     unpriced: &mut BTreeSet<String>,
-) -> AgentTurn {
+) -> Result<AgentTurn, IngestError> {
     let mut steps = Vec::new();
     let mut seen: BTreeSet<String> = BTreeSet::new();
     match (dialect.classify)(root) {
@@ -301,13 +302,19 @@ fn build_turn(
             seen.insert(root.span_id.clone());
             for child in children_of(children, root) {
                 emit(
-                    child, children, dialect, priced, unpriced, &mut seen, &mut steps,
-                );
+                    child,
+                    children,
+                    dialect,
+                    priced,
+                    unpriced,
+                    &mut seen,
+                    &mut steps,
+                )?;
             }
         }
         _ => emit(
             root, children, dialect, priced, unpriced, &mut seen, &mut steps,
-        ),
+        )?,
     }
     let span_count = subtree_len(root, children);
     let mut turn = AgentTurn {
@@ -329,7 +336,7 @@ fn build_turn(
     let steps = std::mem::take(&mut turn.steps);
     AgentStep::walk(&steps, &mut |step| add_step_totals(&mut turn, step));
     turn.steps = steps;
-    turn
+    Ok(turn)
 }
 
 /// Turn totals sum the turn's model calls, subagents included: the
@@ -380,42 +387,150 @@ fn emit(
     unpriced: &mut BTreeSet<String>,
     seen: &mut BTreeSet<String>,
     sink: &mut Vec<AgentStep>,
-) {
-    // Each span id emits once per turn, so a cycle through
-    // repeated ids stops instead of recursing forever (INV-82).
-    if !seen.insert(span.span_id.clone()) {
-        return;
+) -> Result<(), IngestError> {
+    // The walk runs on an explicit stack (INV-87). Each frame
+    // holds the steps its subtree emitted; a container frame
+    // splices them into its parent on completion, an agent
+    // frame wraps them in its subagent step. The seen rule
+    // fires when a frame opens or a leaf is reached, the
+    // points the recursive walk tested it.
+    struct Frame<'a> {
+        span: &'a Span,
+        kids: &'a [&'a Span],
+        next: usize,
+        agent_depth: usize,
+        steps: Vec<AgentStep>,
     }
+
+    fn open<'a>(
+        span: &'a Span,
+        children: &BTreeMap<&str, Vec<&'a Span>>,
+        agent_depth: usize,
+        seen: &mut BTreeSet<String>,
+    ) -> Option<Frame<'a>> {
+        // Each span id emits once per turn, so a cycle through
+        // repeated ids stops instead of walking forever (INV-82).
+        if !seen.insert(span.span_id.clone()) {
+            return None;
+        }
+        Some(Frame {
+            span,
+            kids: children_of(children, span),
+            next: 0,
+            agent_depth,
+            steps: Vec::new(),
+        })
+    }
+
+    let mut stack: Vec<Frame> = Vec::new();
     match (dialect.classify)(span) {
-        Role::Container => {
-            for child in children_of(children, span) {
-                emit(child, children, dialect, priced, unpriced, seen, sink);
+        Role::Model => {
+            if seen.insert(span.span_id.clone()) {
+                sink.push(AgentStep::ModelCall(model_call(
+                    span, dialect, priced, unpriced,
+                )));
             }
+            return Ok(());
         }
-        Role::Model => sink.push(AgentStep::ModelCall(model_call(
-            span, dialect, priced, unpriced,
-        ))),
-        Role::Tool => sink.push(AgentStep::ToolCall(ToolCall {
-            name: (dialect.tool_name)(span),
-            start_unix_nano: span.start_unix_nano,
-            end_unix_nano: span.end_unix_nano,
-            wait_nanos: 0,
-            is_error: span.is_error,
-            decision: None,
-        })),
-        Role::Agent => {
-            let mut inner = Vec::new();
-            for child in children_of(children, span) {
-                emit(child, children, dialect, priced, unpriced, seen, &mut inner);
+        Role::Tool => {
+            if seen.insert(span.span_id.clone()) {
+                sink.push(AgentStep::ToolCall(ToolCall {
+                    name: (dialect.tool_name)(span),
+                    start_unix_nano: span.start_unix_nano,
+                    end_unix_nano: span.end_unix_nano,
+                    wait_nanos: 0,
+                    is_error: span.is_error,
+                    decision: None,
+                }));
             }
-            sink.push(AgentStep::Subagent(SubagentRun {
-                agent_id: (dialect.agent_id)(span),
-                start_unix_nano: span.start_unix_nano,
-                end_unix_nano: span.end_unix_nano,
-                steps: inner,
-            }));
+            return Ok(());
+        }
+        Role::Container | Role::Agent => {
+            if let Some(frame) = open(span, children, 0, seen) {
+                stack.push(frame);
+            }
         }
     }
+    while !stack.is_empty() {
+        let (child, child_depth) = {
+            let top = stack.last_mut().expect("frames under construction");
+            if top.next >= top.kids.len() {
+                (None, 0)
+            } else {
+                let child = top.kids[top.next];
+                top.next += 1;
+                let depth = top.agent_depth
+                    + usize::from(matches!((dialect.classify)(top.span), Role::Agent));
+                (Some(child), depth)
+            }
+        };
+        match child {
+            Some(child) => match (dialect.classify)(child) {
+                Role::Model => {
+                    if seen.insert(child.span_id.clone()) {
+                        let call = model_call(child, dialect, priced, unpriced);
+                        stack
+                            .last_mut()
+                            .expect("frames under construction")
+                            .steps
+                            .push(AgentStep::ModelCall(call));
+                    }
+                }
+                Role::Tool => {
+                    if seen.insert(child.span_id.clone()) {
+                        let step = AgentStep::ToolCall(ToolCall {
+                            name: (dialect.tool_name)(child),
+                            start_unix_nano: child.start_unix_nano,
+                            end_unix_nano: child.end_unix_nano,
+                            wait_nanos: 0,
+                            is_error: child.is_error,
+                            decision: None,
+                        });
+                        stack
+                            .last_mut()
+                            .expect("frames under construction")
+                            .steps
+                            .push(step);
+                    }
+                }
+                Role::Container | Role::Agent => {
+                    if matches!((dialect.classify)(child), Role::Agent)
+                        && !seen.contains(child.span_id.as_str())
+                        && child_depth + 1 > MAX_AGENT_NESTING
+                    {
+                        return Err(fail(format!(
+                            "session nests agents deeper than the {MAX_AGENT_NESTING} level budget"
+                        )));
+                    }
+                    if let Some(frame) = open(child, children, child_depth, seen) {
+                        stack.push(frame);
+                    }
+                }
+            },
+            None => {
+                let mut frame = stack.pop().expect("frames under construction");
+                match (dialect.classify)(frame.span) {
+                    Role::Agent => {
+                        let step = AgentStep::Subagent(SubagentRun {
+                            agent_id: (dialect.agent_id)(frame.span),
+                            start_unix_nano: frame.span.start_unix_nano,
+                            end_unix_nano: frame.span.end_unix_nano,
+                            steps: frame.steps,
+                        });
+                        match stack.last_mut() {
+                            Some(parent) => parent.steps.push(step),
+                            None => sink.push(step),
+                        }
+                    }
+                    _ => match stack.last_mut() {
+                        Some(parent) => parent.steps.append(&mut frame.steps),
+                        None => sink.append(&mut frame.steps),
+                    },
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 fn model_call(

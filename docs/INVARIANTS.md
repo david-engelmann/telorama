@@ -639,19 +639,20 @@ later milestones are marked as validator-side.
   the MCP, derive, and golden suites.
 - INV-87. No derivation, verdict, walk, or drop
   in the workspace recurses over the depth of
-  its input, two paths named as the Round 12
-  leftovers excepted: the dialect session
-  builder's emit, which recurses over an
-  acyclic span tree's depth, and the agent-run
-  layout walk, which recurses over a run's
-  nesting depth, with the run trees' own drops
-  on the same paths. The folded-stack builder
-  inserts
-  and freezes iteratively, and every consumer
-  that owns a flame tree takes it apart with
+  its input. The dialect session builder and
+  the agent-run layout walk run on explicit
+  stacks, the folded-stack builder inserts and
+  freezes iteratively, and every consumer that
+  owns a flame tree takes it apart with
   telorama-scene's dismantle_flame_tree once it
-  has read it. Enforced by the depth tests in
-  the derive and MCP suites.
+  has read it. Agent runs nest at most
+  MAX_AGENT_NESTING subagent levels, a budget
+  the session builders enforce by refusing a
+  deeper session with a named error, which
+  bounds the recursions that remain over a run
+  tree, its drop, its serialization, and the
+  shared step walk. Enforced by the depth
+  tests in the derive, MCP, and ingest suites.
 
 ## Hostile inputs (derive, ingest, pricing)
 

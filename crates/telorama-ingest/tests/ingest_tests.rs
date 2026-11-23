@@ -380,6 +380,48 @@ fn genai_session_reads_the_cache_write_attribute_name() {
 }
 
 #[test]
+fn genai_session_refuses_nesting_past_the_budget() {
+    // INV-87: a generated chain of agent spans nesting past
+    // MAX_AGENT_NESTING is refused with the named error, and
+    // a chain whose steps nest exactly to the budget builds.
+    use std::collections::BTreeMap;
+    use telorama_scene::{MAX_AGENT_NESTING, Span};
+    let build = |spans: usize| -> Vec<Span> {
+        (0..spans)
+            .map(|i| Span {
+                trace_id: "t1".to_string(),
+                span_id: format!("s{i}"),
+                parent_span_id: (i > 0).then(|| format!("s{}", i - 1)),
+                name: "agent".to_string(),
+                kind: SpanKind::Internal,
+                start_unix_nano: 0,
+                end_unix_nano: 1_000,
+                is_error: false,
+                service: "svc".to_string(),
+                attributes: BTreeMap::from([(
+                    "gen_ai.operation.name".to_string(),
+                    "invoke_agent".to_string(),
+                )]),
+            })
+            .collect()
+    };
+    // The root span is the turn and never emits as a step, so
+    // a chain of MAX + 2 spans nests its steps one past the
+    // budget.
+    let deep = build(MAX_AGENT_NESTING + 2);
+    let err = telorama_ingest::parse_genai_session(&deep)
+        .expect_err("a session past the budget must refuse");
+    assert!(
+        format!("{err}").contains("512"),
+        "the refusal names the budget: {err}"
+    );
+    let at_budget = build(MAX_AGENT_NESTING + 1);
+    let run = telorama_ingest::parse_genai_session(&at_budget)
+        .expect("a session at the budget must build");
+    assert_eq!(run.turns.len(), 1);
+}
+
+#[test]
 fn genai_session_reads_the_dotted_cache_creation_name() {
     // The 1.37 and 1.41 generation spelling of cache creation, the
     // middle step of the INV-65 fallback chain. The fixture mirrors

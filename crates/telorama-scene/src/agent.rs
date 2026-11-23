@@ -152,16 +152,28 @@ pub enum AgentStep {
     Subagent(SubagentRun),
 }
 
+/// The deepest subagent nesting an agent run may
+/// carry. The session builders refuse a deeper
+/// session with a named error rather than truncate
+/// it (INV-87). The budget sits far past any real
+/// session's nesting and bounds every recursion
+/// that remains over a run tree, its drop and its
+/// serialization included.
+pub const MAX_AGENT_NESTING: usize = 512;
+
 impl AgentStep {
     /// Visit every step in a list, descending into subagent runs.
     /// The one traversal of the step tree: totals, model censuses,
     /// and wait walks all ride it so they can never diverge on
     /// what a step tree contains.
     pub fn walk<'a>(steps: &'a [AgentStep], visit: &mut impl FnMut(&'a AgentStep)) {
-        for step in steps {
+        // An explicit stack, not recursion (INV-87), visiting
+        // in the same pre-order.
+        let mut stack: Vec<&'a AgentStep> = steps.iter().rev().collect();
+        while let Some(step) = stack.pop() {
             visit(step);
             if let AgentStep::Subagent(sub) = step {
-                AgentStep::walk(&sub.steps, visit);
+                stack.extend(sub.steps.iter().rev());
             }
         }
     }
