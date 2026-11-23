@@ -875,12 +875,16 @@ fn service_layers_ignore_edges_that_name_an_absent_service() {
         to: "ghost".to_string(),
         calls: 1,
         errors: 0,
+        p50_nanos: 0,
+        p99_nanos: 0,
     });
     graph.edges.push(MapEdge {
         from: "ghost".to_string(),
         to: "api".to_string(),
         calls: 1,
         errors: 0,
+        p50_nanos: 0,
+        p99_nanos: 0,
     });
     let layers = service_layers(&graph);
     assert_eq!(layers.len(), 2);
