@@ -1433,6 +1433,9 @@ fn bar_text_fill(fill: &str, palette: &Palette) -> &'static str {
     }
 }
 
+// A flame layout call is position, size, palette, and tree state: the
+// argument list is the interface, so the count lint is allowed here.
+#[allow(clippy::too_many_arguments)]
 fn layout_flame(
     prims: &mut Vec<Prim>,
     palette: &Palette,
