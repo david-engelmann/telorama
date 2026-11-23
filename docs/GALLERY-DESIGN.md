@@ -75,3 +75,21 @@ new product surface. The test that assembles it is a build
 tool for one committed page, not a feature. The README gains
 one line on its first screen linking the page, and no other
 README text changes in this round.
+
+## Amendments, 2026-11-23
+
+Two clarifications from the checkpoint reviews, recorded the
+way the sankey record keeps its own. First, the incident
+pair. The sentence in the pictures section about two
+incident scenes rendering reads as a promise of two renders.
+The page shows the composition once, as the earlier section
+states, built exactly the way the findings golden builds it.
+Second, the findings wiring. Session scenes follow the
+session wiring both tools share, with findings ranked over
+the run alone. The GenAI scene is the exception, because its
+spans are the scene's declared data and sit in the render's
+data, so the investigation ranks them alongside the run, as
+the MCP render path does with its input spans. The CLI
+session invocation ranks the run alone even there. The
+gallery follows the render's data, and the divergence is
+recorded in DECISIONS.md with the Round 2 entry.
