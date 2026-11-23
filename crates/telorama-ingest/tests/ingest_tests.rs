@@ -198,7 +198,7 @@ fn codex_session_prices_tokens_and_pairs_tools() {
     assert_eq!(run.coverage.spans_seen, 0);
     assert_eq!(run.coverage.spans_merged, 0);
     let pricing = run.pricing.as_ref().expect("codex runs are priced");
-    assert_eq!(pricing.table_as_of, "2026-11-16");
+    assert_eq!(pricing.table_as_of, "2026-11-23");
     assert_eq!(
         pricing.priced_models,
         vec![
@@ -333,6 +333,127 @@ fn genai_session_reads_the_legacy_cache_attribute_names() {
 }
 
 #[test]
+fn genai_session_reads_the_cache_write_attribute_name() {
+    let spans = telorama_ingest::parse_otlp_traces(&fixture_text(
+        "tests/fixtures/agents/genai-session-cachewrite-spans.json",
+    ))
+    .expect("cache-write genai fixture must parse");
+    let run = telorama_ingest::parse_genai_session(&spans).expect("spans must adapt");
+    assert_eq!(run.session_id, "conv-genai-cachewrite");
+    assert_eq!(run.turns.len(), 1);
+    let turn = &run.turns[0];
+    // The current spelling carries the same figures the legacy
+    // fixture carries under its own. Before this read existed the
+    // creation count silently landed at zero on current emitters.
+    assert_eq!(turn.input_tokens, 6200);
+    assert_eq!(turn.output_tokens, 1500);
+    assert_eq!(turn.cache_read_tokens, 3000);
+    assert_eq!(turn.cache_creation_tokens, 400);
+    assert!((turn.cost_usd - 0.023125).abs() < 1e-9, "{}", turn.cost_usd);
+}
+
+#[test]
+fn genai_session_reads_the_dotted_cache_creation_name() {
+    // The 1.37 and 1.41 generation spelling of cache creation, the
+    // middle step of the INV-65 fallback chain. The fixture mirrors
+    // the legacy one figure for figure with only the spelling
+    // changed, so the totals must match exactly.
+    let spans = telorama_ingest::parse_otlp_traces(&fixture_text(
+        "tests/fixtures/agents/genai-session-creation-spans.json",
+    ))
+    .expect("creation genai fixture must parse");
+    let run = telorama_ingest::parse_genai_session(&spans).expect("spans must adapt");
+    assert_eq!(run.session_id, "conv-genai-creation");
+    let turn = &run.turns[0];
+    assert_eq!(turn.input_tokens, 6200);
+    assert_eq!(turn.output_tokens, 1500);
+    assert_eq!(turn.cache_read_tokens, 3000);
+    assert_eq!(turn.cache_creation_tokens, 400);
+    assert!((turn.cost_usd - 0.023125).abs() < 1e-9, "{}", turn.cost_usd);
+}
+
+#[test]
+fn genai_session_prefers_the_cache_write_spelling() {
+    // When one span carries two creation spellings, the cache_write
+    // spelling wins, per the INV-65 read order. The bogus dotted
+    // value must not move the count.
+    let mut spans = telorama_ingest::parse_otlp_traces(&fixture_text(
+        "tests/fixtures/agents/genai-session-cachewrite-spans.json",
+    ))
+    .expect("cache-write genai fixture must parse");
+    for span in spans.iter_mut() {
+        if span.span_id == "00000000000000a2" {
+            span.attributes.insert(
+                "gen_ai.usage.cache_creation.input_tokens".to_string(),
+                "999".to_string(),
+            );
+        }
+    }
+    let run = telorama_ingest::parse_genai_session(&spans).expect("spans must adapt");
+    assert_eq!(run.turns[0].cache_creation_tokens, 400);
+}
+
+#[test]
+fn genai_session_stages_a_workflow_root() {
+    use telorama_scene::AgentStep;
+    let spans = telorama_ingest::parse_otlp_traces(&fixture_text(
+        "tests/fixtures/agents/genai-session-workflow-spans.json",
+    ))
+    .expect("workflow genai fixture must parse");
+    let run = telorama_ingest::parse_genai_session(&spans).expect("spans must adapt");
+    assert_eq!(run.session_id, "conv-genai-workflow");
+    assert_eq!(run.turns.len(), 2);
+    assert_eq!(run.coverage.spans_seen, 10);
+    let pricing = run.pricing.as_ref().expect("span runs are priced");
+    assert_eq!(
+        pricing.priced_models,
+        vec![
+            "claude-sonnet-5".to_string(),
+            "gpt-5.1".to_string(),
+            "gpt-5.2".to_string()
+        ]
+    );
+    assert!(pricing.unpriced_models.is_empty());
+    let turn = &run.turns[0];
+    // The workflow root is structure, so the turn's one step is the
+    // triage agent, holding a chat call, a generate_content call
+    // read as a model call, and a tool call.
+    assert_eq!(turn.steps.len(), 1);
+    let AgentStep::Subagent(sub) = &turn.steps[0] else {
+        panic!("the turn's step must be the triage subagent");
+    };
+    assert_eq!(sub.agent_id, "agent-triage");
+    assert_eq!(sub.steps.len(), 3);
+    assert!(matches!(sub.steps[0], AgentStep::ModelCall(_)));
+    assert!(matches!(sub.steps[1], AgentStep::ModelCall(_)));
+    let AgentStep::ToolCall(tool) = &sub.steps[2] else {
+        panic!("step 3 must be the doc_lookup tool call");
+    };
+    assert_eq!(tool.name, "doc_lookup");
+    // Net input 3000 at sonnet prices plus 2000 at gpt-5.2 prices.
+    assert_eq!(turn.input_tokens, 5000);
+    assert_eq!(turn.output_tokens, 1100);
+    assert_eq!(turn.cache_read_tokens, 1000);
+    assert!((turn.cost_usd - 0.0227).abs() < 1e-9, "{}", turn.cost_usd);
+
+    // The second trace nests a workflow under an agent, where the
+    // classification is observable: the workflow wraps its chat
+    // call as a subagent step. The plan span beside it stays a
+    // transparent container, so its chat call lifts into the turn.
+    let turn = &run.turns[1];
+    assert_eq!(turn.steps.len(), 2);
+    let AgentStep::Subagent(sub) = &turn.steps[0] else {
+        panic!("step 1 must be the nested workflow as a subagent");
+    };
+    assert_eq!(sub.agent_id, "workflow-intake");
+    assert_eq!(sub.steps.len(), 1);
+    assert!(matches!(sub.steps[0], AgentStep::ModelCall(_)));
+    assert!(matches!(turn.steps[1], AgentStep::ModelCall(_)));
+    assert_eq!(turn.input_tokens, 1500);
+    assert_eq!(turn.output_tokens, 300);
+}
+
+#[test]
 fn genai_session_refuses_two_conversations() {
     let spans = telorama_ingest::parse_otlp_traces(&fixture_text(
         "tests/fixtures/agents/genai-session-spans.json",
@@ -371,6 +492,113 @@ fn openinference_session_maps_span_kinds() {
         panic!("step 2 must be the calculator tool call");
     };
     assert_eq!(tool.name, "calculator");
+}
+
+#[test]
+fn openinference_session_maps_a_reranker_step() {
+    use telorama_scene::AgentStep;
+    let spans = telorama_ingest::parse_otlp_traces(&fixture_text(
+        "tests/fixtures/agents/openinference-session-reranker-spans.json",
+    ))
+    .expect("reranker fixture must parse");
+    let run = telorama_ingest::parse_openinference_session(&spans).expect("spans must adapt");
+    assert_eq!(run.session_id, "sess-oi-rerank");
+    assert_eq!(run.turns.len(), 1);
+    let turn = &run.turns[0];
+    // The chain is structure. The retriever and the reranker are
+    // both tool steps, the reranker named by its span name, and
+    // the model call closes the turn. Before the reranker kind
+    // was classified, its step vanished from the run.
+    assert_eq!(turn.steps.len(), 3);
+    let AgentStep::ToolCall(retriever) = &turn.steps[0] else {
+        panic!("step 1 must be the retriever tool call");
+    };
+    assert_eq!(retriever.name, "vector search");
+    let AgentStep::ToolCall(reranker) = &turn.steps[1] else {
+        panic!("step 2 must be the reranker tool call");
+    };
+    assert_eq!(reranker.name, "rerank results");
+    assert!(matches!(turn.steps[2], AgentStep::ModelCall(_)));
+    assert_eq!(turn.input_tokens, 1500);
+    assert_eq!(turn.output_tokens, 250);
+}
+
+#[test]
+fn openinference_decision_spans_stay_out_of_the_totals() {
+    // A DECISION span stays a transparent container per INV-67:
+    // it emits no step of its own, its child still walks, and its
+    // decision token counts never enter the turn's model totals.
+    use telorama_scene::AgentStep;
+    let mut spans = telorama_ingest::parse_otlp_traces(&fixture_text(
+        "tests/fixtures/agents/openinference-session-reranker-spans.json",
+    ))
+    .expect("reranker fixture must parse");
+    let llm = spans
+        .iter()
+        .find(|s| s.span_id == "00000000000000d4")
+        .expect("fixture carries the llm span")
+        .clone();
+    let mut decision = llm.clone();
+    decision.span_id = "00000000000000d5".to_string();
+    decision.parent_span_id = Some("00000000000000d1".to_string());
+    decision.name = "route choice".to_string();
+    decision.start_unix_nano = 1_794_852_311_200_000_000;
+    decision.end_unix_nano = 1_794_852_311_600_000_000;
+    decision.attributes.clear();
+    decision.attributes.insert(
+        "openinference.span.kind".to_string(),
+        "DECISION".to_string(),
+    );
+    decision
+        .attributes
+        .insert("decision.token_count.input".to_string(), "777".to_string());
+    decision
+        .attributes
+        .insert("decision.token_count.output".to_string(), "888".to_string());
+    let mut child = llm.clone();
+    child.span_id = "00000000000000d6".to_string();
+    child.parent_span_id = Some("00000000000000d5".to_string());
+    child.name = "llm call".to_string();
+    child.start_unix_nano = 1_794_852_311_300_000_000;
+    child.end_unix_nano = 1_794_852_311_500_000_000;
+    child
+        .attributes
+        .insert("llm.token_count.prompt".to_string(), "100".to_string());
+    child
+        .attributes
+        .insert("llm.token_count.completion".to_string(), "10".to_string());
+    spans.push(decision);
+    spans.push(child);
+    let run = telorama_ingest::parse_openinference_session(&spans).expect("spans must adapt");
+    assert_eq!(run.turns.len(), 1);
+    let turn = &run.turns[0];
+    // The three fixture steps plus the decision span's lifted child.
+    assert_eq!(turn.steps.len(), 4);
+    assert!(matches!(turn.steps[3], AgentStep::ModelCall(_)));
+    // Only the child call's tokens join the totals, never the 777.
+    assert_eq!(turn.input_tokens, 1600);
+    assert_eq!(turn.output_tokens, 260);
+}
+
+#[test]
+fn openinference_session_ignores_span_carried_cost() {
+    // Span-carried cost is never read, per INV-68. The renderer's
+    // table is the only pricing law, so a cost attribute on the
+    // span must not move the priced figure.
+    let mut spans = telorama_ingest::parse_otlp_traces(&fixture_text(
+        "tests/fixtures/agents/openinference-session-reranker-spans.json",
+    ))
+    .expect("reranker fixture must parse");
+    for span in spans.iter_mut() {
+        if span.span_id == "00000000000000d4" {
+            span.attributes
+                .insert("llm.cost.total".to_string(), "99.99".to_string());
+        }
+    }
+    let run = telorama_ingest::parse_openinference_session(&spans).expect("spans must adapt");
+    let turn = &run.turns[0];
+    // 1500 input and 250 output at the gpt-5.1 row.
+    assert!((turn.cost_usd - 0.004375).abs() < 1e-9, "{}", turn.cost_usd);
 }
 
 #[test]

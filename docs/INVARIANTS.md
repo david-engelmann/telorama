@@ -466,8 +466,10 @@ later milestones are marked as validator-side.
   generation lands its count. The count enters the run
   totals and is never priced.
   Enforced by ingest_tests
-  genai_session_reads_the_cache_write_attribute_name and
-  genai_session_reads_the_legacy_cache_attribute_names.
+  genai_session_reads_the_cache_write_attribute_name,
+  genai_session_reads_the_dotted_cache_creation_name,
+  genai_session_reads_the_legacy_cache_attribute_names, and
+  genai_session_prefers_the_cache_write_spelling.
 - INV-66. In the GenAI dialect, invoke_workflow classifies
   as agent structure and generate_content as a model call.
   plan stays a transparent container whose children still
@@ -479,11 +481,13 @@ later milestones are marked as validator-side.
   transparent container, so a decision model's tokens never
   enter the run's model totals.
   Enforced by ingest_tests
-  openinference_session_maps_a_reranker_step.
+  openinference_session_maps_a_reranker_step and
+  openinference_decision_spans_stay_out_of_the_totals.
 - INV-68. The price table carries its compilation date as
   PRICE_TABLE_AS_OF, and its arithmetic is pinned row by
   row. A model with no row lands unpriced and the run names
   it, under INV-38. Span-carried cost attributes are never
   read, so the table stays the only pricing source.
-  Enforced by the pricing module's unit tests and
-  ingest_tests codex_session_names_unpriced_models.
+  Enforced by the pricing module's unit tests, ingest_tests
+  codex_session_names_unpriced_models, and ingest_tests
+  openinference_session_ignores_span_carried_cost.

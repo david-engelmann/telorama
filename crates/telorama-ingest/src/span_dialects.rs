@@ -12,7 +12,13 @@
 //! from gen_ai.system to gen_ai.provider.name in v1.37, and later
 //! generations added cache token attributes and a response model.
 //! The adapter reads the union of the 1.30, 1.37, and 1.41 shapes,
-//! so a span from any of those generations maps the same way.
+//! so a span from any of those generations maps the same way. The
+//! conventions have since moved to their own repository with no
+//! new release yet, so the adapter pins to the released 1.41 text
+//! plus the deltas the Round 3 currency pass verified from the
+//! current sources: cache creation's new spelling
+//! gen_ai.usage.cache_write.input_tokens, the invoke_workflow
+//! operation, and the generate_content operation.
 //!
 //! Token accounting follows the house rule: reported input counts
 //! every input token including cached ones, so the model stores
@@ -79,9 +85,9 @@ fn attr_u64(span: &Span, keys: &[&str]) -> u64 {
 
 fn genai_classify(span: &Span) -> Role {
     match attr(span, "gen_ai.operation.name") {
-        Some("chat" | "text_completion" | "embeddings") => Role::Model,
+        Some("chat" | "text_completion" | "embeddings" | "generate_content") => Role::Model,
         Some("execute_tool" | "retrieval") => Role::Tool,
-        Some("invoke_agent" | "create_agent") => Role::Agent,
+        Some("invoke_agent" | "create_agent" | "invoke_workflow") => Role::Agent,
         _ => Role::Container,
     }
 }
@@ -107,6 +113,7 @@ fn genai_tokens(span: &Span) -> Tokens {
         cache_creation: attr_u64(
             span,
             &[
+                "gen_ai.usage.cache_write.input_tokens",
                 "gen_ai.usage.cache_creation.input_tokens",
                 "gen_ai.usage.cache_creation_tokens",
             ],
@@ -129,7 +136,7 @@ fn genai_agent_id(span: &Span) -> String {
 fn oi_classify(span: &Span) -> Role {
     match attr(span, "openinference.span.kind") {
         Some("LLM" | "EMBEDDING") => Role::Model,
-        Some("TOOL" | "RETRIEVER") => Role::Tool,
+        Some("TOOL" | "RETRIEVER" | "RERANKER") => Role::Tool,
         Some("AGENT") => Role::Agent,
         _ => Role::Container,
     }

@@ -215,7 +215,7 @@ fn session_with_codex_dialect_reports_pricing() {
     let text = stdout(&out);
     assert!(text.contains("\"dialect\": \"codex\""), "got:\n{text}");
     assert!(
-        text.contains("\"table_as_of\": \"2026-11-16\""),
+        text.contains("\"table_as_of\": \"2026-11-23\""),
         "got:\n{text}"
     );
     assert!(text.contains("\"gpt-5.1-codex\""), "got:\n{text}");

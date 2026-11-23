@@ -527,3 +527,93 @@ cannot catch a traces argument swapped between two sections
 of the same shape, a known limit of the golden pattern the
 design record adopts, accepted with the coverage gate above
 standing guard over the likelier failures.
+
+## Round 3, dialect and price-table currency, 2026-11-23
+
+The currency pass is landed. The design record went in
+first as PR 19, then the build as PR 20, under invariants
+INV-65 to INV-68. The research pass read the current
+published conventions on 2026-11-23 and found the GenAI
+conventions standing at the released 1.41 text, with the
+semantic-conventions repository's GenAI material moved to
+its own home and still unreleased past that. Claude Code
+and Codex changed nothing the adapters read.
+
+One fix in the round was silent data loss. Cache creation
+gained a current spelling, gen_ai.usage.cache_write.input_tokens,
+which the adapter did not read, so a current emitter's
+creation count silently landed at zero. The read now tries
+the cache_write spelling first, then the dotted creation
+spelling of the 1.37 and 1.41 generations, then the legacy
+underscore form. Each spelling carries its own fixture
+mirroring the same figures, and a fourth test pins the read
+order itself. Cache creation stays counted and never
+priced.
+
+The new operation and kind mappings are invoke_workflow as
+agent structure, generate_content as a model call, and the
+OpenInference RERANKER kind as a tool step. The workflow
+fixture carries a second trace nesting a workflow under an
+agent, because at the root the classification is invisible
+and the first build's test could not have caught it
+regressing. A plan span in the same trace pins its
+container behaviour by the tokens its child contributes.
+
+Two decisions are recorded rather than built. A DECISION
+span stays a transparent container, because the kind
+exists to keep decision usage out of LLM token counts and
+the canonical model has no decision step, and mapping it
+to a model call would break the separation the kind
+exists for. It reopens when the canonical model grows a
+decision step. Span-carried cost attributes are never
+read, because the renderer's table is the single pricing
+law and a second source would fork the honesty rules.
+Both decisions carry tests that would fail if the code
+drifted from them.
+
+Price table changelog, 2026-11-23. The table's date
+advanced from 2026-11-16 to 2026-11-23 and it stands at
+26 priced models. Every existing row was rechecked
+against the publishers' pages and none had moved. New
+rows are gpt-5.1-codex-max in its family, gpt-5.2,
+gpt-5.2-codex and gpt-5.3-codex, gpt-5, gpt-5-codex,
+gpt-5-mini, gpt-5-nano and codex-mini-latest, and the
+first Claude rows, claude-sonnet-5, claude-sonnet-5.5,
+claude-opus-5.5, claude-opus-5 with claude-opus-4.5
+through 4.8, claude-sonnet-4.5 and 4.6, claude-haiku-4.5,
+and claude-fable-5.2 with claude-mythos-5.2. Claude cache
+read prices are explicit in every row, because Anthropic
+no longer prices cache reads at a uniform share of input.
+The gpt-5.1-mini row stays even though the current
+pricing page no longer lists it under that name, because
+traces in the wild name it and its figures are
+corroborated by the identical gpt-5-mini row. The pro
+rows are skipped for want of a published cached price,
+claude-haiku-5.5 is skipped because its price is tiered
+by prompt size and does not fit the table's flat row
+shape, and the GPT-6.2 models stay unpriced because no
+API price is published yet. The table's arithmetic is
+pinned figure by figure, one token class at a time, so a
+transposed figure now fails the pin as surely as an
+edited one. Only the three priced goldens and the gallery
+page moved, each by the disclosure date alone.
+
+Two items are named for later rounds. Claude Code's
+api_refusal event is the first candidate for the next
+convention pass, held back here because its fields were
+not verified from a live export and this programme builds
+fixtures before support. Normalizing dated snapshot model
+ids before pricing is a named open question, deferred
+because it changes pricing behaviour and needs its own
+fixture-backed design. The CLI session findings divergence
+the gallery round found stands open and is not closed by
+this round.
+
+The checkpoint reviews found no defect in the dialect or
+pricing code. Their findings were enforcement gaps, each
+closed in the round. The workflow classification pin, the
+dotted spelling fixture, the read-order pin, the DECISION
+and span-cost pins, and the per-figure price pins above
+all came out of that pass. One standards note needed no
+action, the price match's first arm taking block form
+under rustfmt while its neighbours keep expression form.
