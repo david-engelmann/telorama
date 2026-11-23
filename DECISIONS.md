@@ -890,3 +890,28 @@ surface field by field is a pass of its own, named
 here as future work, and the round's documentation
 claim rests on the worked examples and the
 firsthand docs.rs read that follows the release.
+
+## Round 6 publish record (2026-11-23)
+
+All five crates are published on crates.io at
+0.2.0, sent in the settled order, scene first and
+the MCP server last, each confirmed live at 0.2.0
+before the next was sent. The rendered registry
+readmes were read back firsthand after the release.
+Each crate page now shows its own readme, and the
+four images resolve to the media files on the main
+branch. The 0.1.0 pages' broken images are gone.
+
+Packaging ran on a CI runner from the merged main.
+Cargo would not assemble the packages while the
+workspace dependencies at 0.2.0 were not yet on the
+index, so the packaging workflow vendors the tree
+and stages each package into the vendor directory
+as it is built, the same loop the CI package step
+runs. The publish itself used the stored credential
+through the same driver as the 0.1.0 release.
+
+The docs.rs builds for 0.2.0 were still queued when
+this record was written. Reading those pages
+firsthand stands open and closes the round's last
+verification.
