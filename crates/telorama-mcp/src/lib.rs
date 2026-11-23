@@ -12,6 +12,19 @@
 //!
 //! The protocol core is a pure function from a request line to a
 //! response line, so the whole surface is testable without a host.
+//!
+//! # Example
+//!
+//! Ask the server what tools it offers, through the same pure
+//! handler the stdio loop drives.
+//!
+//! ```rust
+//! let response = telorama_mcp::handle_message(
+//!     r#"{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}"#,
+//! )
+//! .expect("a request with an id always answers");
+//! assert!(response.contains("validate_scene"));
+//! ```
 
 use serde_json::{Value, json};
 use telorama_scene::{

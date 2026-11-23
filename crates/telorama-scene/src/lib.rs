@@ -4,6 +4,32 @@
 //! Correctness lives in this crate. It performs no I/O and renders
 //! nothing; every public function is a deterministic function of its
 //! inputs.
+//!
+//! # Example
+//!
+//! Parse a scene spec from its JSON text. The same call validates
+//! it against the schema and the honesty rules, so a scene that
+//! parses is a scene that may be rendered.
+//!
+//! ```rust
+//! let text = r#"{
+//!     "scene": "0.1",
+//!     "title": "One request",
+//!     "headline": "The request answered in 500 ms",
+//!     "context": {
+//!         "range": {"from_unix_ms": 0, "to_unix_ms": 1000},
+//!         "provenance": {"generated_by": "agent", "question": "How long did it take?"}
+//!     },
+//!     "data": [{
+//!         "id": "trace",
+//!         "sampled": "unknown",
+//!         "source": {"kind": "otlp_file", "trace_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+//!     }],
+//!     "panels": [{"type": "waterfall", "data": "trace"}]
+//! }"#;
+//! let scene = telorama_scene::parse_scene(text).expect("the scene must validate");
+//! assert_eq!(scene.title, "One request");
+//! ```
 
 pub mod agent;
 pub mod compose;

@@ -27,7 +27,8 @@ jobs:
           cat /tmp/vendor.toml > .cargo/config.toml
           for k in telorama-scene telorama-ingest telorama-svg telorama telorama-mcp; do
             cargo package -p "$k" --locked --no-verify --offline
-            crate_file="target/package/$k-0.1.0.crate"
+            # The crate file name carries the version from the crate's own manifest.
+            crate_file="target/package/$k-$(sed -n 's/^version = "\(.*\)"/\1/p' "crates/$k/Cargo.toml" | head -1).crate"
             sum=$(sha256sum "$crate_file" | cut -d' ' -f1)
             rm -rf /tmp/extract && mkdir -p /tmp/extract
             tar -xzf "$crate_file" -C /tmp/extract --strip-components=1

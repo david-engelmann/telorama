@@ -2,9 +2,32 @@
 //!
 //! M1 reads OTLP trace exports in JSON form, either a single
 //! `ExportTraceServiceRequest` document or JSON Lines with one document
-//! per line, from a file's text. Live backend adapters and the agent
-//! dialect adapters arrive in later milestones behind this same
-//! canonical output.
+//! per line, from a file's text. The agent dialect adapters for
+//! the Claude Code, Codex, GenAI and OpenInference dialects read
+//! behind this same canonical output.
+//!
+//! # Example
+//!
+//! Parse an OTLP trace export into canonical spans.
+//!
+//! ```rust
+//! let export = r#"{"resourceSpans": [{
+//!     "resource": {"attributes": [
+//!         {"key": "service.name", "value": {"stringValue": "checkout"}}
+//!     ]},
+//!     "scopeSpans": [{"spans": [{
+//!         "traceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+//!         "spanId": "bbbbbbbbbbbbbbbb",
+//!         "name": "GET /checkout",
+//!         "kind": 2,
+//!         "startTimeUnixNano": "0",
+//!         "endTimeUnixNano": "500000000"
+//!     }]}]
+//! }]}"#;
+//! let spans = telorama_ingest::parse_otlp_traces(export).expect("the export must parse");
+//! assert_eq!(spans.len(), 1);
+//! assert_eq!(spans[0].service, "checkout");
+//! ```
 
 pub mod claude_code;
 pub mod codex;

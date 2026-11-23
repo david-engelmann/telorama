@@ -816,3 +816,77 @@ keys the server sets, telorama/svg and
 telorama/frames, are vendor-namespaced extensions
 the spec permits. MCP Events, SEP-3415, stays a
 watch item with no work taken.
+
+## Round 6, the registry finish (2026-11-23)
+
+Design record docs/REGISTRY-DESIGN.md with INV-78
+and INV-79. The recon that opened the round read
+the live registry pages firsthand and found the
+0.1.0 release's readme media broken on both
+registries. All five crates shared the repo root
+readme, and crates.io and docs.rs each rewrite a
+relative image path against the crate directory,
+where the file does not live. Every crate page
+showed two broken images.
+
+Each crate now ships its own readme, short and
+scoped to that crate, with media as absolute URLs
+to the raw files on the main branch, and each
+manifest names its own readme. The root readme
+keeps its relative media for GitHub and its current
+state section now matches the finished state,
+including the dark theme and the corpus counted as
+it stands. A packaging test pins the shape, the
+version agreement across the five manifests and
+the workspace pins, the readme each manifest
+names, and the absence of relative link targets in
+any crate readme.
+
+All five crates move to 0.2.0 together. The changes
+since 0.1.0 are features, so the bump is a minor
+one. Each library crate gains one worked example in
+its front-door documentation, run as a doc test by
+the hosted gate. Two of the examples taught the
+round something worth keeping. The ingest parser
+refuses an export with no spans in it, so its
+example parses a real one-span export, and the
+honesty validator requires a headline on every
+scene, so both example scenes carry one.
+
+The version bump exposed a latent defect in the CI
+package step, which named the 0.1.0 crate file
+literally and failed after every test had passed.
+The step now reads the version from the crate's own
+manifest, which is exact for every crate and stays
+right at the next bump. A first attempt at the fix
+globbed the package directory and matched every
+telorama-prefixed crate at once, which the same
+gate caught before it could land.
+
+The checkpoint reviews strengthened the packaging
+test in two places. Its readme title check now
+matches the first line exactly, so one crate's
+title can no longer pass on a sibling's longer
+heading, and its link scan now also covers
+reference-style definitions and image sources, the
+two relative forms the inline scan could not see.
+Two stale sentences in crate doc headers, dating
+from the first milestone, were swept in the same
+pass. Two observations were dismissed with reasons
+recorded in the gate report. The rewritten current
+state paragraph does not name the gallery because
+the readme's first screen already carries its link,
+and the packaging test's two assertions beyond the
+design's three enforce other sentences of the same
+record.
+
+One gap the reviews surfaced stands open by name.
+A missing-docs deny was tried on the four library
+crates in the repair pass and convicted 176
+undocumented public items, nearly all of them
+struct fields and enum variants in telorama-scene.
+The deny was withdrawn. Documenting the public
+surface field by field is a pass of its own, named
+here as future work, and the round's documentation
+claim rests on the worked examples and the
+firsthand docs.rs read that follows the release.
