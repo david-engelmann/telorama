@@ -671,9 +671,7 @@ fn sankey_flow_conserves_at_ten_thousand_spans() {
             .sum();
         let node_roots = spans
             .iter()
-            .filter(|s| {
-                s.parent_span_id.is_none() && s.service == node.service && node.stage == 0
-            })
+            .filter(|s| s.parent_span_id.is_none() && s.service == node.service && node.stage == 0)
             .count() as u64;
         assert_eq!(
             node_inflow + node_roots,
