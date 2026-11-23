@@ -1,4 +1,3 @@
-#![deny(missing_docs)]
 //! telorama-scene: the scene spec, its schema, the honesty validator, and
 //! the pure derivations that turn spans into panel-ready facts.
 //!

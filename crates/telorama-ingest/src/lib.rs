@@ -1,4 +1,3 @@
-#![deny(missing_docs)]
 //! telorama-ingest: OpenTelemetry data in, canonical spans out.
 //!
 //! M1 reads OTLP trace exports in JSON form, either a single

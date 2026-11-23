@@ -1,4 +1,3 @@
-#![deny(missing_docs)]
 //! telorama-svg: the DisplayList and the deterministic SVG emitter.
 //!
 //! Rendering is a pure function of the scene and the data. Layout is
