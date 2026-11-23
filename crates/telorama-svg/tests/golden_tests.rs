@@ -745,7 +745,7 @@ fn wide_trace_flame_renders_pin_by_hash() {
     assert!(svg.len() > 1_000, "the render is {} bytes", svg.len());
     assert_eq!(
         telorama_scene::content_hash(svg.as_bytes()),
-        "PIN_WIDE_FLAME"
+        "3337414d89172e42"
     );
 }
 
@@ -934,7 +934,7 @@ fn many_trace_sankey_renders_pin_by_hash() {
     assert!(svg.len() > 1_000, "the render is {} bytes", svg.len());
     assert_eq!(
         telorama_scene::content_hash(svg.as_bytes()),
-        "PIN_MANY_TRACE_SANKEY"
+        "3bbc3b37c3a4caa1"
     );
 }
 
