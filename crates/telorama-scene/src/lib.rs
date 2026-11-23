@@ -15,6 +15,7 @@
 //! let text = r#"{
 //!     "scene": "0.1",
 //!     "title": "One request",
+//!     "headline": "The request answered in 500 ms",
 //!     "context": {
 //!         "range": {"from_unix_ms": 0, "to_unix_ms": 1000},
 //!         "provenance": {"generated_by": "agent", "question": "How long did it take?"}
