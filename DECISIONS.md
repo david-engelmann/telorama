@@ -1198,3 +1198,66 @@ at the depth where a drop is proven to
 overflow. The panel summary dismantle, the
 same one-line pattern in the adjacent arm, is
 verified by reading.
+
+## Round 12: the agent tree (2026-11-23)
+
+The design record is docs/AGENT-TREE-DESIGN.md.
+The build closes the two paths the Round 11 red
+team named against INV-87. The dialect session
+builder's emit runs on an explicit stack of
+frames, each holding its own step sink. A
+container frame splices its steps into its
+parent on completion, an agent frame wraps its
+sink in the subagent step, and the seen rule
+fires at frame creation and leaf encounter, the
+points the recursion tested it. The emitted
+steps are the same steps in the same order, a
+parity all three review lanes traced on mixed
+trees, diamonds, and duplicates of frames still
+open on the stack. The agent-run layout walk is
+a pre-order stack walk through a row helper
+whose body is the old function minus its
+recursion tail, and the shared AgentStep walk
+iterates on the same conversion.
+
+MAX_AGENT_NESTING, 512, now lives in
+telorama-scene. The dialect builder refuses a
+session whose agent spans would nest past it
+with a named error while building, and the
+Claude Code adapter refuses the same way when a
+subagent wrap would, measured by an iterative
+nesting_depth over the captured steps. No
+session is truncated, because a partial run
+would misstate the session. The reviews swept
+every SubagentRun construction in the
+workspace. The Claude empty-run insertion needs
+no check of its own, since it adds one level at
+the top of a turn and any later wrap that
+captures it passes the checked site, and the
+Codex adapter builds no subagent steps at all.
+The budget bounds the recursions that remain
+over a run tree, its drop, its serialization,
+and its derived clones, and the red team put
+the margin at roughly four to ten times the
+smallest stack in play, exercised by the
+at-budget pins themselves.
+
+Two pins land, one per enforcement site. The
+GenAI pin builds a generated invoke_agent chain
+whose steps nest one past the budget and
+asserts the refusal names it, with a companion
+chain at the budget building. The Claude pin,
+added in the review repair pass, generates
+agent spans whose windows nest around one model
+step, smallest first, and asserts the same
+two-sided result at the wrap. The budget check
+tests the seen set before refusing, matching
+the recursion's order, so a repeated agent span
+past the budget is skipped rather than refused,
+and it can form no step either way. INV-87's
+exception clause is retired and its text states
+the budget as the mechanism. The review repair
+also split a semicolon out of the emit header
+comment and corrected INV-87's remain-list,
+which still named the shared step walk the same
+diff had converted.

@@ -11,7 +11,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use telorama_scene::{
-    AgentRun, AgentStep, AgentTurn, Coverage, ModelCall, Span, SubagentRun, ToolCall,
+    AgentRun, AgentStep, AgentTurn, Coverage, MAX_AGENT_NESTING, ModelCall, Span, SubagentRun,
+    ToolCall,
 };
 
 use crate::events::{Attr, Event, parse_events};
@@ -22,6 +23,26 @@ fn fail(message: impl Into<String>) -> IngestError {
     IngestError {
         message: message.into(),
     }
+}
+
+/// The deepest subagent nesting in a step list, counted in
+/// subagent levels, a list with no subagents at zero. An
+/// explicit stack, not recursion (INV-87).
+fn nesting_depth(steps: &[AgentStep]) -> usize {
+    fn level(step: &AgentStep) -> usize {
+        usize::from(matches!(step, AgentStep::Subagent(_)))
+    }
+    let mut deepest = 0usize;
+    let mut stack: Vec<(&AgentStep, usize)> = steps.iter().map(|s| (s, level(s))).collect();
+    while let Some((step, depth)) = stack.pop() {
+        deepest = deepest.max(depth);
+        if let AgentStep::Subagent(run) = step {
+            for child in &run.steps {
+                stack.push((child, depth + level(child)));
+            }
+        }
+    }
+    deepest
 }
 
 struct TurnBuilder {
@@ -274,6 +295,11 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
                 }
             }
             if !taken.is_empty() {
+                if nesting_depth(&taken) + 1 > MAX_AGENT_NESTING {
+                    return Err(fail(format!(
+                        "session nests agents deeper than the {MAX_AGENT_NESTING} level budget"
+                    )));
+                }
                 let run = SubagentRun {
                     agent_id: agent_id.clone(),
                     start_unix_nano: span.start_unix_nano,

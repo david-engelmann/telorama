@@ -380,6 +380,113 @@ fn genai_session_reads_the_cache_write_attribute_name() {
 }
 
 #[test]
+fn genai_session_refuses_nesting_past_the_budget() {
+    // INV-87: a generated chain of agent spans nesting past
+    // MAX_AGENT_NESTING is refused with the named error, and
+    // a chain whose steps nest exactly to the budget builds.
+    use std::collections::BTreeMap;
+    use telorama_scene::{MAX_AGENT_NESTING, Span};
+    let build = |spans: usize| -> Vec<Span> {
+        (0..spans)
+            .map(|i| Span {
+                trace_id: "t1".to_string(),
+                span_id: format!("s{i}"),
+                parent_span_id: (i > 0).then(|| format!("s{}", i - 1)),
+                name: "agent".to_string(),
+                kind: SpanKind::Internal,
+                start_unix_nano: 0,
+                end_unix_nano: 1_000,
+                is_error: false,
+                service: "svc".to_string(),
+                attributes: BTreeMap::from([(
+                    "gen_ai.operation.name".to_string(),
+                    "invoke_agent".to_string(),
+                )]),
+            })
+            .collect()
+    };
+    // The root span is the turn and never emits as a step, so
+    // a chain of MAX + 2 spans nests its steps one past the
+    // budget.
+    let deep = build(MAX_AGENT_NESTING + 2);
+    let err = telorama_ingest::parse_genai_session(&deep)
+        .expect_err("a session past the budget must refuse");
+    assert!(
+        format!("{err}").contains("512"),
+        "the refusal names the budget: {err}"
+    );
+    let at_budget = build(MAX_AGENT_NESTING + 1);
+    let run = telorama_ingest::parse_genai_session(&at_budget)
+        .expect("a session at the budget must build");
+    assert_eq!(run.turns.len(), 1);
+}
+
+#[test]
+fn claude_session_refuses_nesting_past_the_budget() {
+    // INV-87: the Claude adapter enforces the same budget
+    // at its wrap. Generated agent spans nest their windows
+    // around one model step, smallest first, so each wrap
+    // deepens the run by one level.
+    use std::collections::BTreeMap;
+    use telorama_scene::{MAX_AGENT_NESTING, Span};
+    let logs = concat!(
+        "{\"resourceLogs\":[{\"resource\":{\"attributes\":[{\"key\":\"service.name\",",
+        "\"value\":{\"stringValue\":\"claude-code\"}}]},\"scopeLogs\":[{\"logRecords\":[",
+        "{\"attributes\":[{\"key\":\"event.name\",\"value\":{\"stringValue\":\"claude_code.user_prompt\"}},",
+        "{\"key\":\"session.id\",\"value\":{\"stringValue\":\"sess-budget\"}},",
+        "{\"key\":\"prompt.id\",\"value\":{\"stringValue\":\"p-1\"}}],",
+        "\"timeUnixNano\":\"1794841200000000000\"},",
+        "{\"attributes\":[{\"key\":\"event.name\",\"value\":{\"stringValue\":\"claude_code.api_request\"}},",
+        "{\"key\":\"session.id\",\"value\":{\"stringValue\":\"sess-budget\"}},",
+        "{\"key\":\"prompt.id\",\"value\":{\"stringValue\":\"p-1\"}},",
+        "{\"key\":\"model\",\"value\":{\"stringValue\":\"claude-sonnet-4-5\"}},",
+        "{\"key\":\"input_tokens\",\"value\":{\"intValue\":\"100\"}},",
+        "{\"key\":\"output_tokens\",\"value\":{\"intValue\":\"10\"}},",
+        "{\"key\":\"cache_read_tokens\",\"value\":{\"intValue\":\"0\"}},",
+        "{\"key\":\"cache_creation_tokens\",\"value\":{\"intValue\":\"0\"}},",
+        "{\"key\":\"cost_usd\",\"value\":{\"doubleValue\":0.001}},",
+        "{\"key\":\"duration_ms\",\"value\":{\"intValue\":\"4000\"}},",
+        "{\"key\":\"ttft_ms\",\"value\":{\"intValue\":\"100\"}},",
+        "{\"key\":\"attempt\",\"value\":{\"intValue\":\"1\"}}],",
+        "\"timeUnixNano\":\"1794841204000000000\"}],\"scope\":{\"name\":\"claude-code\"}}]}]}"
+    );
+    // The model step runs from 1s to 5s past the base; every
+    // window holds its midpoint, and window lengths shrink
+    // as i grows, so the smallest window wraps first.
+    let base: i64 = 1794841203000000000;
+    let build = |windows: usize| -> Vec<Span> {
+        (0..windows)
+            .map(|i| Span {
+                trace_id: "t1".to_string(),
+                span_id: format!("a{i}"),
+                parent_span_id: None,
+                name: "claude_code.interaction".to_string(),
+                kind: SpanKind::Internal,
+                start_unix_nano: base + i as i64 * 1_000_000,
+                end_unix_nano: base + (12_000 - i as i64) * 1_000_000,
+                is_error: false,
+                service: "claude-code".to_string(),
+                attributes: BTreeMap::from([
+                    ("session.id".to_string(), "sess-budget".to_string()),
+                    ("agent_id".to_string(), format!("agent-{i}")),
+                ]),
+            })
+            .collect()
+    };
+    let deep = build(MAX_AGENT_NESTING + 1);
+    let err = telorama_ingest::parse_claude_code_session(logs, &deep)
+        .expect_err("a wrap past the budget must refuse");
+    assert!(
+        format!("{err}").contains("512"),
+        "the refusal names the budget: {err}"
+    );
+    let at_budget = build(MAX_AGENT_NESTING);
+    let run = telorama_ingest::parse_claude_code_session(logs, &at_budget)
+        .expect("wraps at the budget must build");
+    assert_eq!(run.turns.len(), 1);
+}
+
+#[test]
 fn genai_session_reads_the_dotted_cache_creation_name() {
     // The 1.37 and 1.41 generation spelling of cache creation, the
     // middle step of the INV-65 fallback chain. The fixture mirrors
