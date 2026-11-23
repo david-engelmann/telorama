@@ -45,7 +45,10 @@ fn the_five_crates_version_together() {
     );
     let root = read("Cargo.toml");
     for name in ["telorama-scene", "telorama-ingest", "telorama-svg"] {
-        let pin = format!("{name} = {{ path = \"crates/{name}\", version = \"{}\" }}", versions[0]);
+        let pin = format!(
+            "{name} = {{ path = \"crates/{name}\", version = \"{}\" }}",
+            versions[0]
+        );
         assert!(root.contains(&pin), "workspace pin for {name} is stale");
     }
 }
