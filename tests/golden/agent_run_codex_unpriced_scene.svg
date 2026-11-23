@@ -26,7 +26,7 @@
 <text x="279.6" y="159" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">2 s</text>
 <text x="24" y="184" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Session conv-2026-1116-unpriced · 1 turn · 5000 in · 800 out · 1000 cache read · $0.0089</text>
 <text x="24" y="199" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Coverage · 5 log events · 0 spans read · 0 spans merged · tokens come from log events, spans counted but not merged in this dialect</text>
-<text x="24" y="214" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Cost is an estimate priced by telorama from tokens at the price table dated 2026-11-16; unpriced models excluded: gpt-unknown-9</text>
+<text x="24" y="214" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Cost is an estimate priced by telorama from tokens at the price table dated 2026-11-23; unpriced models excluded: gpt-unknown-9</text>
 <line x1="24" y1="234" x2="936" y2="234" stroke="#CCCCCC" stroke-width="1"/>
 <text x="24" y="250" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Window 2026-11-16T17:00:00Z to 2026-11-16T17:00:30Z</text>
 <text x="24" y="265" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Data session · codex_session · query codex session conv-2026-1116-unpriced otlp logs export · unsampled</text>
