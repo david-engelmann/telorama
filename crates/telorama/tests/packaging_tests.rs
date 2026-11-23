@@ -80,10 +80,10 @@ fn every_crate_readme_is_its_own_and_absolute() {
         }
         for line in readme.lines() {
             let trimmed = line.trim();
-            if trimmed.starts_with('[') {
-                if let Some((_, target)) = trimmed.split_once("]: ") {
-                    targets.push(target.chars().take_while(|c| !c.is_whitespace()).collect());
-                }
+            if trimmed.starts_with('[')
+                && let Some((_, target)) = trimmed.split_once("]: ")
+            {
+                targets.push(target.chars().take_while(|c| !c.is_whitespace()).collect());
             }
             if let Some(at) = trimmed.find("src=\"") {
                 let after = &trimmed[at + 5..];
