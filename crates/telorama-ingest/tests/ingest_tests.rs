@@ -496,36 +496,54 @@ fn genai_session_parses_ten_thousand_spans() {
 fn claude_session_parses_ten_thousand_events() {
     // Round 14: a generated Claude Code log of two thousand
     // prompts, five events each, in one OTLP document.
-    fn record(at: i64, name: &str, prompt: &str, extra: &str) -> String {
-        format!(
-            "{{\"timeUnixNano\":\"{at}\",\"body\":{{\"stringValue\":\"{name}\"}},\"attributes\":[{{\"key\":\"event.name\",\"value\":{{\"stringValue\":\"{name}\\"}}}},{{\"key\":\"session.id\",\"value\":{{\"stringValue\":\"sess-long\"}}}},{{\"key\":\"prompt.id\",\"value\":{{\"stringValue\":\"{prompt}\"}}}}{extra}]}}"
-        )
+    use serde_json::json;
+    fn record(at: i64, name: &str, prompt: &str, extra: &[(&str, serde_json::Value)]) -> String {
+        let mut attributes = vec![
+            json!({"key": "event.name", "value": {"stringValue": name}}),
+            json!({"key": "session.id", "value": {"stringValue": "sess-long"}}),
+            json!({"key": "prompt.id", "value": {"stringValue": prompt}}),
+        ];
+        for (key, value) in extra {
+            attributes.push(json!({"key": key, "value": value}));
+        }
+        json!({
+            "timeUnixNano": at.to_string(),
+            "body": {"stringValue": name},
+            "attributes": attributes,
+        })
+        .to_string()
     }
     let mut records: Vec<String> = Vec::with_capacity(10_000);
     for p in 0..2_000 {
         let base = 1_794_841_200_000_000_000i64 + (p as i64) * 10_000_000_000;
         let prompt = format!("p-{p}");
-        records.push(record(base, "claude_code.user_prompt", &prompt, ""));
+        records.push(record(base, "claude_code.user_prompt", &prompt, &[]));
         for e in 0..2 {
             let at = base + 1_000_000_000 + (e as i64) * 1_000_000_000;
             records.push(record(
                 at,
                 "claude_code.api_request",
                 &prompt,
-                ",{\"key\":\"model\",\"value\":{\"stringValue\":\"claude-sonnet-4-5\"}},{\"key\":\"input_tokens\",\"value\":{\"intValue\":\"1000\"}},{\"key\":\"output_tokens\",\"value\":{\"intValue\":\"100\"}},{\"key\":\"cost_usd\",\"value\":{\"doubleValue\":0.01}},{\"key\":\"duration_ms\",\"value\":{\"intValue\":\"900\"}}",
+                &[
+                    ("model", json!({"stringValue": "claude-sonnet-4-5"})),
+                    ("input_tokens", json!({"intValue": "1000"})),
+                    ("output_tokens", json!({"intValue": "100"})),
+                    ("cost_usd", json!({"doubleValue": 0.01})),
+                    ("duration_ms", json!({"intValue": "900"})),
+                ],
             ));
         }
         records.push(record(
             base + 4_000_000_000,
             "claude_code.tool_decision",
             &prompt,
-            "",
+            &[],
         ));
         records.push(record(
             base + 5_000_000_000,
             "claude_code.tool_result",
             &prompt,
-            "",
+            &[],
         ));
     }
     assert_eq!(records.len(), 10_000);
