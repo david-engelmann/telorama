@@ -302,7 +302,6 @@ fn genai_session_terminates_on_a_cyclic_span_tree() {
 }
 
 #[test]
-#[test]
 fn genai_session_maps_spans_to_a_run() {
     use telorama_scene::AgentStep;
     let spans = telorama_ingest::parse_otlp_traces(&fixture_text(
