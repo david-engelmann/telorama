@@ -456,3 +456,34 @@ later milestones are marked as validator-side.
   incident still from docs/media, and the README's first
   screen links it.
   Enforced by gallery_tests gallery_page_matches_the_current_renders.
+
+## Dialect currency (telorama-ingest span_dialects.rs, pricing.rs)
+
+- INV-65. GenAI cache creation reads
+  gen_ai.usage.cache_write.input_tokens first, then
+  gen_ai.usage.cache_creation.input_tokens, then the legacy
+  gen_ai.usage.cache_creation_tokens, so an emitter of any
+  generation lands its count. The count enters the run
+  totals and is never priced.
+  Enforced by ingest_tests
+  genai_session_reads_the_cache_write_attribute_name and
+  genai_session_reads_the_legacy_cache_attribute_names.
+- INV-66. In the GenAI dialect, invoke_workflow classifies
+  as agent structure and generate_content as a model call.
+  plan stays a transparent container whose children still
+  walk.
+  Enforced by ingest_tests genai_session_stages_a_workflow_root.
+- INV-67. In the OpenInference dialect, RERANKER classifies
+  as a tool step, named by tool.name or by the span name
+  like every OpenInference tool step. DECISION stays a
+  transparent container, so a decision model's tokens never
+  enter the run's model totals.
+  Enforced by ingest_tests
+  openinference_session_maps_a_reranker_step.
+- INV-68. The price table carries its compilation date as
+  PRICE_TABLE_AS_OF, and its arithmetic is pinned row by
+  row. A model with no row lands unpriced and the run names
+  it, under INV-38. Span-carried cost attributes are never
+  read, so the table stays the only pricing source.
+  Enforced by the pricing module's unit tests and
+  ingest_tests codex_session_names_unpriced_models.
