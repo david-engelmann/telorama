@@ -545,9 +545,10 @@ fn openinference_decision_spans_stay_out_of_the_totals() {
     decision.start_unix_nano = 1_794_852_311_200_000_000;
     decision.end_unix_nano = 1_794_852_311_600_000_000;
     decision.attributes.clear();
-    decision
-        .attributes
-        .insert("openinference.span.kind".to_string(), "DECISION".to_string());
+    decision.attributes.insert(
+        "openinference.span.kind".to_string(),
+        "DECISION".to_string(),
+    );
     decision
         .attributes
         .insert("decision.token_count.input".to_string(), "777".to_string());

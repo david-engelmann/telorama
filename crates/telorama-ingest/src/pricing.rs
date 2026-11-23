@@ -128,9 +128,11 @@ mod tests {
             (call(model, 0, 0, 1_000_000), output),
         ];
         for (c, expected) in cases {
-            let cost =
-                price_call(&c).unwrap_or_else(|| panic!("{model} must have a price row"));
-            assert!((cost - expected).abs() < 1e-9, "{model}: {cost} != {expected}");
+            let cost = price_call(&c).unwrap_or_else(|| panic!("{model} must have a price row"));
+            assert!(
+                (cost - expected).abs() < 1e-9,
+                "{model}: {cost} != {expected}"
+            );
         }
     }
 
