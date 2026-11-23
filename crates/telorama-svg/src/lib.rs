@@ -1178,7 +1178,7 @@ fn render_service_map(
     // sankey applies past seven stages, so a deep or cyclic
     // graph narrows its boxes instead of driving the width and
     // the label budget negative.
-    let box_w = (step - 10.0).min(160.0).max(8.0);
+    let box_w = (step - 10.0).clamp(8.0, 160.0);
     let box_h = 32.0;
     let row_step = 46.0;
     let map_top = *y;
