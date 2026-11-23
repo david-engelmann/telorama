@@ -1730,7 +1730,8 @@ fn render_flame(
     }
     let depth = flame_depth(&tree);
     if depth > 48 {
-        let message = format!("flame tree is {depth} levels deep, beyond the 48-level render limit");
+        let message =
+            format!("flame tree is {depth} levels deep, beyond the 48-level render limit");
         dismantle_flame_tree(&mut tree);
         return Err(fail(message));
     }
