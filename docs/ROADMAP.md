@@ -116,6 +116,18 @@ telorama-scene, an iterative folded-stack
 builder, and the INV-86 exception clause
 retires. Design record docs/DEPTH-DESIGN.md.
 
+## Round 12: the agent tree
+
+Round 12 takes the two agent-tree paths Round
+11's sweep named: the dialect session
+builder's emit recurses over an acyclic span
+tree, and the agent-run layout walk recurses
+over a run's nesting, with the run trees' own
+drops on the same paths. Both walks iterate,
+and one nesting budget of 512, enforced where
+nesting is built, bounds every run tree.
+Design record docs/AGENT-TREE-DESIGN.md.
+
 ## Standing lanes between rounds
 
 - The A2UI watch in docs/A2UI-SPIKE.md stays a watch item,
