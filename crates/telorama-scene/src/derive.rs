@@ -532,7 +532,9 @@ pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
         children: &BTreeMap<String, Vec<&'a Span>>,
         seen: &mut std::collections::BTreeSet<String>,
     ) -> FlameNode {
-        let frame_for = |span: &'a Span, seen: &mut std::collections::BTreeSet<String>| Frame<'a> {
+        let frame_for = |span: &'a Span,
+                         seen: &mut std::collections::BTreeSet<String>|
+         -> Frame<'a> {
             let kids: Vec<&Span> = children
                 .get(&span.span_id)
                 .cloned()
