@@ -530,7 +530,11 @@ fn incident_composes_over_the_session_spans() {
     // is agent-app, which the checkout traces never name.
     let traces = workspace_file("tests/fixtures/otel-demo-checkout.json");
     let session = workspace_file("tests/fixtures/agents/genai-session-error-spans.json");
-    let only = telorama(&["incident", "--traces", traces.to_str().expect("path is utf8")]);
+    let only = telorama(&[
+        "incident",
+        "--traces",
+        traces.to_str().expect("path is utf8"),
+    ]);
     assert!(
         only.status.success(),
         "stderr: {}",
