@@ -668,9 +668,6 @@ fn scale_trace_renders_pin_by_hash() {
         "{\"data\":\"trace\",\"type\":\"waterfall\"}".to_string(),
         "{\"data\":\"trace\",\"type\":\"service_map\"}".to_string(),
         "{\"data\":\"trace\",\"residual\":\"other\",\"type\":\"sankey\"}".to_string(),
-        format!(
-            "{{\"data\":\"trace\",\"min_samples\":1,\"sample_count\":{flame_total},\"sample_type\":\"cpu\",\"type\":\"flame\"}}"
-        ),
     ];
     for panel in &panels {
         let scene = scale_scene(panel);
@@ -684,10 +681,24 @@ fn scale_trace_renders_pin_by_hash() {
         vec![
             "74414c45532594f0".to_string(),
             "ed46032a8015bee4".to_string(),
-            "92b9037620a3a948".to_string(),
-            "PIN_FLAME".to_string()
+            "92b9037620a3a948".to_string()
         ]
     );
+    // The flame over this trace refuses by name. The chain
+    // makes the span tree a thousand levels deep, beyond
+    // the renderer's 48-level flame limit, a standing bound
+    // recorded in docs/SCALE-DESIGN.md. The wide fixture
+    // below proves the flame render itself at this count.
+    let deep_flame = scale_scene(&format!(
+        "{{\"data\":\"trace\",\"min_samples\":1,\"sample_count\":{flame_total},\"sample_type\":\"cpu\",\"type\":\"flame\"}}"
+    ));
+    match telorama_svg::render_scene(&deep_flame, &spans) {
+        Ok(_) => panic!("the deep flame must refuse"),
+        Err(e) => assert!(
+            e.to_string().contains("beyond the 48-level render limit"),
+            "{e}"
+        ),
+    }
     // Measured at 306 milliseconds on the first hosted run
     // of the final code. The ceiling is ten times that,
     // rounded up to the nearest hundred milliseconds.
@@ -697,6 +708,45 @@ fn scale_trace_renders_pin_by_hash() {
         started.elapsed()
     );
     eprintln!("scale trace renders {:?}", started.elapsed());
+}
+
+#[test]
+fn wide_trace_flame_renders_pin_by_hash() {
+    // Ten thousand spans at depth two, one hundred roots
+    // with ninety-nine children each, so the span-derived
+    // flame renders at the same count the deep fixture
+    // refuses. The recipe mirrors the scale family's
+    // arithmetic, fixed so the shape is the same every run.
+    const SERVICES: [&str; 8] = [
+        "web", "api", "db", "cache", "queue", "worker", "auth", "search",
+    ];
+    let mut spans = Vec::with_capacity(10_000);
+    for r in 0..100 {
+        let root = format!("r{r:03}");
+        spans.push(scale_span(&root, None, SERVICES[r % 8], 0, 500));
+        for j in 0..99 {
+            spans.push(scale_span(
+                &format!("w{r:03}-{j:02}"),
+                Some(&root),
+                SERVICES[(r + j) % 8],
+                j as i64,
+                j as i64 + 3,
+            ));
+        }
+    }
+    assert_eq!(spans.len(), 10_000);
+    let flame_total = telorama_scene::flame_from_spans(&spans, "t1").value;
+    let scene = scale_scene(&format!(
+        "{{\"data\":\"trace\",\"min_samples\":1,\"sample_count\":{flame_total},\"sample_type\":\"cpu\",\"type\":\"flame\"}}"
+    ));
+    let started = std::time::Instant::now();
+    let svg = telorama_svg::render_scene(&scene, &spans).expect("the wide flame must render");
+    eprintln!("scale wide flame render {:?}", started.elapsed());
+    assert!(svg.len() > 1_000, "the render is {} bytes", svg.len());
+    assert_eq!(
+        telorama_scene::content_hash(svg.as_bytes()),
+        "PIN_WIDE_FLAME"
+    );
 }
 
 #[test]
@@ -876,7 +926,7 @@ fn many_trace_sankey_renders_pin_by_hash() {
         }
     }
     assert_eq!(spans.len(), 10_000);
-    let text = "{\"context\":{\"filter\":{},\"provenance\":{\"generated_by\":\"test\",\"question\":\"Does it hold at scale?\"},\"range\":{\"from_unix_ms\":0,\"to_unix_ms\":20000}},\"data\":[{\"id\":\"all\",\"sampled\":\"unknown\",\"source\":{\"kind\":\"otlp_file\"}}],\"headline\":\"Scale proof\",\"narrative\":[{\"panel\":0,\"text\":\"Scale proof.\"}],\"panels\":[{\"data\":\"all\",\"residual\":\"other\",\"type\":\"sankey\"}],\"scene\":\"0.1\",\"title\":\"Scale traces\"}";
+    let text = "{\"context\":{\"filter\":{},\"provenance\":{\"generated_by\":\"test\",\"question\":\"Does it hold at scale?\"},\"range\":{\"from_unix_ms\":0,\"to_unix_ms\":20000}},\"data\":[{\"id\":\"all\",\"sampled\":\"unknown\",\"source\":{\"kind\":\"otlp_file\",\"query\":\"all traces\"}}],\"headline\":\"Scale proof\",\"narrative\":[{\"panel\":0,\"text\":\"Scale proof.\"}],\"panels\":[{\"data\":\"all\",\"residual\":\"other\",\"type\":\"sankey\"}],\"scene\":\"0.1\",\"title\":\"Scale traces\"}";
     let scene = telorama_scene::parse_scene(text).expect("scale scene must validate");
     let started = std::time::Instant::now();
     let svg = telorama_svg::render_scene(&scene, &spans).expect("the sankey must render at scale");

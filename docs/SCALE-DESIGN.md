@@ -160,11 +160,17 @@ makes.
 
 The checkpoint reviews found the paper trail weaker
 than the code, and the build was completed to match
-this record. The trace fixtures now render through
-the flame as well, the single trace through a flame
-panel over its spans and the thousand-trace fixture
+this record. The thousand-trace fixture now renders
 through a sankey over the whole set, so INV-69's
-hash claim covers every fixture. The per-node form
+hash claim covers every fixture. The flame render
+is proven on a wide trace of the same span count,
+and the deep trace's flame refusal is pinned as a
+named error. The renderer holds a standing bound
+of 48 levels on flame trees, and the deep fixture's
+span tree stands a thousand levels past it. The
+bound is the product's own, set before this round,
+and this round records it rather than relitigating
+it. The per-node form
 of the INV-59 identity is now checked at scale, not
 only its aggregate consequences. The many-trace
 ceiling was re-based on the fixed code's measured

@@ -495,7 +495,8 @@ later milestones are marked as validator-side.
 ## Scale bounds (telorama-scene derive and frames, telorama-svg)
 
 - INV-69. The scale fixtures stand at ten thousand spans
-  in one trace, ten thousand spans across one thousand
+  in one trace, a wide trace of ten thousand spans at
+  depth two, ten thousand spans across one thousand
   traces, five hundred session turns, and one hundred
   thousand stack samples, each generated in its test from
   a fixed recipe. Every fixture pins its renders by
