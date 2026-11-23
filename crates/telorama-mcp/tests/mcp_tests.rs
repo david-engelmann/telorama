@@ -330,15 +330,25 @@ fn incident_scene_tool_counts_a_duplicated_span_once() {
     // the clean export, the counts the CLI reports.
     let clean = workspace_file("tests/fixtures/otel-demo-checkout.json");
     let mut doc: Value = serde_json::from_str(&clean).expect("the fixture must parse");
-    let spans = doc["resourceSpans"][0]["scopeSpans"][0]["spans"]
+    let mut duplicated_error = false;
+    for resource in doc["resourceSpans"]
         .as_array_mut()
-        .expect("the fixture carries a spans array");
-    let error_span = spans
-        .iter()
-        .find(|s| s["status"]["code"] == 2)
-        .expect("the fixture carries an error span")
-        .clone();
-    spans.push(error_span);
+        .expect("the fixture carries resource spans")
+    {
+        for scope in resource["scopeSpans"]
+            .as_array_mut()
+            .expect("the fixture carries scope spans")
+        {
+            let spans = scope["spans"]
+                .as_array_mut()
+                .expect("the fixture carries a spans array");
+            if let Some(error_span) = spans.iter().find(|s| s["status"]["code"] == 2).cloned() {
+                spans.push(error_span);
+                duplicated_error = true;
+            }
+        }
+    }
+    assert!(duplicated_error, "the fixture carries an error span");
     let duplicated = serde_json::to_string(&doc).expect("the export must serialize");
     let plain = call_tool(13, "incident_scene", json!({"traces": clean}));
     let doubled = call_tool(14, "incident_scene", json!({"traces": duplicated}));
