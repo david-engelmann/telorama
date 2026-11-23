@@ -51,6 +51,8 @@ pub use state::parse_agent_state;
 /// An ingest failure with a message specific enough to act on.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IngestError {
+    /// The failure description, printed verbatim by Display and
+    /// worded to name the input problem that caused it.
     pub message: String,
 }
 
@@ -301,18 +303,28 @@ pub fn parse_otlp_traces(text: &str) -> Result<Vec<Span>, IngestError> {
 /// agent reads this to learn what data exists before writing a spec.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Summary {
+    /// How many spans the set holds in total.
     pub span_count: usize,
+    /// How many distinct trace ids the spans belong to.
     pub trace_count: usize,
+    /// The earliest span start in nanoseconds since the Unix epoch,
+    /// or zero when the set is empty.
     pub from_unix_nano: i64,
+    /// The latest span end in nanoseconds since the Unix epoch,
+    /// or zero when the set is empty.
     pub to_unix_nano: i64,
+    /// One entry per service in the set, sorted by service name.
     pub services: Vec<ServiceSummary>,
 }
 
 /// Per-service counts in a summary.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ServiceSummary {
+    /// The service name the counted spans carry.
     pub service: String,
+    /// How many spans in the set came from this service.
     pub spans: usize,
+    /// How many of this service's spans are marked as errors.
     pub errors: usize,
 }
 
