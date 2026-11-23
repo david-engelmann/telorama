@@ -25,7 +25,7 @@ use crate::derive::red_by_service;
 use crate::field::Thresholds;
 use crate::spec::{
     Context, DataRef, NarrativeItem, Panel, Provenance, SCENE_VERSION, Sampling, Scene, Source,
-    TimeRange, Unit,
+    Theme, TimeRange, Unit,
 };
 use crate::trace::Span;
 
@@ -38,6 +38,18 @@ pub fn incident_scene(
     spans: &[Span],
     run: Option<&AgentRun>,
     generated_by: &str,
+) -> Result<Scene, String> {
+    incident_scene_with_theme(spans, run, generated_by, Theme::Light)
+}
+
+/// Compose the incident scene with the given theme. The light
+/// composition is byte-identical to the one incident_scene has
+/// always produced.
+pub fn incident_scene_with_theme(
+    spans: &[Span],
+    run: Option<&AgentRun>,
+    generated_by: &str,
+    theme: Theme,
 ) -> Result<Scene, String> {
     if spans.is_empty() {
         return Err("no spans: nothing to compose an incident from".to_string());
@@ -195,6 +207,7 @@ pub fn incident_scene(
         data,
         panels,
         narrative,
+        theme,
     })
 }
 

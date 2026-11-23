@@ -20,7 +20,7 @@ use crate::agent::{AgentRun, AgentStep, Coverage, Pricing};
 use crate::investigate::{Finding, investigate};
 use crate::spec::{
     Context, DataRef, NarrativeItem, Panel, Provenance, SCENE_VERSION, Sampling, Scene, Source,
-    TimeRange,
+    Theme, TimeRange,
 };
 
 /// One frame of a live session: a complete scene over the session
@@ -40,6 +40,13 @@ pub struct Frame {
 /// Build the frame stream for a parsed session run. An empty run
 /// yields an empty stream.
 pub fn session_frames(run: &AgentRun, generated_by: &str) -> Vec<Frame> {
+    session_frames_with_theme(run, generated_by, Theme::Light)
+}
+
+/// Build the frame stream with every frame's scene carrying the
+/// given theme. The light stream is byte-identical to the one
+/// session_frames has always produced.
+pub fn session_frames_with_theme(run: &AgentRun, generated_by: &str, theme: Theme) -> Vec<Frame> {
     let total = run.turns.len();
     let mut frames = Vec::with_capacity(total);
     for k in 1..=total {
@@ -90,6 +97,7 @@ pub fn session_frames(run: &AgentRun, generated_by: &str) -> Vec<Frame> {
                 text: format!("Frame {k} covers the session prefix through turn {k}."),
                 panel: 0,
             }],
+            theme,
         };
         let findings = investigate(&[], Some(&prefix), range.seconds());
         frames.push(Frame {

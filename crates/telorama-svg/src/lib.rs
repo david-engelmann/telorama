@@ -123,6 +123,7 @@ pub struct DisplayList {
     pub height: f64,
     pub title: String,
     pub description: String,
+    pub background: String,
     pub prims: Vec<Prim>,
 }
 
@@ -144,7 +145,7 @@ impl DisplayList {
         out.push_str(&fmt_num(self.width));
         out.push_str("\" height=\"");
         out.push_str(&fmt_num(self.height));
-        out.push_str("\" fill=\"#FFFFFF\"/>\n");
+        out.push_str(&format!("\" fill=\"{}\"/>\n", self.background));
         for prim in &self.prims {
             match prim {
                 Prim::Rect {
@@ -288,7 +289,92 @@ const MUTED: &str = "#5A5A5A";
 const WIDTH: f64 = 960.0;
 const MARGIN: f64 = 24.0;
 
+/// The renderer's own colors under one theme. Every color the
+/// renderer chooses resolves through this record, so a theme is
+/// a complete, auditable list rather than a scatter of literals.
+/// Colors a scene declares for itself are data, not chrome, and
+/// never pass through here (INV-74).
+#[derive(Debug, Clone, Copy)]
+pub struct Palette {
+    pub background: &'static str,
+    pub surface: &'static str,
+    pub empty_cell: &'static str,
+    pub ink: &'static str,
+    pub muted: &'static str,
+    pub grid: &'static str,
+    pub error: &'static str,
+    pub service: [&'static str; 8],
+    pub fallback: &'static str,
+    pub residual: &'static str,
+    pub waiting: &'static str,
+    pub outline: &'static str,
+    pub flame_stroke: &'static str,
+    pub heatmap_base: &'static str,
+    pub dark: bool,
+}
+
+/// The light palette. These are the colors the renderer has
+/// always emitted, gathered in one place. The light theme's
+/// bytes do not change (INV-74).
+pub const LIGHT_PALETTE: Palette = Palette {
+    background: "#FFFFFF",
+    surface: "#E8E8E8",
+    empty_cell: "#F2F2F2",
+    ink: INK,
+    muted: MUTED,
+    grid: "#CCCCCC",
+    error: ERROR_COLOR,
+    service: SERVICE_PALETTE,
+    fallback: "#888888",
+    residual: "#999999",
+    waiting: "#BBBBBB",
+    outline: "#111111",
+    flame_stroke: "#FFFFFF",
+    heatmap_base: "#56B4E9",
+    dark: false,
+};
+
+/// The dark palette, derived from Okabe-Ito by lightening each
+/// entry only as far as its contrast floor on the dark ground
+/// requires (INV-75). The yellow and the sky blue already clear
+/// their floors and carry over unchanged. The black entry
+/// cannot appear on a dark ground and becomes a pale gray.
+pub const DARK_PALETTE: Palette = Palette {
+    background: "#121212",
+    surface: "#1E1E1E",
+    empty_cell: "#1E1E1E",
+    ink: "#EDEDED",
+    muted: "#A3A3A3",
+    grid: "#3A3A3A",
+    error: "#EE8434",
+    service: [
+        "#4DA3D8", "#E69F00", "#2FBF8F", "#EE8434", "#56B4E9", "#CC79A7", "#F0E442", "#BDBDBD",
+    ],
+    fallback: "#9A9A9A",
+    residual: "#8A8A8A",
+    waiting: "#767676",
+    outline: "#EDEDED",
+    flame_stroke: "#121212",
+    heatmap_base: "#56B4E9",
+    dark: true,
+};
+
+/// The palette a scene's declared theme renders with.
+pub fn palette_for(theme: telorama_scene::Theme) -> Palette {
+    match theme {
+        telorama_scene::Theme::Light => LIGHT_PALETTE,
+        telorama_scene::Theme::Dark => DARK_PALETTE,
+    }
+}
+
 pub fn service_colors(spans: &[Span]) -> BTreeMap<String, String> {
+    service_colors_for(spans, &LIGHT_PALETTE)
+}
+
+/// Service colors under a palette. Assignment is by sorted
+/// service name under both themes, so a service keeps its
+/// palette slot across themes as well as across panels.
+pub fn service_colors_for(spans: &[Span], palette: &Palette) -> BTreeMap<String, String> {
     let mut services: Vec<&str> = spans.iter().map(|s| s.service.as_str()).collect();
     services.sort_unstable();
     services.dedup();
@@ -298,7 +384,7 @@ pub fn service_colors(spans: &[Span]) -> BTreeMap<String, String> {
         .map(|(i, name)| {
             (
                 name.to_string(),
-                SERVICE_PALETTE[i % SERVICE_PALETTE.len()].to_string(),
+                palette.service[i % palette.service.len()].to_string(),
             )
         })
         .collect()
@@ -363,6 +449,7 @@ fn render_waterfall(
     highlight_errors: bool,
     colors: &BTreeMap<String, String>,
     prims: &mut Vec<Prim>,
+    palette: &Palette,
     y: &mut f64,
 ) -> Result<(), RenderError> {
     let entry = scene
@@ -401,7 +488,7 @@ fn render_waterfall(
         y1: axis_y,
         x2: plot_x1,
         y2: axis_y,
-        stroke: "#CCCCCC".to_string(),
+        stroke: palette.grid.to_string(),
         width: 1.0,
     });
     for step in 0..=4 {
@@ -412,14 +499,14 @@ fn render_waterfall(
             y1: axis_y,
             x2: tx,
             y2: axis_y + 4.0,
-            stroke: "#CCCCCC".to_string(),
+            stroke: palette.grid.to_string(),
             width: 1.0,
         });
         prims.push(Prim::Text {
             x: tx,
             y: axis_y - 4.0,
             size: 10.0,
-            fill: MUTED.to_string(),
+            fill: palette.muted.to_string(),
             bold: false,
             mono: false,
             anchor: "middle",
@@ -438,7 +525,7 @@ fn render_waterfall(
             MARGIN + row.depth as f64 * 14.0,
             *y + 12.0,
             11.0,
-            INK,
+            palette.ink,
             false,
             false,
             label,
@@ -446,12 +533,12 @@ fn render_waterfall(
         let bar_x = plot_x0 + (span.start_unix_nano - t0) as f64 / total * plot_w;
         let bar_w = ((span.duration_nanos() as f64) / total * plot_w).max(1.5);
         let fill = if highlight_errors && span.is_error {
-            ERROR_COLOR.to_string()
+            palette.error.to_string()
         } else {
             colors
                 .get(&span.service)
                 .cloned()
-                .unwrap_or_else(|| "#888888".to_string())
+                .unwrap_or_else(|| palette.fallback.to_string())
         };
         let on_path = highlight_path && critical.contains(&span.span_id);
         prims.push(Prim::Rect {
@@ -462,7 +549,7 @@ fn render_waterfall(
             fill,
             opacity: None,
             stroke: if on_path {
-                Some(("#111111".to_string(), 1.5))
+                Some((palette.outline.to_string(), 1.5))
             } else {
                 None
             },
@@ -473,7 +560,7 @@ fn render_waterfall(
                 y: *y + 2.0 + bar_h - 3.0,
                 w: bar_w,
                 h: 3.0,
-                fill: "#111111".to_string(),
+                fill: palette.outline.to_string(),
                 opacity: Some(0.45),
                 stroke: None,
             });
@@ -487,7 +574,7 @@ fn render_waterfall(
             bar_x + bar_w + 6.0,
             *y + 12.0,
             11.0,
-            MUTED,
+            palette.muted,
             false,
             false,
             note,
@@ -499,7 +586,7 @@ fn render_waterfall(
         MARGIN,
         *y + 14.0,
         11.0,
-        MUTED,
+        palette.muted,
         false,
         false,
         format!(
@@ -528,6 +615,7 @@ fn fmt_cost(value: f64) -> String {
 #[allow(clippy::too_many_arguments)]
 fn layout_agent_step(
     prims: &mut Vec<Prim>,
+    palette: &Palette,
     step: &AgentStep,
     depth: usize,
     from_nano: i64,
@@ -544,16 +632,16 @@ fn layout_agent_step(
     let x2 = x_of(end).max(x1 + 1.5);
     let label_x = MARGIN + depth as f64 * 14.0;
     let (label, fill) = match step {
-        AgentStep::ModelCall(call) => (format!("model {}", call.model), "#0072B2"),
-        AgentStep::ToolCall(tool) => (format!("tool {}", tool.name), "#009E73"),
-        AgentStep::Subagent(sub) => (format!("subagent {}", sub.agent_id), "#E69F00"),
+        AgentStep::ModelCall(call) => (format!("model {}", call.model), palette.service[0]),
+        AgentStep::ToolCall(tool) => (format!("tool {}", tool.name), palette.service[2]),
+        AgentStep::Subagent(sub) => (format!("subagent {}", sub.agent_id), palette.service[1]),
     };
     text(
         prims,
         label_x,
         *y + 11.0,
         11.0,
-        INK,
+        palette.ink,
         false,
         false,
         truncate_label(&label, ((plot_x0 - label_x - 8.0) / 6.0) as usize),
@@ -569,7 +657,7 @@ fn layout_agent_step(
             y: *y,
             w: (wait_end - x1).max(0.0),
             h: 12.0,
-            fill: "#BBBBBB".to_string(),
+            fill: palette.waiting.to_string(),
             opacity: None,
             stroke: None,
         });
@@ -624,7 +712,7 @@ fn layout_agent_step(
         x2 + 6.0,
         *y + 11.0,
         11.0,
-        MUTED,
+        palette.muted,
         false,
         false,
         detail.clone(),
@@ -635,7 +723,7 @@ fn layout_agent_step(
             x2 + 12.0 + detail.chars().count() as f64 * 6.05,
             *y + 11.0,
             11.0,
-            ERROR_COLOR,
+            palette.error,
             true,
             false,
             "· error".to_string(),
@@ -644,7 +732,7 @@ fn layout_agent_step(
     *y += 18.0;
     if let AgentStep::Subagent(sub) = step {
         for child in &sub.steps {
-            layout_agent_step(prims, child, depth + 1, from_nano, window_nano, y);
+            layout_agent_step(prims, palette, child, depth + 1, from_nano, window_nano, y);
         }
     }
 }
@@ -654,6 +742,7 @@ fn render_agent_state(
     data: &SceneData,
     panel: &Panel,
     prims: &mut Vec<Prim>,
+    palette: &Palette,
     y: &mut f64,
 ) -> Result<(), RenderError> {
     let Panel::AgentState { data: data_id } = panel else {
@@ -683,7 +772,7 @@ fn render_agent_state(
             MARGIN,
             *y + 12.0,
             12.0,
-            INK,
+            palette.ink,
             true,
             false,
             format!("{} · {}", entry.agent, entry.doing),
@@ -694,7 +783,7 @@ fn render_agent_state(
             MARGIN,
             *y + 12.0,
             12.0,
-            INK,
+            palette.ink,
             false,
             false,
             format!("Why · {}", entry.why),
@@ -706,7 +795,7 @@ fn render_agent_state(
                 MARGIN,
                 *y + 12.0,
                 12.0,
-                ERROR_COLOR,
+                palette.error,
                 false,
                 false,
                 format!("Waiting on · {waiting}"),
@@ -719,7 +808,7 @@ fn render_agent_state(
                 MARGIN,
                 *y + 12.0,
                 12.0,
-                MUTED,
+                palette.muted,
                 false,
                 false,
                 format!("Next · {next}"),
@@ -737,6 +826,7 @@ fn render_agent_run(
     data: &SceneData,
     panel: &Panel,
     prims: &mut Vec<Prim>,
+    palette: &Palette,
     y: &mut f64,
 ) -> Result<(), RenderError> {
     let Panel::AgentRun { data: data_id } = panel else {
@@ -766,7 +856,7 @@ fn render_agent_run(
         y1: axis_y,
         x2: plot_x1,
         y2: axis_y,
-        stroke: "#CCCCCC".to_string(),
+        stroke: palette.grid.to_string(),
         width: 1.0,
     });
     for step_i in 0..=4 {
@@ -777,14 +867,14 @@ fn render_agent_run(
             y1: axis_y,
             x2: tx,
             y2: axis_y + 4.0,
-            stroke: "#CCCCCC".to_string(),
+            stroke: palette.grid.to_string(),
             width: 1.0,
         });
         prims.push(Prim::Text {
             x: tx,
             y: axis_y - 4.0,
             size: 10.0,
-            fill: MUTED.to_string(),
+            fill: palette.muted.to_string(),
             bold: false,
             mono: false,
             anchor: "middle",
@@ -808,7 +898,7 @@ fn render_agent_run(
             MARGIN,
             *y + 12.0,
             12.0,
-            INK,
+            palette.ink,
             true,
             false,
             format!(
@@ -822,7 +912,7 @@ fn render_agent_run(
         );
         *y += 20.0;
         for step in &turn.steps {
-            layout_agent_step(prims, step, 0, from_nano, window_nano, y);
+            layout_agent_step(prims, palette, step, 0, from_nano, window_nano, y);
         }
         *y += 6.0;
     }
@@ -831,7 +921,7 @@ fn render_agent_run(
         MARGIN,
         *y + 12.0,
         11.0,
-        MUTED,
+        palette.muted,
         false,
         false,
         format!(
@@ -857,7 +947,7 @@ fn render_agent_run(
         MARGIN,
         *y + 12.0,
         11.0,
-        MUTED,
+        palette.muted,
         false,
         false,
         format!(
@@ -879,7 +969,16 @@ fn render_agent_run(
                 pricing.unpriced_models.join(", ")
             ));
         }
-        text(prims, MARGIN, *y + 12.0, 11.0, MUTED, false, false, line);
+        text(
+            prims,
+            MARGIN,
+            *y + 12.0,
+            11.0,
+            palette.muted,
+            false,
+            false,
+            line,
+        );
         *y += 15.0;
     }
     *y += 7.0;
@@ -979,6 +1078,7 @@ fn render_sankey(
     panel: &Panel,
     colors: &BTreeMap<String, String>,
     prims: &mut Vec<Prim>,
+    palette: &Palette,
     y: &mut f64,
 ) -> Result<(), RenderError> {
     let Panel::Sankey { data, residual } = panel else {
@@ -1073,12 +1173,12 @@ fn render_sankey(
         let t1 = *in_at;
         *in_at += h;
         let fill = if link.from_residual {
-            "#999999".to_string()
+            palette.residual.to_string()
         } else {
             colors
                 .get(&link.from_service)
                 .cloned()
-                .unwrap_or_else(|| "#999999".to_string())
+                .unwrap_or_else(|| palette.residual.to_string())
         };
         prims.push(Prim::Polygon {
             points: vec![
@@ -1097,19 +1197,19 @@ fn render_sankey(
     for node in &flow.nodes {
         let (x, ntop, h) = positions[&(node.stage, node.service.clone(), node.residual)];
         let fill = if node.residual {
-            "#999999".to_string()
+            palette.residual.to_string()
         } else {
             colors
                 .get(&node.service)
                 .cloned()
-                .unwrap_or_else(|| "#999999".to_string())
+                .unwrap_or_else(|| palette.residual.to_string())
         };
         text(
             prims,
             x,
             ntop - 5.0,
             11.0,
-            INK,
+            palette.ink,
             false,
             false,
             format!(
@@ -1136,7 +1236,7 @@ fn render_sankey(
             MARGIN,
             *y + 12.0,
             11.0,
-            MUTED,
+            palette.muted,
             false,
             false,
             format!(
@@ -1157,6 +1257,7 @@ fn render_service_map(
     panel: &Panel,
     colors: &BTreeMap<String, String>,
     prims: &mut Vec<Prim>,
+    palette: &Palette,
     y: &mut f64,
 ) -> Result<(), RenderError> {
     let Panel::ServiceMap { data } = panel else {
@@ -1204,14 +1305,14 @@ fn render_service_map(
             y1: fy + box_h / 2.0,
             x2: tx,
             y2: ty + box_h / 2.0,
-            stroke: thresholds.color_for(ratio, "#888888"),
+            stroke: thresholds.color_for(ratio, palette.fallback),
             width: 1.0 + 3.0 * (edge.calls as f64 / max_calls as f64),
         });
         prims.push(Prim::Text {
             x: (fx + box_w + tx) / 2.0,
             y: (fy + ty) / 2.0 + box_h / 2.0 - 4.0,
             size: 10.0,
-            fill: MUTED.to_string(),
+            fill: palette.muted.to_string(),
             bold: false,
             mono: false,
             anchor: "middle",
@@ -1228,7 +1329,7 @@ fn render_service_map(
         let fill = colors
             .get(&node.service)
             .cloned()
-            .unwrap_or_else(|| "#999999".to_string());
+            .unwrap_or_else(|| palette.residual.to_string());
         prims.push(Prim::Rect {
             x: bx,
             y: by,
@@ -1238,7 +1339,7 @@ fn render_service_map(
             opacity: None,
             stroke: None,
         });
-        let text_fill = bar_text_fill(&fill).to_string();
+        let text_fill = bar_text_fill(&fill, palette).to_string();
         prims.push(Prim::Text {
             x: bx + 8.0,
             y: by + 14.0,
@@ -1279,7 +1380,7 @@ fn render_service_map(
             MARGIN,
             *y + 12.0,
             11.0,
-            MUTED,
+            palette.muted,
             false,
             false,
             format!(
@@ -1300,33 +1401,81 @@ fn render_service_map(
 
 /// FNV-1a over a frame name, for palette assignment: the same frame
 /// keeps its color wherever it appears in the tree.
-fn name_hash(name: &str) -> usize {
+fn name_hash(name: &str, palette_len: usize) -> usize {
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
     for b in name.as_bytes() {
         h ^= u64::from(*b);
         h = h.wrapping_mul(0x0000_0100_0000_01b3);
     }
-    (h % SERVICE_PALETTE.len() as u64) as usize
+    (h % palette_len as u64) as usize
 }
 
 fn flame_depth(node: &FlameNode) -> usize {
     1 + node.children.iter().map(flame_depth).max().unwrap_or(0)
 }
 
-/// Text color for a bar of the given fill: white on dark fills, ink on
-/// light ones, by perceived luminance.
-fn bar_text_fill(fill: &str) -> &'static str {
+/// WCAG relative luminance of a hex color, or None when the
+/// value is not a six-digit hex color.
+fn relative_luminance(hex: &str) -> Option<f64> {
+    let hex = hex.trim_start_matches('#');
+    if hex.len() != 6 {
+        return None;
+    }
+    let channel = |i: usize| {
+        let c = u32::from_str_radix(&hex[i..i + 2], 16).ok()? as f64 / 255.0;
+        Some(if c <= 0.04045 {
+            c / 12.92
+        } else {
+            ((c + 0.055) / 1.055).powf(2.4)
+        })
+    };
+    Some(0.2126 * channel(0)? + 0.7152 * channel(2)? + 0.0722 * channel(4)?)
+}
+
+/// The WCAG contrast ratio between two hex colors. An
+/// unparseable color ratios at one to one, so a caller
+/// comparing candidates falls back to its second choice.
+fn contrast_ratio(a: &str, b: &str) -> f64 {
+    let (Some(la), Some(lb)) = (relative_luminance(a), relative_luminance(b)) else {
+        return 1.0;
+    };
+    let (hi, lo) = if la >= lb { (la, lb) } else { (lb, la) };
+    (hi + 0.05) / (lo + 0.05)
+}
+
+/// Text color for a label drawn on a fill. Under the light
+/// theme, white on dark fills and ink on light ones, by
+/// perceived luminance. Under the dark theme, whichever of
+/// the ground and the ink contrasts more with the fill, so
+/// a label on the dark surface root of a flame graph takes
+/// the ink while a label on a light service fill takes the
+/// ground.
+fn bar_text_fill(fill: &str, palette: &Palette) -> &'static str {
+    if palette.dark {
+        if contrast_ratio(fill, palette.background) >= contrast_ratio(fill, palette.ink) {
+            return palette.background;
+        }
+        return palette.ink;
+    }
     let hex = fill.trim_start_matches('#');
     if hex.len() != 6 {
-        return INK;
+        return palette.ink;
     }
     let channel = |i: usize| u32::from_str_radix(&hex[i..i + 2], 16).unwrap_or(0) as f64;
     let luminance = 0.299 * channel(0) + 0.587 * channel(2) + 0.114 * channel(4);
-    if luminance < 140.0 { "#FFFFFF" } else { INK }
+    if luminance < 140.0 {
+        "#FFFFFF"
+    } else {
+        palette.ink
+    }
 }
 
+// A flame layout call is position, size, palette, and tree state: the
+// argument list is the interface, so the count lint is allowed here.
+#[allow(clippy::too_many_arguments)]
 fn layout_flame(
     prims: &mut Vec<Prim>,
+    palette: &Palette,
     node: &FlameNode,
     x: f64,
     w: f64,
@@ -1335,9 +1484,9 @@ fn layout_flame(
     depth: usize,
 ) {
     let fill = if depth == 0 {
-        "#E8E8E8".to_string()
+        palette.surface.to_string()
     } else {
-        SERVICE_PALETTE[name_hash(&node.name)].to_string()
+        palette.service[name_hash(&node.name, palette.service.len())].to_string()
     };
     prims.push(Prim::Rect {
         x,
@@ -1346,7 +1495,7 @@ fn layout_flame(
         h: 14.0,
         fill: fill.clone(),
         opacity: None,
-        stroke: Some(("#FFFFFF".to_string(), 0.5)),
+        stroke: Some((palette.flame_stroke.to_string(), 0.5)),
     });
     if w >= 26.0 && total > 0 {
         let frac = node.value as f64 / total as f64;
@@ -1358,7 +1507,7 @@ fn layout_flame(
             x: x + 4.0,
             y: y + 11.0,
             size: 10.0,
-            fill: bar_text_fill(&fill).to_string(),
+            fill: bar_text_fill(&fill, palette).to_string(),
             bold: false,
             mono: false,
             anchor: "start",
@@ -1369,7 +1518,16 @@ fn layout_flame(
         let mut child_x = x;
         for child in &node.children {
             let child_w = w * (child.value as f64 / node.value as f64);
-            layout_flame(prims, child, child_x, child_w, y + 16.0, total, depth + 1);
+            layout_flame(
+                prims,
+                palette,
+                child,
+                child_x,
+                child_w,
+                y + 16.0,
+                total,
+                depth + 1,
+            );
             child_x += child_w;
         }
     }
@@ -1380,6 +1538,7 @@ fn render_flame(
     data: &SceneData,
     panel: &Panel,
     prims: &mut Vec<Prim>,
+    palette: &Palette,
     y: &mut f64,
 ) -> Result<(), RenderError> {
     let Panel::Flame {
@@ -1440,9 +1599,18 @@ fn render_flame(
         )));
     }
     let plot_w = WIDTH - 2.0 * MARGIN;
-    layout_flame(prims, &tree, MARGIN, plot_w, *y, tree.value, 0);
+    layout_flame(prims, palette, &tree, MARGIN, plot_w, *y, tree.value, 0);
     *y += depth as f64 * 16.0 + 6.0;
-    text(prims, MARGIN, *y + 12.0, 11.0, MUTED, false, false, note);
+    text(
+        prims,
+        MARGIN,
+        *y + 12.0,
+        11.0,
+        palette.muted,
+        false,
+        false,
+        note,
+    );
     *y += 22.0;
     Ok(())
 }
@@ -1482,6 +1650,7 @@ fn render_heatmap(
     spans: &[Span],
     panel: &Panel,
     prims: &mut Vec<Prim>,
+    palette: &Palette,
     y: &mut f64,
 ) -> Result<(), RenderError> {
     let Panel::Heatmap { data, unit } = panel else {
@@ -1521,7 +1690,7 @@ fn render_heatmap(
         y1: axis_y,
         x2: plot_x1,
         y2: axis_y,
-        stroke: "#CCCCCC".to_string(),
+        stroke: palette.grid.to_string(),
         width: 1.0,
     });
     for step in 0..=4 {
@@ -1532,14 +1701,14 @@ fn render_heatmap(
             y1: axis_y,
             x2: tx,
             y2: axis_y + 4.0,
-            stroke: "#CCCCCC".to_string(),
+            stroke: palette.grid.to_string(),
             width: 1.0,
         });
         prims.push(Prim::Text {
             x: tx,
             y: axis_y - 4.0,
             size: 10.0,
-            fill: MUTED.to_string(),
+            fill: palette.muted.to_string(),
             bold: false,
             mono: false,
             anchor: "middle",
@@ -1562,7 +1731,7 @@ fn render_heatmap(
             x: plot_x0 - 8.0,
             y: *y + 11.0,
             size: 11.0,
-            fill: MUTED.to_string(),
+            fill: palette.muted.to_string(),
             bold: false,
             mono: false,
             anchor: "end",
@@ -1574,9 +1743,12 @@ fn render_heatmap(
                 .as_ref()
                 .is_some_and(|e| e.row == r && e.col == c);
             let (fill, opacity) = if *count == 0 {
-                ("#F2F2F2".to_string(), None)
+                (palette.empty_cell.to_string(), None)
             } else {
-                ("#56B4E9".to_string(), cell_shade(*count, grid.max_count))
+                (
+                    palette.heatmap_base.to_string(),
+                    cell_shade(*count, grid.max_count),
+                )
             };
             prims.push(Prim::Rect {
                 x: plot_x0 + c as f64 * col_w + 0.5,
@@ -1586,7 +1758,7 @@ fn render_heatmap(
                 fill,
                 opacity,
                 stroke: if is_exemplar {
-                    Some((ERROR_COLOR.to_string(), 1.5))
+                    Some((palette.error.to_string(), 1.5))
                 } else {
                     None
                 },
@@ -1606,7 +1778,7 @@ fn render_heatmap(
             MARGIN,
             *y + 12.0,
             11.0,
-            MUTED,
+            palette.muted,
             false,
             false,
             format!("{} · {} {}", band_label(&edges, r), row.total, noun),
@@ -1619,7 +1791,7 @@ fn render_heatmap(
             MARGIN,
             *y + 12.0,
             11.0,
-            MUTED,
+            palette.muted,
             false,
             false,
             "No spans fell in the window.".to_string(),
@@ -1631,7 +1803,7 @@ fn render_heatmap(
             MARGIN,
             *y + 12.0,
             11.0,
-            MUTED,
+            palette.muted,
             false,
             false,
             format!(
@@ -1647,7 +1819,7 @@ fn render_heatmap(
             MARGIN,
             *y + 12.0,
             11.0,
-            MUTED,
+            palette.muted,
             false,
             false,
             format!(
@@ -1671,7 +1843,7 @@ fn render_heatmap(
             MARGIN,
             *y + 12.0,
             11.0,
-            MUTED,
+            palette.muted,
             false,
             false,
             format!(
@@ -1690,6 +1862,7 @@ fn render_stat(
     spans: &[Span],
     panel: &Panel,
     prims: &mut Vec<Prim>,
+    palette: &Palette,
     y: &mut f64,
 ) -> Result<(), RenderError> {
     let Panel::Stat {
@@ -1769,10 +1942,19 @@ fn render_stat(
     if let Some(s) = service {
         label.push_str(&format!(" · {s}"));
     }
-    text(prims, MARGIN, *y + 12.0, 12.0, MUTED, false, false, label);
+    text(
+        prims,
+        MARGIN,
+        *y + 12.0,
+        12.0,
+        palette.muted,
+        false,
+        false,
+        label,
+    );
     let value_fill = match raw {
-        Some(v) if !thresholds.is_empty() => thresholds.color_for(v, INK),
-        _ => INK.to_string(),
+        Some(v) if !thresholds.is_empty() => thresholds.color_for(v, palette.ink),
+        _ => palette.ink.to_string(),
     };
     text(
         prims,
@@ -1789,7 +1971,7 @@ fn render_stat(
         MARGIN,
         *y + 62.0,
         11.0,
-        MUTED,
+        palette.muted,
         false,
         false,
         derivation,
@@ -1813,6 +1995,7 @@ fn render_red_row(
     spans: &[Span],
     panel: &Panel,
     prims: &mut Vec<Prim>,
+    palette: &Palette,
     y: &mut f64,
 ) -> Result<(), RenderError> {
     let Panel::RedRow {
@@ -1846,7 +2029,7 @@ fn render_red_row(
         ("p99", 790.0),
     ];
     for (name, x) in columns {
-        text(prims, x, *y + 12.0, 11.0, MUTED, true, false, name);
+        text(prims, x, *y + 12.0, 11.0, palette.muted, true, false, name);
     }
     *y += 18.0;
     for row in &stats {
@@ -1855,7 +2038,7 @@ fn render_red_row(
             MARGIN,
             *y + 12.0,
             12.0,
-            INK,
+            palette.ink,
             false,
             false,
             row.service.clone(),
@@ -1865,7 +2048,7 @@ fn render_red_row(
             300.0,
             *y + 12.0,
             12.0,
-            INK,
+            palette.ink,
             false,
             true,
             row.calls.to_string(),
@@ -1875,12 +2058,12 @@ fn render_red_row(
             380.0,
             *y + 12.0,
             12.0,
-            INK,
+            palette.ink,
             false,
             true,
             fmt_num(row.rate_per_sec),
         );
-        let err_fill = verdicts.color_for(row.error_ratio, INK);
+        let err_fill = verdicts.color_for(row.error_ratio, palette.ink);
         text(
             prims,
             470.0,
@@ -1896,7 +2079,7 @@ fn render_red_row(
             570.0,
             *y + 12.0,
             12.0,
-            INK,
+            palette.ink,
             false,
             true,
             fmt_duration(row.p50_nanos),
@@ -1906,7 +2089,7 @@ fn render_red_row(
             680.0,
             *y + 12.0,
             12.0,
-            INK,
+            palette.ink,
             false,
             true,
             fmt_duration(row.p95_nanos),
@@ -1916,7 +2099,7 @@ fn render_red_row(
             790.0,
             *y + 12.0,
             12.0,
-            INK,
+            palette.ink,
             false,
             true,
             fmt_duration(row.p99_nanos),
@@ -1938,7 +2121,7 @@ fn render_red_row(
         MARGIN,
         *y + 14.0,
         11.0,
-        MUTED,
+        palette.muted,
         false,
         false,
         basis_note,
@@ -1981,9 +2164,17 @@ pub fn render_scene(scene: &Scene, spans: &[Span]) -> Result<String, RenderError
 /// hosts that show HTML but do not render MCP Apps, and for saving a
 /// scene as a file a person can open anywhere.
 pub fn standalone_html(title: &str, svg: &str) -> String {
+    standalone_html_themed(title, svg, &LIGHT_PALETTE)
+}
+
+/// Wrap a rendered SVG in a standalone HTML document painted with
+/// the given palette, so a dark scene exports as a dark page.
+pub fn standalone_html_themed(title: &str, svg: &str, palette: &Palette) -> String {
     format!(
-        "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>{}</title>\n<style>body{{margin:0;background:#FFFFFF;color:#1A1A1A;font-family:system-ui,sans-serif}}main{{max-width:1000px;margin:0 auto;padding:24px}}svg{{width:100%;height:auto}}</style>\n</head>\n<body>\n<main>\n{}</main>\n</body>\n</html>\n",
+        "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>{}</title>\n<style>body{{margin:0;background:{};color:{};font-family:system-ui,sans-serif}}main{{max-width:1000px;margin:0 auto;padding:24px}}svg{{width:100%;height:auto}}</style>\n</head>\n<body>\n<main>\n{}</main>\n</body>\n</html>\n",
         escape_xml(title),
+        palette.background,
+        palette.ink,
         svg
     )
 }
@@ -1991,7 +2182,11 @@ pub fn standalone_html(title: &str, svg: &str) -> String {
 /// Render a scene to a standalone HTML document carrying the SVG.
 pub fn render_scene_html(scene: &Scene, data: &SceneData) -> Result<String, RenderError> {
     let svg = render_scene_with_data(scene, data)?;
-    Ok(standalone_html(&scene.title, &svg))
+    Ok(standalone_html_themed(
+        &scene.title,
+        &svg,
+        &palette_for(scene.theme),
+    ))
 }
 
 /// Render a scene over a full data set to a deterministic SVG document.
@@ -2002,7 +2197,8 @@ pub fn render_scene_html(scene: &Scene, data: &SceneData) -> Result<String, Rend
 /// generating question, so the picture carries its own evidence.
 pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String, RenderError> {
     let spans = data.spans;
-    let colors = service_colors(spans);
+    let palette = palette_for(scene.theme);
+    let colors = service_colors_for(spans, &palette);
     let mut prims: Vec<Prim> = Vec::new();
     let mut y: f64 = 30.0;
 
@@ -2011,7 +2207,7 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
         MARGIN,
         y,
         20.0,
-        INK,
+        palette.ink,
         true,
         false,
         scene.headline.clone(),
@@ -2022,7 +2218,7 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
         MARGIN,
         y,
         12.0,
-        MUTED,
+        palette.muted,
         false,
         false,
         scene.title.clone(),
@@ -2039,7 +2235,7 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
             MARGIN,
             y,
             12.0,
-            INK,
+            palette.ink,
             true,
             false,
             "Look here first".to_string(),
@@ -2051,7 +2247,7 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
                 MARGIN,
                 y,
                 12.0,
-                INK,
+                palette.ink,
                 false,
                 false,
                 format!("{} · {}", finding.rank, finding.statement),
@@ -2074,7 +2270,16 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
             Panel::AgentRun { .. } => "Agent run",
             Panel::AgentState { .. } => "Agent state",
         };
-        text(&mut prims, MARGIN, y, 14.0, INK, true, false, heading);
+        text(
+            &mut prims,
+            MARGIN,
+            y,
+            14.0,
+            palette.ink,
+            true,
+            false,
+            heading,
+        );
         y += 8.0;
         match panel {
             Panel::Waterfall {
@@ -2089,20 +2294,29 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
                 *highlight_errors,
                 &colors,
                 &mut prims,
+                &palette,
                 &mut y,
             )?,
-            Panel::Stat { .. } => render_stat(scene, spans, panel, &mut prims, &mut y)?,
-            Panel::RedRow { .. } => render_red_row(scene, spans, panel, &mut prims, &mut y)?,
-            Panel::Heatmap { .. } => render_heatmap(scene, spans, panel, &mut prims, &mut y)?,
-            Panel::Flame { .. } => render_flame(scene, data, panel, &mut prims, &mut y)?,
+            Panel::Stat { .. } => render_stat(scene, spans, panel, &mut prims, &palette, &mut y)?,
+            Panel::RedRow { .. } => {
+                render_red_row(scene, spans, panel, &mut prims, &palette, &mut y)?
+            }
+            Panel::Heatmap { .. } => {
+                render_heatmap(scene, spans, panel, &mut prims, &palette, &mut y)?
+            }
+            Panel::Flame { .. } => render_flame(scene, data, panel, &mut prims, &palette, &mut y)?,
             Panel::ServiceMap { .. } => {
-                render_service_map(scene, spans, panel, &colors, &mut prims, &mut y)?
+                render_service_map(scene, spans, panel, &colors, &mut prims, &palette, &mut y)?
             }
             Panel::Sankey { .. } => {
-                render_sankey(scene, spans, panel, &colors, &mut prims, &mut y)?
+                render_sankey(scene, spans, panel, &colors, &mut prims, &palette, &mut y)?
             }
-            Panel::AgentRun { .. } => render_agent_run(scene, data, panel, &mut prims, &mut y)?,
-            Panel::AgentState { .. } => render_agent_state(scene, data, panel, &mut prims, &mut y)?,
+            Panel::AgentRun { .. } => {
+                render_agent_run(scene, data, panel, &mut prims, &palette, &mut y)?
+            }
+            Panel::AgentState { .. } => {
+                render_agent_state(scene, data, panel, &mut prims, &palette, &mut y)?
+            }
         }
     }
 
@@ -2113,7 +2327,7 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
         y1: y,
         x2: WIDTH - MARGIN,
         y2: y,
-        stroke: "#CCCCCC".to_string(),
+        stroke: palette.grid.to_string(),
         width: 1.0,
     });
     y += 16.0;
@@ -2122,7 +2336,7 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
         MARGIN,
         y,
         11.0,
-        MUTED,
+        palette.muted,
         false,
         false,
         format!(
@@ -2148,7 +2362,7 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
             MARGIN,
             y,
             11.0,
-            MUTED,
+            palette.muted,
             false,
             false,
             format!(
@@ -2163,7 +2377,7 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
         MARGIN,
         y,
         11.0,
-        MUTED,
+        palette.muted,
         false,
         false,
         format!(
@@ -2178,6 +2392,7 @@ pub fn render_scene_with_data(scene: &Scene, data: &SceneData) -> Result<String,
         height: y,
         title: scene.title.clone(),
         description: scene.headline.clone(),
+        background: palette.background.to_string(),
         prims,
     };
     Ok(list.to_svg())

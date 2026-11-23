@@ -12,6 +12,24 @@ use std::collections::BTreeMap;
 /// The only scene version this build reads and writes.
 pub const SCENE_VERSION: &str = "0.1";
 
+/// The render theme a scene declares. Light is the default and
+/// the historical rendering. Dark carries the same layout and
+/// figures with a palette derived for dark grounds, per
+/// INV-74 to INV-77.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Theme {
+    #[default]
+    Light,
+    Dark,
+}
+
+impl Theme {
+    fn is_light(&self) -> bool {
+        matches!(self, Theme::Light)
+    }
+}
+
 /// A complete scene: one question, one headline, a small set of panels.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Scene {
@@ -26,6 +44,11 @@ pub struct Scene {
     pub panels: Vec<Panel>,
     #[serde(default)]
     pub narrative: Vec<NarrativeItem>,
+    /// The render theme. Absent means light, and light scenes
+    /// serialize without the field, so existing payloads keep
+    /// their exact shape.
+    #[serde(default, skip_serializing_if = "Theme::is_light")]
+    pub theme: Theme,
 }
 
 /// Shared scene context: the window every panel reads, plus provenance.

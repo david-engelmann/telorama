@@ -562,7 +562,10 @@ later milestones are marked as validator-side.
   renderer can emit under the dark theme clears its
   contrast floor, four and a half to one for text and
   three to one for data marks, computed from the
-  palette constants themselves.
+  palette constants themselves. Grid strokes are
+  chrome rather than text or marks and hold a quiet
+  floor of their own, one point four to one, the same
+  subtlety the light grid has always had.
   Enforced by golden_tests dark_palette_pairs_clear_
   their_contrast_floors.
 - INV-76. The same scene rendered in both themes
@@ -572,7 +575,8 @@ later milestones are marked as validator-side.
   Enforced by golden_tests themes_differ_only_in_color.
 - INV-77. The flagship scenes stand as goldens in both
   themes, and the HTML export paints its page
-  background to match the scene's theme. A bare SVG
-  carries no background rectangle in either theme.
+  background to match the scene's theme. The SVG's own
+  ground rectangle takes the palette's background in
+  both themes.
   Enforced by the dark goldens in golden_tests and the
   HTML export tests in cli_tests.

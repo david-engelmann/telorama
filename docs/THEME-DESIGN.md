@@ -103,3 +103,21 @@ toggle in the MCP view or the gallery in this round.
 The spec field and the renderer support are the
 deliverable, with the generated-scene plumbing at its
 light default.
+
+## Amendments, 2026-11-23
+
+One sentence in this record was wrong and is corrected
+here. A bare SVG does paint a background rectangle. The
+display list has always emitted a full-canvas ground
+rect, filled white, as the first element of every
+render. The theme therefore governs that rectangle
+too. It takes the palette's background, white under
+light and the dark ground under dark, and INV-77 is
+worded accordingly in the same landing. Nothing else
+in the record changes.
+
+One phrase is clarified in the same pass. Where the
+record says the HTML export paints the dark surface,
+read the palette's background in both themes. The
+export paints the same ground the drawing itself
+carries, so the page and the picture never disagree.

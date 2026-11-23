@@ -696,3 +696,72 @@ bytes mid-round, against the house rule that edits go
 through the file tools. The file was restored byte-exact
 from the pushed branch blob and verified by hash before
 work continued. No content was lost.
+## Round 5, the dark theme (2026-11-23)
+
+Design record docs/THEME-DESIGN.md with INV-74 to
+INV-77. The scene spec gains an optional theme field,
+light by default, and the renderer resolves every
+color it chooses through one palette record per
+theme. Colors a scene declares for itself are data
+and pass through unchanged in both themes.
+
+One sentence in the design record was wrong and the
+record now carries a dated amendment. A bare SVG
+does paint a background rectangle, a full-canvas
+ground the display list has emitted since the first
+renderer. The theme governs that rectangle too, and
+INV-77 is worded to match. The amendment also
+clarifies that the HTML export paints the palette
+background in both themes, the same ground the
+drawing carries.
+
+The contrast floors of INV-75 are asserted for the
+dark palette only, by the invariant's own wording.
+The light theme's bytes cannot change under INV-74,
+and the light palette carries one pre-existing pair
+under the text floor, the tool-step green on white at
+about 3.4 to 1, which no change this round may touch
+without breaking the light regression pin. INV-75
+also names the grid strokes as chrome with a quiet
+floor of their own, reconciling the invariant with
+the test at the checkpoint reviews' direction. The
+light grid has always sat at the same subtlety.
+
+The checkpoint reviews caught three defects, all
+repaired in this landing. The dark label rule for
+text drawn on a fill first read as the ground color
+for every fill, which left the flame graph's root
+label, drawn on the surface fill, at 1.12 to 1
+contrast. The rule now picks whichever of the ground
+and the ink contrasts more with the fill, the
+contrast test asserts that best pair for every fill
+a label can land on, and a dark flame golden pins
+the bytes. The service map's missing-service node
+fallback had been mapped to the palette fallback
+field, whose light value differs from the literal
+it replaced. It now maps to the residual field,
+whose light value is the original literal, and the
+path stays unreachable on current call paths either
+way. The normalization test now covers the agent
+run, the incident composition, and the agent state
+scenes alongside the span scenes, so every panel
+renderer stands under a dark proof, a normalization
+proof, or a dark golden.
+
+Two review judgements were considered and kept as
+built, with reasons. The palette record carries a
+dark flag so the label rule can branch. A single
+contrast rule for both themes was rejected because
+it changes a light byte, the tool-step green label,
+whose light choice the luminance rule makes and the
+contrast rule would reverse. The unthemed
+standalone_html stays as published API, mirroring
+the delegate pattern the frame and incident builders
+use. The name_hash helper now takes the palette
+length rather than the record, and the frame
+builder's dark path has its own test.
+
+The CLI session-findings divergence recorded in the
+Round 2 entry stands open after this round. It is
+not a theme concern and this round does not touch
+the findings wiring.

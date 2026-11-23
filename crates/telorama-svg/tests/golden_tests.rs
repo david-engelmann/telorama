@@ -1011,3 +1011,359 @@ fn deep_subagent_nesting_renders_with_an_empty_label_budget() {
     .expect("deep nesting must render");
     assert!(svg.contains("<svg"));
 }
+
+// ----------------------------------------------------------------
+// Round 5, the dark theme. The light goldens above are the
+// regression pin for the whole round. They must not move.
+
+fn darkened(scene: &str, traces: &str) -> (telorama_scene::Scene, Vec<Span>) {
+    let (mut scene_obj, spans) = load(scene, traces);
+    scene_obj.theme = telorama_scene::Theme::Dark;
+    (scene_obj, spans)
+}
+
+#[test]
+fn golden_checkout_scene_dark() {
+    let (scene_obj, spans) = darkened("checkout_scene.json", "otel-demo-checkout.json");
+    let svg = telorama_svg::render_scene(&scene_obj, &spans).expect("dark scene must render");
+    assert_golden("checkout_scene_dark.svg", &svg);
+}
+
+#[test]
+fn golden_sankey_scene_dark() {
+    let (scene_obj, spans) = darkened("sankey_scene.json", "otel-demo-checkout.json");
+    let svg = telorama_svg::render_scene(&scene_obj, &spans).expect("dark scene must render");
+    assert_golden("sankey_scene_dark.svg", &svg);
+}
+
+#[test]
+fn golden_agent_run_scene_dark() {
+    let mut scene = telorama_scene::parse_scene(&workspace_file(
+        "tests/fixtures/scenes/agent_run_scene.json",
+    ))
+    .expect("agent run scene must validate");
+    scene.theme = telorama_scene::Theme::Dark;
+    let logs = workspace_file("tests/fixtures/agents/claude-code-session-logs.json");
+    let spans = telorama_ingest::parse_otlp_traces(&workspace_file(
+        "tests/fixtures/agents/claude-code-session-spans.json",
+    ))
+    .expect("session spans must parse");
+    let run = telorama_ingest::parse_claude_code_session(&logs, &spans)
+        .expect("session fixture must adapt");
+    let svg = telorama_svg::render_scene_with_data(
+        &scene,
+        &telorama_svg::SceneData {
+            spans: &[],
+            stacks: &[],
+            agent_run: Some(&run),
+            agent_state: &[],
+            findings: &[],
+        },
+    )
+    .expect("dark agent run scene must render");
+    assert_golden("agent_run_scene_dark.svg", &svg);
+}
+
+#[test]
+fn golden_flame_scene_dark() {
+    // The flame root box is the one dark fill a label lands
+    // on, so this golden pins the dark label rule as well
+    // as the scene.
+    let mut scene =
+        telorama_scene::parse_scene(&workspace_file("tests/fixtures/scenes/flame_scene.json"))
+            .expect("flame scene must validate");
+    scene.theme = telorama_scene::Theme::Dark;
+    let stacks = telorama_ingest::parse_folded_stacks(&workspace_file(
+        "tests/fixtures/profiles/checkout-cpu.txt",
+    ))
+    .expect("profile fixture must parse");
+    let svg = telorama_svg::render_scene_with_data(
+        &scene,
+        &telorama_svg::SceneData {
+            spans: &[],
+            stacks: &stacks,
+            agent_run: None,
+            agent_state: &[],
+            findings: &[],
+        },
+    )
+    .expect("dark flame scene must render");
+    assert_golden("flame_scene_dark.svg", &svg);
+}
+
+#[test]
+fn golden_incident_findings_scene_dark() {
+    let spans = telorama_ingest::parse_otlp_traces(&workspace_file(
+        "tests/fixtures/otel-demo-checkout.json",
+    ))
+    .expect("checkout fixture must parse");
+    let scene = telorama_scene::incident_scene_with_theme(
+        &spans,
+        None,
+        "agent",
+        telorama_scene::Theme::Dark,
+    )
+    .expect("composition must succeed");
+    let window_seconds =
+        (scene.context.range.to_unix_ms - scene.context.range.from_unix_ms) as f64 / 1000.0;
+    let findings = telorama_scene::investigate(&spans, None, window_seconds);
+    let svg = telorama_svg::render_scene_with_data(
+        &scene,
+        &telorama_svg::SceneData {
+            spans: &spans,
+            stacks: &[],
+            agent_run: None,
+            agent_state: &[],
+            findings: &findings,
+        },
+    )
+    .expect("dark incident scene must render");
+    assert_golden("incident_findings_scene_dark.svg", &svg);
+}
+
+fn rel_luminance(hex: &str) -> f64 {
+    let hex = hex.trim_start_matches('#');
+    let channel = |i: usize| {
+        let c = u32::from_str_radix(&hex[i..i + 2], 16).unwrap_or(0) as f64 / 255.0;
+        if c <= 0.04045 {
+            c / 12.92
+        } else {
+            ((c + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4)
+}
+
+fn contrast(a: &str, b: &str) -> f64 {
+    let (la, lb) = (rel_luminance(a), rel_luminance(b));
+    let (hi, lo) = if la >= lb { (la, lb) } else { (lb, la) };
+    (hi + 0.05) / (lo + 0.05)
+}
+
+#[test]
+fn dark_palette_pairs_clear_their_contrast_floors() {
+    // INV-75. Every pair the dark renderer can emit, computed
+    // from the palette constants themselves. Text clears four
+    // and a half to one on both grounds, data marks clear
+    // three to one, bar labels (the ground color on a palette
+    // fill, the dark bar_text_fill rule) clear the text floor,
+    // and the grid chrome clears its own quiet floor.
+    let p = telorama_svg::DARK_PALETTE;
+    let mut text_colors: Vec<&str> = vec![p.ink, p.muted, p.error, p.fallback, p.residual];
+    text_colors.extend(p.service.iter());
+    for color in &text_colors {
+        for ground in [p.background, p.surface] {
+            assert!(
+                contrast(color, ground) >= 4.5,
+                "text {color} on {ground} is {:.2}",
+                contrast(color, ground)
+            );
+        }
+    }
+    let mut marks: Vec<&str> = vec![p.error, p.waiting, p.residual, p.fallback, p.heatmap_base];
+    marks.extend(p.service.iter());
+    for color in &marks {
+        assert!(
+            contrast(color, p.background) >= 3.0,
+            "mark {color} on {} is {:.2}",
+            p.background,
+            contrast(color, p.background)
+        );
+    }
+    for fill in p.service {
+        assert!(
+            contrast(p.background, fill) >= 4.5,
+            "bar label on {fill} is {:.2}",
+            contrast(p.background, fill)
+        );
+    }
+    // The dark label rule picks the better of the ground and
+    // the ink for the fill it lands on. Every fill the
+    // renderer labels, the service fills and the flame
+    // root's surface, must clear the text floor under the
+    // better of the two.
+    let mut labelled: Vec<&str> = vec![p.surface];
+    labelled.extend(p.service.iter());
+    for fill in labelled {
+        let best = contrast(p.background, fill).max(contrast(p.ink, fill));
+        assert!(best >= 4.5, "best label on {fill} is {best:.2}",);
+    }
+    assert!(
+        contrast(p.grid, p.background) >= 1.4,
+        "grid on {} is {:.2}",
+        p.background,
+        contrast(p.grid, p.background)
+    );
+}
+
+fn strip_colors(svg: &str) -> String {
+    let mut out = String::with_capacity(svg.len());
+    let mut chars = svg.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '#' {
+            let mut hex = String::new();
+            while hex.len() < 6 {
+                match chars.peek() {
+                    Some(n) if n.is_ascii_hexdigit() => hex.push(chars.next().unwrap()),
+                    _ => break,
+                }
+            }
+            if hex.len() == 6 {
+                out.push_str("#XXXXXX");
+            } else {
+                out.push('#');
+                out.push_str(&hex);
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+#[test]
+fn themes_differ_only_in_color() {
+    // INV-76. Geometry, text, and ordering are the same bytes
+    // in both themes once color attributes are normalized out.
+    for (scene, traces) in [
+        ("checkout_scene.json", "otel-demo-checkout.json"),
+        ("sankey_scene.json", "otel-demo-checkout.json"),
+        ("heatmap_scene.json", "otel-demo-checkout.json"),
+        ("service_map_scene.json", "otel-demo-checkout.json"),
+    ] {
+        let (light_scene, spans) = load(scene, traces);
+        let mut dark_scene = light_scene.clone();
+        dark_scene.theme = telorama_scene::Theme::Dark;
+        let light = telorama_svg::render_scene(&light_scene, &spans).expect("light must render");
+        let dark = telorama_svg::render_scene(&dark_scene, &spans).expect("dark must render");
+        assert_ne!(light, dark, "{scene} must actually change under dark");
+        assert_eq!(
+            strip_colors(&light),
+            strip_colors(&dark),
+            "{scene} differs between themes by more than color"
+        );
+    }
+    // The flagship scenes that render from data rather than
+    // spans get the same proof through their own paths.
+    let logs = workspace_file("tests/fixtures/agents/claude-code-session-logs.json");
+    let session_spans = telorama_ingest::parse_otlp_traces(&workspace_file(
+        "tests/fixtures/agents/claude-code-session-spans.json",
+    ))
+    .expect("session spans must parse");
+    let run = telorama_ingest::parse_claude_code_session(&logs, &session_spans)
+        .expect("session fixture must adapt");
+    let mut agent_scene = telorama_scene::parse_scene(&workspace_file(
+        "tests/fixtures/scenes/agent_run_scene.json",
+    ))
+    .expect("agent run scene must validate");
+    let agent_data = telorama_svg::SceneData {
+        spans: &[],
+        stacks: &[],
+        agent_run: Some(&run),
+        agent_state: &[],
+        findings: &[],
+    };
+    let light = telorama_svg::render_scene_with_data(&agent_scene, &agent_data)
+        .expect("light agent run must render");
+    agent_scene.theme = telorama_scene::Theme::Dark;
+    let dark = telorama_svg::render_scene_with_data(&agent_scene, &agent_data)
+        .expect("dark agent run must render");
+    assert_ne!(light, dark);
+    assert_eq!(strip_colors(&light), strip_colors(&dark));
+
+    let spans = telorama_ingest::parse_otlp_traces(&workspace_file(
+        "tests/fixtures/otel-demo-checkout.json",
+    ))
+    .expect("checkout fixture must parse");
+    let light_scene =
+        telorama_scene::incident_scene(&spans, None, "agent").expect("composition must succeed");
+    let dark_scene = telorama_scene::incident_scene_with_theme(
+        &spans,
+        None,
+        "agent",
+        telorama_scene::Theme::Dark,
+    )
+    .expect("dark composition must succeed");
+    let window_seconds = (light_scene.context.range.to_unix_ms
+        - light_scene.context.range.from_unix_ms) as f64
+        / 1000.0;
+    let findings = telorama_scene::investigate(&spans, None, window_seconds);
+    let incident_data = telorama_svg::SceneData {
+        spans: &spans,
+        stacks: &[],
+        agent_run: None,
+        agent_state: &[],
+        findings: &findings,
+    };
+    let light = telorama_svg::render_scene_with_data(&light_scene, &incident_data)
+        .expect("light incident must render");
+    let dark = telorama_svg::render_scene_with_data(&dark_scene, &incident_data)
+        .expect("dark incident must render");
+    assert_ne!(light, dark);
+    assert_eq!(strip_colors(&light), strip_colors(&dark));
+
+    let mut state_scene = telorama_scene::parse_scene(&workspace_file(
+        "tests/fixtures/scenes/agent_state_scene.json",
+    ))
+    .expect("agent state scene must validate");
+    let state = telorama_ingest::parse_agent_state(&workspace_file(
+        "tests/fixtures/agents/agent-state.json",
+    ))
+    .expect("state fixture must parse");
+    let state_data = telorama_svg::SceneData {
+        spans: &[],
+        stacks: &[],
+        agent_run: None,
+        agent_state: &state,
+        findings: &[],
+    };
+    let light = telorama_svg::render_scene_with_data(&state_scene, &state_data)
+        .expect("light agent state must render");
+    state_scene.theme = telorama_scene::Theme::Dark;
+    let dark = telorama_svg::render_scene_with_data(&state_scene, &state_data)
+        .expect("dark agent state must render");
+    assert_ne!(light, dark);
+    assert_eq!(strip_colors(&light), strip_colors(&dark));
+}
+
+#[test]
+fn dark_frames_carry_the_theme() {
+    // The frame builder's theme argument reaches every
+    // frame's scene, and the light builder stays light.
+    let logs = workspace_file("tests/fixtures/agents/claude-code-session-logs.json");
+    let spans = telorama_ingest::parse_otlp_traces(&workspace_file(
+        "tests/fixtures/agents/claude-code-session-spans.json",
+    ))
+    .expect("session spans must parse");
+    let run = telorama_ingest::parse_claude_code_session(&logs, &spans)
+        .expect("session fixture must adapt");
+    let dark_frames =
+        telorama_scene::session_frames_with_theme(&run, "agent", telorama_scene::Theme::Dark);
+    assert!(!dark_frames.is_empty());
+    assert!(
+        dark_frames
+            .iter()
+            .all(|f| f.scene.theme == telorama_scene::Theme::Dark),
+        "every dark frame scene must carry the dark theme"
+    );
+    let last = dark_frames.last().unwrap();
+    let svg = telorama_svg::render_scene_with_data(
+        &last.scene,
+        &telorama_svg::SceneData {
+            spans: &[],
+            stacks: &[],
+            agent_run: Some(&last.run),
+            agent_state: &[],
+            findings: &last.findings,
+        },
+    )
+    .expect("dark frame must render");
+    assert!(svg.contains("fill=\"#121212\""), "dark frame ground");
+    let light_frames = telorama_scene::session_frames(&run, "agent");
+    assert!(
+        light_frames
+            .iter()
+            .all(|f| f.scene.theme == telorama_scene::Theme::Light),
+        "the plain builder must stay light"
+    );
+}

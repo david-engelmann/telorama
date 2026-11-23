@@ -16,6 +16,7 @@ pub fn scene_schema() -> Value {
         "required": ["scene", "title", "headline", "context", "data", "panels"],
         "properties": {
             "scene": { "const": "0.1" },
+            "theme": { "enum": ["light", "dark"], "default": "light" },
             "title": { "type": "string", "minLength": 1 },
             "headline": { "type": "string", "minLength": 1 },
             "context": {
