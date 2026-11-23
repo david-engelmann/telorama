@@ -626,7 +626,8 @@ later milestones are marked as validator-side.
 - INV-83. A claude_code.api_refusal event becomes
   a model call in its turn with the error flag
   set and zero tokens, so a refusal is visible in
-  the step list and the errors ranking.
+  the turn's step list and drawn as an error step,
+  the treatment an api_error call already gets.
   Enforced by the refusal fixture tests in the
   ingest and scene test suites.
 - INV-84. A dated or dash-form snapshot model id

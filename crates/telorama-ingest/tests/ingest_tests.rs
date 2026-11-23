@@ -638,6 +638,31 @@ fn turn_coverages_sum_to_the_run_coverage() {
 }
 
 #[test]
+fn claude_refusal_becomes_an_error_model_call() {
+    // INV-83: a claude_code.api_refusal event is a failed model
+    // call in its turn, with the error flag set and zero tokens,
+    // exactly the shape an api_error call gets.
+    let logs = include_str!("../../../tests/fixtures/agents/claude-code-refusal-logs.json");
+    let run = telorama_ingest::parse_claude_code_session(logs, &[]).expect("run must parse");
+    assert_eq!(run.session_id, "sess-2026-1116-refusal");
+    assert_eq!(run.turns.len(), 1);
+    let turn = &run.turns[0];
+    assert_eq!(turn.steps.len(), 2);
+    let refusal = match &turn.steps[1] {
+        telorama_scene::AgentStep::ModelCall(call) => call,
+        other => panic!("the second step must be the refusal model call, got {other:?}"),
+    };
+    assert!(refusal.is_error);
+    assert_eq!(refusal.model, "claude-sonnet-4-5");
+    assert_eq!(refusal.input_tokens, 0);
+    assert_eq!(refusal.output_tokens, 0);
+    assert_eq!(refusal.cost_usd, 0.0);
+    // The turn totals come from the successful call alone.
+    assert_eq!(turn.input_tokens, 1200);
+    assert_eq!(turn.output_tokens, 300);
+}
+
+#[test]
 fn claude_decision_only_prompt_carries_its_events_forward() {
     let logs = r#"{"resourceLogs":[{"scopeLogs":[{"logRecords":[
       {"attributes":[{"key":"event.name","value":{"stringValue":"claude_code.tool_decision"}},{"key":"session.id","value":{"stringValue":"s-carry"}},{"key":"prompt.id","value":{"stringValue":"p-0"}},{"key":"tool_name","value":{"stringValue":"Bash"}},{"key":"decision","value":{"stringValue":"accept"}}],"timeUnixNano":"1000000000"},

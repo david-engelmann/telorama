@@ -92,3 +92,25 @@ prefix pricing matches at any step. No new
 panel, dialect, or surface. The refusal work
 follows the standing fixtures-before-support
 discipline from Round 3.
+
+## Amendments, 2026-11-23
+
+The build found a fourth walk the recon missed:
+flame_from_spans built its tree by unbounded
+recursion, so a cyclic trace overflowed the
+stack instead of hanging. It now builds each
+span id once, under the same rule as the
+waterfall rows. The recon's two named sites and
+the layering are fixed as designed; the rows
+walk, named in INV-82's every-derivation
+letter, carries the same guard.
+
+The refusal paragraph above first said the
+investigation's errors ranking would see the
+refusal. That was wrong about the existing
+behavior: the errors ranking is span-based, and
+failed model calls, api_error calls included,
+surface in the turn's step list and the error
+drawing, not in the ranking. The build gives a
+refusal exactly the treatment an api_error call
+already gets, and INV-83 states that treatment.

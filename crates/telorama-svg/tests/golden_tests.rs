@@ -711,6 +711,50 @@ fn scale_trace_renders_pin_by_hash() {
 }
 
 #[test]
+fn cyclic_spans_at_scale_render_and_terminate() {
+    // INV-82 at the scale suite's width: 10,000 spans whose ids
+    // cycle through a three-id ring, over services cycling an
+    // eight-service ring, so the waterfall walk and the service
+    // layering both face a cycle at full width.
+    const SERVICES: [&str; 8] = [
+        "web", "api", "db", "cache", "queue", "worker", "auth", "search",
+    ];
+    let ring = ["a", "b", "c"];
+    let mut spans = Vec::with_capacity(10_000);
+    for i in 0..10_000usize {
+        let parent = (i > 0).then(|| ring[(i - 1) % 3]);
+        spans.push(scale_span(
+            ring[i % 3],
+            parent,
+            SERVICES[i % 8],
+            (i % 100) as i64,
+            (i % 100) as i64 + 5,
+        ));
+    }
+    let started = std::time::Instant::now();
+    for panel in ["waterfall", "service_map"] {
+        let scene = scale_scene(&format!("{{\"data\":\"trace\",\"type\":\"{panel}\"}}"));
+        let svg = telorama_svg::render_scene(&scene, &spans)
+            .unwrap_or_else(|e| panic!("the {panel} panel must render a cyclic trace: {e}"));
+        assert!(svg.len() > 1_000, "a render is {} bytes", svg.len());
+    }
+    // The whole service ring is one strongly connected
+    // component, so every service layers at zero.
+    let graph = telorama_scene::service_graph(&spans, 20.0);
+    let layers = telorama_scene::service_layers(&graph);
+    assert_eq!(layers.len(), 8);
+    assert!(layers.values().all(|layer| *layer == 0));
+    // The ceiling matches the acyclic trace renders' ten-times
+    // bound; a walk that loops would never reach the assert.
+    assert!(
+        started.elapsed() < std::time::Duration::from_millis(3100),
+        "cyclic renders at scale took {:?}",
+        started.elapsed()
+    );
+    eprintln!("scale cyclic renders {:?}", started.elapsed());
+}
+
+#[test]
 fn wide_trace_flame_renders_pin_by_hash() {
     // Ten thousand spans at depth two, one hundred roots
     // with ninety-nine children each, so the span-derived

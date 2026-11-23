@@ -15,7 +15,7 @@ struct ModelPrice {
     output: f64,
 }
 
-fn price_for(model: &str) -> Option<ModelPrice> {
+fn price_exact(model: &str) -> Option<ModelPrice> {
     match model {
         "gpt-5.1" | "gpt-5.1-codex" | "gpt-5.1-codex-max" | "gpt-5" | "gpt-5-codex" => {
             Some(ModelPrice {
@@ -82,6 +82,79 @@ fn price_for(model: &str) -> Option<ModelPrice> {
         }),
         _ => None,
     }
+}
+
+/// Strip one trailing date suffix from a model id, in either the
+/// YYYYMMDD shape or the YYYY-MM-DD shape, returning the base id.
+/// Anything else returns None, so only a real date suffix is ever
+/// stripped (INV-84).
+fn strip_date_suffix(model: &str) -> Option<&str> {
+    let bytes = model.as_bytes();
+    let digits = |b: &[u8]| b.iter().all(|c| c.is_ascii_digit());
+    if bytes.len() > 9 {
+        let (base, tail) = model.split_at(bytes.len() - 9);
+        if tail.starts_with('-') && digits(&bytes[bytes.len() - 8..]) {
+            return Some(base);
+        }
+    }
+    if bytes.len() > 11 {
+        let (base, tail) = model.split_at(bytes.len() - 11);
+        let t = tail.as_bytes();
+        if t[0] == b'-'
+            && digits(&t[1..5])
+            && t[5] == b'-'
+            && digits(&t[6..8])
+            && t[8] == b'-'
+            && digits(&t[9..11])
+        {
+            return Some(base);
+        }
+    }
+    None
+}
+
+/// Read the dash version form of a model id as the table's dot
+/// form, replacing a dash with a dot only where it sits between
+/// two digits (INV-84).
+fn dash_version_as_dots(model: &str) -> String {
+    let chars: Vec<char> = model.chars().collect();
+    let mut out = String::with_capacity(model.len());
+    for (i, c) in chars.iter().enumerate() {
+        if *c == '-'
+            && i > 0
+            && i + 1 < chars.len()
+            && chars[i - 1].is_ascii_digit()
+            && chars[i + 1].is_ascii_digit()
+        {
+            out.push('.');
+        } else {
+            out.push(*c);
+        }
+    }
+    out
+}
+
+/// The table row for a model id, tolerating the snapshot shapes
+/// real exports carry. The exact id is tried first, then the id
+/// with one trailing date suffix stripped, then the dash version
+/// form read as the dot form. Every candidate must match a row
+/// exactly, so a transform can only price a model the table
+/// carries under its canonical name (INV-84).
+fn price_for(model: &str) -> Option<ModelPrice> {
+    if let Some(price) = price_exact(model) {
+        return Some(price);
+    }
+    let base = strip_date_suffix(model).unwrap_or(model);
+    if base != model
+        && let Some(price) = price_exact(base)
+    {
+        return Some(price);
+    }
+    let dotted = dash_version_as_dots(base);
+    if dotted != base {
+        return price_exact(&dotted);
+    }
+    None
 }
 
 /// The priced cost of one call, or None when the table has no row for
@@ -178,5 +251,31 @@ mod tests {
         with_creation.cache_creation_tokens = 900;
         let plain = call("gpt-5.2", 2_000, 0, 500);
         assert_eq!(price_call(&with_creation), price_call(&plain));
+    }
+
+    #[test]
+    fn dated_snapshot_ids_price_by_their_base_model() {
+        // INV-84: the snapshot shapes real exports carry price at
+        // the base model's row, in both providers' shapes.
+        assert_eq!(
+            price_call(&call("claude-sonnet-4-5-20250929", 2_000, 1_000, 500)),
+            price_call(&call("claude-sonnet-4.5", 2_000, 1_000, 500))
+        );
+        assert_eq!(
+            price_call(&call("gpt-5.1-2025-11-13", 2_000, 1_000, 500)),
+            price_call(&call("gpt-5.1", 2_000, 1_000, 500))
+        );
+        assert_eq!(
+            price_call(&call("claude-sonnet-4-5", 2_000, 1_000, 500)),
+            price_call(&call("claude-sonnet-4.5", 2_000, 1_000, 500))
+        );
+    }
+
+    #[test]
+    fn an_unknown_base_model_stays_unpriced_after_every_transform() {
+        // INV-84: the transforms never invent a row.
+        assert!(price_call(&call("claude-sonnet-9-9-20250101", 1_000, 0, 1_000)).is_none());
+        assert!(price_call(&call("gpt-9.9-2025-01-01", 1_000, 0, 1_000)).is_none());
+        assert!(price_call(&call("claude-sonnet-4-5-2025", 1_000, 0, 1_000)).is_none());
     }
 }
