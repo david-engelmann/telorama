@@ -765,3 +765,54 @@ The CLI session-findings divergence recorded in the
 Round 2 entry stands open after this round. It is
 not a theme concern and this round does not touch
 the findings wiring.
+
+## Applicability charges from the standards audit (2026-11-23)
+
+Three charges from the ontology and standards audit
+landed as records, each audited firsthand against
+the code before any of them was written down.
+
+The GenAI dialect reference is re-pinned. The
+conventions now live in their own repository,
+open-telemetry/semantic-conventions-genai, which
+has cut no versioned conventions release, and every
+stability marker in it still reads Development. The
+adapter therefore pins to a named commit,
+ae8214a8f3a98786071736855093b74621174dc4 of
+2026-11-23, read against the released 1.41 text,
+and the dialect module's own doc carries the same
+pin. The repository does carry one tag, v0.1.0, and
+the record states plainly that the tag is a chore
+release of the repository itself and not a
+conventions release, which is why the commit and
+not the tag is the pin. That corrects the audit
+report's claim that the repository carries no tags.
+
+The provider attribute was audited and needs no
+code. Neither gen_ai.provider.name nor its
+predecessor gen_ai.system is read anywhere, because
+the canonical agent-run model carries no provider
+fact for a read to land in. Pricing and display key
+on the model alone, and both spellings already sit
+in the fixtures as inert attributes. The standing
+rule is recorded here for the day a provider fact
+is ever added to the model. It reads
+gen_ai.provider.name first with gen_ai.system as
+fallback, the cache-spelling union pattern the
+adapter already uses. The removed
+gen_ai.prompt.variable was audited in the same pass
+and has zero references anywhere in the repo.
+
+The MCP view was checked against the stable MCP
+Apps contract, SEP-1865 as of 2026-01-26, and
+conforms. The resource URI is ui://telorama/scene,
+the mime type is text/html;profile=mcp-app, the
+tools link the view through _meta.ui.resourceUri,
+one tool carries _meta.ui.visibility of app only,
+and the view runs the ui/initialize handshake and
+reads its results on ui/notifications/tool-result.
+No draft-only feature is relied on. The extra meta
+keys the server sets, telorama/svg and
+telorama/frames, are vendor-namespaced extensions
+the spec permits. MCP Events, SEP-3415, stays a
+watch item with no work taken.
