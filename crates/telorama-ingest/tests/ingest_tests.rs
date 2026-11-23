@@ -275,7 +275,6 @@ fn codex_session_needs_exactly_one_conversation() {
 }
 
 #[test]
-#[test]
 fn genai_session_terminates_on_a_cyclic_span_tree() {
     // INV-82 in the dialect builder: the fixture's fourth span
     // repeats the second span's id under the third, so the
@@ -302,6 +301,7 @@ fn genai_session_terminates_on_a_cyclic_span_tree() {
     assert!(step.steps.is_empty());
 }
 
+#[test]
 #[test]
 fn genai_session_maps_spans_to_a_run() {
     use telorama_scene::AgentStep;
