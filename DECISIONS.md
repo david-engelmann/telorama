@@ -481,3 +481,49 @@ summary keeps reporting counts, matching the service map
 summary beside it, while the detail tool carries the full
 node and link arrays. A new tool test pins both surfaces so
 neither can drift silently.
+
+## Round 2, the gallery, 2026-11-23
+
+The gallery is landed. The design record went in first as
+PR 17, then the build as PR 18. The page stands at
+docs/gallery.html, one static file with no script in it,
+assembled on a CI runner by its own freshness test running
+under UPDATE_GALLERY and guarded by that test from then on.
+Twelve sections cover the thirteen goldens, the incident
+pair shown once with its findings strip, under invariants
+INV-62 to INV-64. The README's first screen links the page
+and the suite stands at 130 tests.
+
+The checkpoint reviews changed the gate itself. The
+freshness test as first built pinned the page's bytes but
+not its coverage, so a future scene could have joined the
+corpus while the gallery silently omitted it and INV-63
+went false under a green suite. The test now enumerates the
+fixture directory and requires every fixture scene's title
+and question among the sections, with the incident
+composition as the one extra. The same pass made the test
+assert the README link its invariant claims, and made the
+no-script check case-insensitive.
+
+One wiring question took evidence from both tools. Session
+scenes in the gallery follow the session wiring both tools
+share, findings ranked over the run alone. The GenAI scene
+is the exception, because its spans are the scene's
+declared data and sit in the render's data, so the
+investigation ranks them alongside the run, as the MCP
+render path does with its input spans. The CLI session
+invocation ranks the run alone even there, because its
+session spans never reach the investigation. That is a real
+inconsistency between the CLI and the server over the same
+scene, recorded here as a known divergence for a later
+round to settle. The gallery follows the render's data.
+
+Two points were dismissed with their reasons. Two cards
+carry the same title because two fixture scenes share it,
+and the cards are told apart by their provenance questions.
+Renaming a fixture to prettify the page would falsify the
+corpus the page exists to show. And the freshness test
+cannot catch a traces argument swapped between two sections
+of the same shape, a known limit of the golden pattern the
+design record adopts, accepted with the coverage gate above
+standing guard over the likelier failures.

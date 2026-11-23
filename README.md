@@ -4,6 +4,8 @@ telorama is a visualization engine for OpenTelemetry data. An AI agent describes
 
 ![A live session stepping through its frames, the whole picture replaced at each turn boundary](docs/media/frames.gif)
 
+The [gallery](docs/gallery.html) shows every scene family rendered from the test fixtures, each carrying the findings the investigation layer reports for its data.
+
 ## What it does
 
 - It turns a trace into a waterfall diagram that shows where one request spent its time and which part of the work sits on the critical path.
