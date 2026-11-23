@@ -75,11 +75,7 @@ fn tool_render(
         },
     )
     .expect("gallery scene must render");
-    Section {
-        family,
-        scene,
-        svg,
-    }
+    Section { family, scene, svg }
 }
 
 fn trace_section(family: &'static str, scene_file: &str, traces_file: &str) -> Section {
@@ -173,7 +169,15 @@ fn sections() -> Vec<Section> {
             "tests/fixtures/agents/agent-state.json",
         ))
         .expect("state fixture must parse");
-        out.push(tool_render("Agent state", scene, &[], &[], None, &state, &[]));
+        out.push(tool_render(
+            "Agent state",
+            scene,
+            &[],
+            &[],
+            None,
+            &state,
+            &[],
+        ));
     }
     // The incident composition, the pair of incident goldens
     // shown once with its findings strip.
