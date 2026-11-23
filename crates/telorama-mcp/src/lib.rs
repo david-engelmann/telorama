@@ -26,6 +26,8 @@
 //! assert!(response.contains("validate_scene"));
 //! ```
 
+#![deny(missing_docs)]
+
 use serde_json::{Value, json};
 use telorama_scene::{
     AgentRun, Finding, Panel, Scene, Span, StackSample, StatKind, content_hash, critical_path,

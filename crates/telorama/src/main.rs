@@ -83,28 +83,31 @@ const RENDER_FLAGS: [&str; 8] = [
     "--out",
 ];
 
-/// Build an agent run from a session export in the named dialect.
+/// Build an agent run from a session export in the named dialect,
+/// with the session's spans alongside, so a caller can rank
+/// findings over the same inputs the run was built from.
 fn parse_session(
     logs_path: Option<&str>,
     spans_path: Option<&str>,
     dialect: &str,
-) -> Result<telorama_scene::AgentRun, String> {
+) -> Result<(telorama_scene::AgentRun, Vec<telorama_scene::Span>), String> {
     let spans = match spans_path {
         Some(path) => {
             telorama_ingest::parse_otlp_traces(&read_file(path)?).map_err(|e| e.to_string())?
         }
         None => Vec::new(),
     };
-    match dialect {
+    let run = match dialect {
         "genai" | "openinference" => {
             if spans_path.is_none() {
                 return Err(format!("session --dialect {dialect} needs --spans"));
             }
             match dialect {
-                "genai" => telorama_ingest::parse_genai_session(&spans).map_err(|e| e.to_string()),
-                _ => {
-                    telorama_ingest::parse_openinference_session(&spans).map_err(|e| e.to_string())
+                "genai" => {
+                    telorama_ingest::parse_genai_session(&spans).map_err(|e| e.to_string())?
                 }
+                _ => telorama_ingest::parse_openinference_session(&spans)
+                    .map_err(|e| e.to_string())?,
             }
         }
         "claude_code" | "codex" => {
@@ -114,14 +117,18 @@ fn parse_session(
             let logs = read_file(path)?;
             match dialect {
                 "claude_code" => telorama_ingest::parse_claude_code_session(&logs, &spans)
-                    .map_err(|e| e.to_string()),
-                _ => telorama_ingest::parse_codex_session(&logs, &spans).map_err(|e| e.to_string()),
+                    .map_err(|e| e.to_string())?,
+                _ => telorama_ingest::parse_codex_session(&logs, &spans)
+                    .map_err(|e| e.to_string())?,
             }
         }
-        other => Err(format!(
-            "unknown dialect {other:?}: expected claude_code, codex, genai, or openinference"
-        )),
-    }
+        other => {
+            return Err(format!(
+                "unknown dialect {other:?}: expected claude_code, codex, genai, or openinference"
+            ))
+        }
+    };
+    Ok((run, spans))
 }
 
 fn cmd_render(args: &[String]) -> Result<String, String> {
@@ -170,12 +177,15 @@ fn cmd_render_like(args: &[String], html: bool) -> Result<String, String> {
     };
     let logs_flag = flag(args, "--session-logs")?;
     let spans_flag = flag(args, "--session-spans")?;
+    let mut session_spans: Vec<telorama_scene::Span> = Vec::new();
     let run = if logs_flag.is_some() || spans_flag.is_some() {
-        Some(parse_session(
+        let (run, spans) = parse_session(
             logs_flag,
             spans_flag,
             flag(args, "--dialect")?.unwrap_or("claude_code"),
-        )?)
+        )?;
+        session_spans = spans;
+        Some(run)
     } else {
         None
     };
@@ -185,7 +195,13 @@ fn cmd_render_like(args: &[String], html: bool) -> Result<String, String> {
         }
         None => Vec::new(),
     };
-    let findings = telorama_scene::investigate(&spans, run.as_ref(), scene.context.range.seconds());
+    // Findings rank over the trace spans and the session's own
+    // spans together, the same inputs the MCP render path ranks
+    // (INV-81). The panels keep drawing the trace spans alone.
+    let mut finding_spans = spans.clone();
+    finding_spans.extend(session_spans);
+    let findings =
+        telorama_scene::investigate(&finding_spans, run.as_ref(), scene.context.range.seconds());
     let data = telorama_svg::SceneData {
         spans: &spans,
         stacks: &stacks,
@@ -241,12 +257,15 @@ fn cmd_incident(args: &[String]) -> Result<String, String> {
         telorama_ingest::parse_otlp_traces(&read_file(traces_path)?).map_err(|e| e.to_string())?;
     let logs_flag = flag(args, "--session-logs")?;
     let spans_flag = flag(args, "--session-spans")?;
+    let mut session_spans: Vec<telorama_scene::Span> = Vec::new();
     let run = if logs_flag.is_some() || spans_flag.is_some() {
-        Some(parse_session(
+        let (run, spans) = parse_session(
             logs_flag,
             spans_flag,
             flag(args, "--dialect")?.unwrap_or("claude_code"),
-        )?)
+        )?;
+        session_spans = spans;
+        Some(run)
     } else {
         None
     };
@@ -257,8 +276,14 @@ fn cmd_incident(args: &[String]) -> Result<String, String> {
         std::fs::write(out_path, &text).map_err(|e| format!("cannot write {out_path}: {e}"))?;
     }
     if let Some(render_path) = flag(args, "--render")? {
-        let findings =
-            telorama_scene::investigate(&spans, run.as_ref(), scene.context.range.seconds());
+        // The same findings inputs as the render command (INV-81).
+        let mut finding_spans = spans.clone();
+        finding_spans.extend(session_spans);
+        let findings = telorama_scene::investigate(
+            &finding_spans,
+            run.as_ref(),
+            scene.context.range.seconds(),
+        );
         let svg = telorama_svg::render_scene_with_data(
             &scene,
             &telorama_svg::SceneData {
@@ -293,7 +318,7 @@ fn cmd_frames(args: &[String]) -> Result<String, String> {
     let Some(out_path) = flag(args, "--out")? else {
         return Err(format!("frames needs --out\n{}", usage()));
     };
-    let run = parse_session(
+    let (run, _) = parse_session(
         flag(args, "--logs")?,
         flag(args, "--spans")?,
         flag(args, "--dialect")?.unwrap_or("claude_code"),
@@ -360,7 +385,7 @@ fn cmd_session(args: &[String]) -> Result<String, String> {
             }
         }
     }
-    let run = parse_session(
+    let (run, _) = parse_session(
         flag(args, "--logs")?,
         flag(args, "--spans")?,
         flag(args, "--dialect")?.unwrap_or("claude_code"),

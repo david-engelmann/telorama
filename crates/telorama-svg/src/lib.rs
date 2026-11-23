@@ -48,6 +48,8 @@
 //! assert!(svg.contains("One request"));
 //! ```
 
+#![deny(missing_docs)]
+
 use std::collections::BTreeMap;
 use std::fmt;
 use telorama_scene::{

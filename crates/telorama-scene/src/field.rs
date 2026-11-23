@@ -18,7 +18,11 @@ use serde::{Deserialize, Serialize};
 /// [`Thresholds::color_for`] relies on it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ThresholdStep {
+    /// The value at or above which this step applies, in the
+    /// field's own unit scale.
     pub above: f64,
+    /// The verdict color a qualifying value earns, carried in
+    /// specs as a #RRGGBB hex string.
     pub color: String,
 }
 
@@ -28,10 +32,15 @@ pub struct ThresholdStep {
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Thresholds {
+    /// The steps in strictly increasing order of `above`. An
+    /// empty list colors nothing.
     pub steps: Vec<ThresholdStep>,
 }
 
 impl Thresholds {
+    /// Wrap steps as a threshold scale. The caller owes the
+    /// strictly increasing `above` order the verdict lookup
+    /// relies on.
     pub fn new(steps: Vec<ThresholdStep>) -> Self {
         Self { steps }
     }
@@ -46,6 +55,8 @@ impl Thresholds {
         }])
     }
 
+    /// True when the scale has no steps, so every value keeps
+    /// its base color.
     pub fn is_empty(&self) -> bool {
         self.steps.is_empty()
     }

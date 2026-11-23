@@ -11,7 +11,12 @@ use std::collections::BTreeMap;
 /// One row of a trace waterfall, in display order.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WaterfallRow {
+    /// Id of the span drawn on this row. The row carries no
+    /// other span fields, so a renderer joins back to the span
+    /// on this id.
     pub span_id: String,
+    /// Nesting depth in the trace tree, with roots at 0 and
+    /// each parent step adding one.
     pub depth: usize,
     /// Time the span spent in its own code: its duration minus the parts
     /// covered by its direct children.
@@ -179,13 +184,31 @@ pub fn percentile_nanos(values: &[i64], percentile: u32) -> Option<i64> {
 /// RED figures for one service: rate, errors, duration.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RedStats {
+    /// Service these figures roll up, one entry per service in
+    /// the span set.
     pub service: String,
+    /// Spans counted for the service under the basis rule, its
+    /// server spans when it has any and all of its spans
+    /// otherwise.
     pub calls: u64,
+    /// How many of the counted spans carry an error status.
     pub errors: u64,
+    /// Errors divided by calls as a fraction from 0 to 1, or 0
+    /// when nothing was counted.
     pub error_ratio: f64,
+    /// Counted spans per second across the window the caller
+    /// passed, or 0 when that window was not positive.
     pub rate_per_sec: f64,
+    /// Median duration of the counted spans in nanoseconds by
+    /// nearest rank, or 0 when nothing was counted.
     pub p50_nanos: i64,
+    /// 95th-percentile duration of the counted spans in
+    /// nanoseconds by nearest rank, or 0 when nothing was
+    /// counted.
     pub p95_nanos: i64,
+    /// 99th-percentile duration of the counted spans in
+    /// nanoseconds by nearest rank, or 0 when nothing was
+    /// counted.
     pub p99_nanos: i64,
     /// Which spans were counted: `server` when the service has server
     /// spans (the honest basis, one count per request it served), or
@@ -264,7 +287,11 @@ pub struct HeatmapRow {
     /// Upper bucket edge in seconds; `None` is the overflow row above
     /// the highest declared edge.
     pub upper_edge_seconds: Option<f64>,
+    /// Span counts per time column in column order, one entry
+    /// per column of the grid.
     pub counts: Vec<u64>,
+    /// Sum of the column counts, every span in this band
+    /// across the whole window.
     pub total: u64,
 }
 
@@ -273,12 +300,22 @@ pub struct HeatmapRow {
 /// that actually happened.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Exemplar {
+    /// Trace the exemplar span belongs to, half of the lookup
+    /// key back into the raw spans.
     pub trace_id: String,
+    /// Id of the exemplar span within its trace.
     pub span_id: String,
+    /// Service the exemplar span ran on.
     pub service: String,
+    /// Operation name of the exemplar span.
     pub name: String,
+    /// Duration of the exemplar span in nanoseconds, the
+    /// longest in its cell.
     pub duration_nanos: i64,
+    /// Row of the busiest cell this exemplar came from, in
+    /// the grid's ascending bucket order.
     pub row: usize,
+    /// Column of the busiest cell this exemplar came from.
     pub col: usize,
 }
 
@@ -288,9 +325,17 @@ pub struct HeatmapGrid {
     /// Rows in ascending bucket order: row 0 is the lowest band and the
     /// last row is the overflow row.
     pub rows: Vec<HeatmapRow>,
+    /// Equal time divisions the window was split into, and
+    /// the length of every row's counts vector.
     pub columns: usize,
+    /// Largest count in any single cell, or 0 when no span
+    /// fell inside the window.
     pub max_count: u64,
+    /// Spans excluded because their start fell outside the
+    /// window, counted here rather than dropped silently.
     pub outside_window: usize,
+    /// Longest span in the busiest cell, or `None` when no
+    /// span fell inside the window.
     pub exemplar: Option<Exemplar>,
 }
 
@@ -389,8 +434,16 @@ pub fn heatmap_grid(
 /// display order: samples descending, frame name as the tie-break.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FlameNode {
+    /// Frame label, a stack frame for profile trees or
+    /// service and operation for span-derived trees, with
+    /// `root` and `trace` as the synthetic root labels.
     pub name: String,
+    /// Weight passing through this frame, its own plus every
+    /// descendant's, in samples for profile trees and in
+    /// self-time nanoseconds for span-derived trees.
     pub value: u64,
+    /// Child frames in display order, value descending with
+    /// the frame name as tie-break.
     pub children: Vec<FlameNode>,
 }
 
@@ -492,11 +545,23 @@ pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
 /// into another, with the child spans as the evidence.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapEdge {
+    /// Caller end of the edge, the service of the parent
+    /// spans that evidence it.
     pub from: String,
+    /// Callee end of the edge, the service of the child
+    /// spans counted on it.
     pub to: String,
+    /// Evidence spans counted on this edge, one per observed
+    /// call, with a client span and the server span it
+    /// caused counted once at the server span.
     pub calls: u64,
+    /// How many of the evidence spans carry an error status.
     pub errors: u64,
+    /// Median duration of the evidence spans in nanoseconds
+    /// by nearest rank.
     pub p50_nanos: i64,
+    /// 99th-percentile duration of the evidence spans in
+    /// nanoseconds by nearest rank.
     pub p99_nanos: i64,
 }
 
@@ -504,7 +569,12 @@ pub struct MapEdge {
 /// with its RED rollup, and the evidenced edges between them.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ServiceGraph {
+    /// One RED rollup per service in the span set, on the
+    /// same basis as `red_by_service` and sorted by service
+    /// name.
     pub nodes: Vec<RedStats>,
+    /// Edges sorted by caller then callee, present only
+    /// where a span's parent sits in another service.
     pub edges: Vec<MapEdge>,
 }
 
@@ -564,7 +634,11 @@ pub fn service_graph(spans: &[Span], window_seconds: f64) -> ServiceGraph {
 /// bucket, not a service, and carries the flag that says so.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SankeyNode {
+    /// Call-depth stage of this node, with roots entering
+    /// at 0 and residual entries landing at 1.
     pub stage: usize,
+    /// Service staged at this node, or the panel's residual
+    /// name on the residual node.
     pub service: String,
     /// Spans staged at this node: inflow plus the root and residual
     /// entries staged there, exactly.
@@ -574,6 +648,9 @@ pub struct SankeyNode {
     /// flow, and the renderer draws the block at the greater of the
     /// two so no ribbon ever overflows it.
     pub outflow: u64,
+    /// True on the single residual bucket node, which is a
+    /// bucket rather than a service, and false on every
+    /// real service node.
     pub residual: bool,
 }
 
@@ -581,11 +658,19 @@ pub struct SankeyNode {
 /// of spans whose parent step lands between them.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SankeyLink {
+    /// Stage of the source node.
     pub from_stage: usize,
+    /// Service of the source node, or the residual name
+    /// when the source is the residual bucket.
     pub from_service: String,
+    /// True when the source node is the residual bucket.
     pub from_residual: bool,
+    /// Stage of the target node.
     pub to_stage: usize,
+    /// Service of the target node.
     pub to_service: String,
+    /// Spans whose parent step lands on this link, one
+    /// unit of flow per span.
     pub value: u64,
 }
 
@@ -594,9 +679,20 @@ pub struct SankeyLink {
 /// the residual bucket.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SankeyFlow {
+    /// One node per stage and service pair that received
+    /// spans, plus the residual node when any span entered
+    /// through it, ordered by stage, then value
+    /// descending, then service.
     pub nodes: Vec<SankeyNode>,
+    /// Aggregated parent steps between nodes, ordered by
+    /// source node then target.
     pub links: Vec<SankeyLink>,
+    /// Spans that entered through the residual bucket
+    /// because their parent was absent or their ancestry
+    /// cycled, equal to the residual node's outflow.
     pub residual_spans: u64,
+    /// Number of stages in the flow, one past the deepest
+    /// staged span, or 0 for an empty span set.
     pub stages: usize,
 }
 

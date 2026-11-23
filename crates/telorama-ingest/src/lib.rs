@@ -29,6 +29,8 @@
 //! assert_eq!(spans[0].service, "checkout");
 //! ```
 
+#![deny(missing_docs)]
+
 pub mod claude_code;
 pub mod codex;
 pub(crate) mod events;
