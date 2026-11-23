@@ -37,6 +37,10 @@ fn initialize_returns_server_info_and_capabilities() {
     }));
     assert_eq!(reply["result"]["protocolVersion"], "2025-06-18");
     assert_eq!(reply["result"]["serverInfo"]["name"], "telorama");
+    assert_eq!(
+        reply["result"]["serverInfo"]["version"],
+        env!("CARGO_PKG_VERSION")
+    );
     assert!(reply["result"]["capabilities"]["tools"].is_object());
     assert!(reply["result"]["capabilities"]["resources"].is_object());
 }
@@ -101,6 +105,10 @@ fn resources_read_returns_the_app_view() {
     let html = contents["text"].as_str().expect("view text");
     assert!(html.starts_with("<!DOCTYPE html>"));
     assert!(html.contains("ui/initialize"), "the view opens the bridge");
+    assert!(
+        html.contains(&format!("version: \"{}\"", env!("CARGO_PKG_VERSION"))),
+        "the view names the crate version"
+    );
     assert!(
         html.contains("ui/notifications/tool-result"),
         "the view listens for results"
