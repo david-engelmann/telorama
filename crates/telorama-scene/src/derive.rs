@@ -158,7 +158,7 @@ pub fn critical_path(spans: &[Span], trace_id: &str) -> Vec<String> {
         return Vec::new();
     };
     let mut path = vec![current.span_id.clone()];
-    let mut seen: std::collections::BTreeSet<&str> = path.iter().map(|s| s.as_str()).collect();
+    let mut seen: std::collections::BTreeSet<String> = path.iter().cloned().collect();
     loop {
         let kids = children.get(&current.span_id);
         let next = kids.and_then(|list| {
@@ -169,7 +169,7 @@ pub fn critical_path(spans: &[Span], trace_id: &str) -> Vec<String> {
             })
         });
         match next {
-            Some(child) if seen.insert(child.span_id.as_str()) => {
+            Some(child) if seen.insert(child.span_id.clone()) => {
                 path.push(child.span_id.clone());
                 current = child;
             }
@@ -520,7 +520,7 @@ pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
     fn build(
         span: &Span,
         children: &BTreeMap<String, Vec<&Span>>,
-        seen: &mut std::collections::BTreeSet<&str>,
+        seen: &mut std::collections::BTreeSet<String>,
     ) -> FlameNode {
         // A span id builds once, so a cycle through repeated ids
         // stops at the first build instead of recursing forever
@@ -530,7 +530,7 @@ pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
             .cloned()
             .unwrap_or_default()
             .into_iter()
-            .filter(|kid| seen.insert(kid.span_id.as_str()))
+            .filter(|kid| seen.insert(kid.span_id.clone()))
             .collect();
         let mut child_nodes: Vec<FlameNode> =
             kids.iter().map(|k| build(k, children, seen)).collect();
@@ -546,7 +546,7 @@ pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
     let trace = trace_spans(spans, trace_id);
     let children = children_map(&trace);
     let ids: std::collections::BTreeSet<&str> = trace.iter().map(|s| s.span_id.as_str()).collect();
-    let mut seen: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
+    let mut seen: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
     let mut root = FlameNode {
         name: "trace".to_string(),
         value: 0,
@@ -557,7 +557,7 @@ pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
             .parent_span_id
             .as_deref()
             .is_none_or(|p| !ids.contains(p));
-        if is_root && seen.insert(span.span_id.as_str()) {
+        if is_root && seen.insert(span.span_id.clone()) {
             let node = build(span, &children, &mut seen);
             root.value += node.value;
             root.children.push(node);
