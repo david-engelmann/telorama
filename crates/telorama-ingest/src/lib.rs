@@ -8,13 +8,25 @@
 //!
 //! # Example
 //!
-//! Parse an OTLP trace export into canonical spans. An export with
-//! no spans in it parses to an empty vector.
+//! Parse an OTLP trace export into canonical spans.
 //!
 //! ```rust
-//! let spans = telorama_ingest::parse_otlp_traces(r#"{"resourceSpans": []}"#)
-//!     .expect("the export must parse");
-//! assert!(spans.is_empty());
+//! let export = r#"{"resourceSpans": [{
+//!     "resource": {"attributes": [
+//!         {"key": "service.name", "value": {"stringValue": "checkout"}}
+//!     ]},
+//!     "scopeSpans": [{"spans": [{
+//!         "traceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+//!         "spanId": "bbbbbbbbbbbbbbbb",
+//!         "name": "GET /checkout",
+//!         "kind": 2,
+//!         "startTimeUnixNano": "0",
+//!         "endTimeUnixNano": "500000000"
+//!     }]}]
+//! }]}"#;
+//! let spans = telorama_ingest::parse_otlp_traces(export).expect("the export must parse");
+//! assert_eq!(spans.len(), 1);
+//! assert_eq!(spans[0].service, "checkout");
 //! ```
 
 pub mod claude_code;
