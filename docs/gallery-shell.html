@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>telorama gallery</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --muted: #5a5a5a;
+    --ground: #f4f4f2;
+    --card: #ffffff;
+    --line: #e2e2de;
+    --accent: #0072B2;
+    --header: #101418;
+    --header-text: #eef3f5;
+    --header-muted: #b9c6cc;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, sans-serif;
+    background: var(--ground);
+    color: var(--ink);
+  }
+  header {
+    background: var(--header);
+    color: var(--header-text);
+    padding: 52px 24px 44px;
+  }
+  header .inner { max-width: 1080px; margin: 0 auto; }
+  header h1 { margin: 0 0 10px; font-size: 36px; font-weight: 700; }
+  header p { margin: 0; max-width: 720px; font-size: 16px; line-height: 1.55; color: var(--header-muted); }
+  main { max-width: 1080px; margin: 0 auto; padding: 28px 24px 8px; }
+  .showcase { margin-bottom: 12px; }
+  .showcase h2, .family {
+    font-size: 21px;
+    font-weight: 700;
+    margin: 34px 0 6px;
+    padding-left: 10px;
+    border-left: 4px solid var(--accent);
+  }
+  .showcase p { color: var(--muted); font-size: 14px; line-height: 1.55; margin: 0 0 14px; max-width: 760px; }
+  .showcase img {
+    width: 100%;
+    height: auto;
+    display: block;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    padding: 20px 22px;
+    margin: 18px 0;
+  }
+  .card h3 { margin: 0 0 4px; font-size: 17px; }
+  .card .question { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
+  .card .scene svg { width: 100%; height: auto; display: block; }
+  footer {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 18px 24px 42px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="inner">
+    <h1>telorama</h1>
+    <p>A visualization engine for OpenTelemetry data. An agent describes the diagram it wants in a small structured document, telorama checks the description against a set of honesty rules, works out the geometry itself, and renders a finished picture that can appear inside an AI chat, a pull request, or a plain file. This page shows every scene family the engine renders, drawn from the test fixtures by the renderer itself.</p>
+  </div>
+</header>
+<main>
+  <div class="showcase">
+    <h2>A session, frame by frame</h2>
+    <p>A live agent session stepping through its frames. The whole picture is replaced at each turn boundary, the way the live view works, and each frame is a complete deterministic render of the turns that exist at that moment.</p>
+    <img src="media/frames.gif" alt="A live session stepping through its frames, the whole picture replaced at each turn boundary">
+    <h2>An incident, composed</h2>
+    <p>The incident composition over the checkout traces. The engine picks the failing service, builds the scene that explains it, and the investigation layer puts its findings strip at the head of the picture.</p>
+    <img src="media/incident.png" alt="The incident composition over the checkout traces with the findings strip at its head">
+  </div>
+<!--GALLERY_SECTIONS-->
+</main>
+<footer>
+  Every picture on this page is the renderer's own output, produced by the same code path the command line tool uses. A test in the repository re-derives each picture and fails if this page ever drifts from the current renders.
+</footer>
+</body>
+</html>
