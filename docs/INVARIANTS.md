@@ -546,3 +546,33 @@ later milestones are marked as validator-side.
   whose service graph is a cycle, and golden_tests
   deep_subagent_nesting_renders_with_an_empty_label_budget
   for the zero budget guard.
+
+## Themes (telorama-scene spec, telorama-svg)
+
+- INV-74. The theme is a scene-level choice. A scene
+  declares light or dark at the top level of its spec,
+  absent means light, and the light theme's rendered
+  bytes never change. Colors a scene declares for
+  itself, such as field threshold colors, are data and
+  pass through unchanged in both themes.
+  Enforced by the validator tests for the theme field
+  and by the whole light golden corpus standing
+  byte-identical.
+- INV-75. Every foreground and background pair the
+  renderer can emit under the dark theme clears its
+  contrast floor, four and a half to one for text and
+  three to one for data marks, computed from the
+  palette constants themselves.
+  Enforced by golden_tests dark_palette_pairs_clear_
+  their_contrast_floors.
+- INV-76. The same scene rendered in both themes
+  produces identical bytes once color attributes are
+  normalized out. Layout, figures, text, and ordering
+  cannot differ between themes.
+  Enforced by golden_tests themes_differ_only_in_color.
+- INV-77. The flagship scenes stand as goldens in both
+  themes, and the HTML export paints its page
+  background to match the scene's theme. A bare SVG
+  carries no background rectangle in either theme.
+  Enforced by the dark goldens in golden_tests and the
+  HTML export tests in cli_tests.
