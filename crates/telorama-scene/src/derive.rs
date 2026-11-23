@@ -478,26 +478,62 @@ impl FlameBuilder {
     }
 
     fn insert(&mut self, frames: &[String], count: u64) {
-        self.value += count;
-        if let Some((first, rest)) = frames.split_first() {
-            self.children
-                .entry(first.clone())
-                .or_insert_with(|| FlameBuilder::new(first))
-                .insert(rest, count);
+        // A loop, not recursion (INV-87): one stack in a folded
+        // profile can run tens of thousands of frames deep.
+        let mut node = self;
+        node.value += count;
+        for frame in frames {
+            if !node.children.contains_key(frame) {
+                node.children
+                    .insert(frame.clone(), FlameBuilder::new(frame));
+            }
+            node = node
+                .children
+                .get_mut(frame)
+                .expect("the child was just ensured");
+            node.value += count;
         }
     }
 
     fn freeze(self) -> FlameNode {
-        let mut children: Vec<FlameNode> = self
-            .children
-            .into_values()
-            .map(FlameBuilder::freeze)
-            .collect();
-        sort_flame_children(&mut children);
-        FlameNode {
-            name: self.name,
-            value: self.value,
-            children,
+        // An explicit stack, not recursion (INV-87), assembling
+        // children before their parent, the order the recursive
+        // freeze worked in.
+        struct Work {
+            builder: FlameBuilder,
+            frozen: Vec<FlameNode>,
+        }
+        let mut stack: Vec<Work> = vec![Work {
+            builder: self,
+            frozen: Vec::new(),
+        }];
+        loop {
+            let next_child = stack
+                .last_mut()
+                .expect("a freeze in progress")
+                .builder
+                .children
+                .pop_first();
+            match next_child {
+                Some((_, child)) => stack.push(Work {
+                    builder: child,
+                    frozen: Vec::new(),
+                }),
+                None => {
+                    let work = stack.pop().expect("a freeze in progress");
+                    let mut children = work.frozen;
+                    sort_flame_children(&mut children);
+                    let node = FlameNode {
+                        name: work.builder.name,
+                        value: work.builder.value,
+                        children,
+                    };
+                    match stack.last_mut() {
+                        Some(parent) => parent.frozen.push(node),
+                        None => return node,
+                    }
+                }
+            }
         }
     }
 }
@@ -510,6 +546,17 @@ pub fn flame_tree(stacks: &[StackSample]) -> FlameNode {
         root.insert(&stack.frames, stack.count);
     }
     root.freeze()
+}
+
+/// Take a flame tree apart level by level. Dropping a very
+/// deep tree recurses through the drop glue and overflows the
+/// stack (INV-87), so a consumer that owns one dismantles it
+/// once it has read it.
+pub fn dismantle_flame_tree(tree: &mut FlameNode) {
+    let mut pending: Vec<FlameNode> = std::mem::take(&mut tree.children);
+    while let Some(mut node) = pending.pop() {
+        pending.append(&mut node.children);
+    }
 }
 
 /// The labelled span fallback: a flame tree built from one trace, where

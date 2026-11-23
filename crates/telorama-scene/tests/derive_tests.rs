@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 use telorama_scene::{
-    MapEdge, Span, SpanKind, StackSample, TimeRange, critical_path, flame_from_spans, flame_tree,
-    heatmap_grid, percentile_nanos, red_by_service, sankey_flow, service_graph, service_layers,
-    waterfall_rows,
+    MapEdge, Span, SpanKind, StackSample, TimeRange, critical_path, dismantle_flame_tree,
+    flame_from_spans, flame_tree, heatmap_grid, percentile_nanos, red_by_service, sankey_flow,
+    service_graph, service_layers, waterfall_rows,
 };
 
 fn ms(v: i64) -> i64 {
@@ -928,4 +928,24 @@ fn flame_from_spans_builds_a_very_deep_chain() {
     while let Some(mut node) = pending.pop() {
         pending.append(&mut node.children);
     }
+}
+
+#[test]
+fn flame_tree_folds_a_very_deep_stack() {
+    // INV-87: insert and freeze iterate, so one stack of
+    // fifty thousand frames folds into a tree of that depth
+    // with its count intact.
+    let depth = 50_000usize;
+    let frames: Vec<String> = (0..depth).map(|i| format!("f{i}")).collect();
+    let stacks = vec![StackSample { frames, count: 7 }];
+    let mut root = flame_tree(&stacks);
+    assert_eq!(root.value, 7);
+    let mut levels = 0usize;
+    let mut node = &root;
+    while let Some(child) = node.children.first() {
+        levels += 1;
+        node = child;
+    }
+    assert_eq!(levels, depth);
+    dismantle_flame_tree(&mut root);
 }

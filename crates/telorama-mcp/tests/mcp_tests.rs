@@ -324,6 +324,34 @@ fn incident_scene_tool_composes_and_renders() {
 }
 
 #[test]
+fn panel_detail_reads_a_very_deep_profile() {
+    // INV-87: the detail path builds the folded tree
+    // iteratively and dismantles it after reading, so a
+    // profile whose single stack runs twenty thousand
+    // frames deep returns its frames instead of
+    // overflowing on the way in or out.
+    let frames: Vec<String> = (0..20_000).map(|i| format!("f{i}")).collect();
+    let profile = format!("{} 970", frames.join(";"));
+    let result = call_tool(
+        15,
+        "scene_panel_detail",
+        json!({
+            "scene": workspace_file("tests/fixtures/scenes/flame_scene.json"),
+            "profile": profile,
+            "panel_index": 0
+        }),
+    );
+    assert_eq!(result["isError"], false);
+    let detail = &result["structuredContent"];
+    assert_eq!(detail["type"], "flame");
+    assert_eq!(detail["total"], 970);
+    let frames_out = detail["frames"].as_array().expect("frames");
+    assert_eq!(frames_out.len(), 1);
+    assert_eq!(frames_out[0]["name"], "f0");
+    assert_eq!(frames_out[0]["value"], 970);
+}
+
+#[test]
 fn incident_scene_tool_counts_a_duplicated_span_once() {
     // INV-86: the input assembly dedupes, so an export whose
     // error span arrives twice composes the same incident as

@@ -54,9 +54,9 @@ use std::collections::BTreeMap;
 use std::fmt;
 use telorama_scene::{
     AgentRun, AgentStateEntry, AgentStep, Finding, FlameNode, Panel, RedStats, SankeyLink, Scene,
-    ServiceGraph, Span, StackSample, StatKind, Thresholds, Unit, critical_path, flame_from_spans,
-    flame_tree, heatmap_grid, percentile_nanos, red_by_service, sankey_flow, service_graph,
-    waterfall_rows,
+    ServiceGraph, Span, StackSample, StatKind, Thresholds, Unit, critical_path,
+    dismantle_flame_tree, flame_from_spans, flame_tree, heatmap_grid, percentile_nanos,
+    red_by_service, sankey_flow, service_graph, waterfall_rows,
 };
 
 /// Canonical float formatting for emitted geometry. The implementation
@@ -1651,17 +1651,6 @@ fn layout_flame(
             );
             child_x += child_w;
         }
-    }
-}
-
-/// Take a flame tree apart level by level. Dropping a very
-/// deep tree recurses through the drop glue and overflows the
-/// stack (INV-86), so a consumer that owns one dismantles it
-/// once it is done with it.
-fn dismantle_flame_tree(tree: &mut FlameNode) {
-    let mut pending: Vec<FlameNode> = std::mem::take(&mut tree.children);
-    while let Some(mut node) = pending.pop() {
-        pending.append(&mut node.children);
     }
 }
 
