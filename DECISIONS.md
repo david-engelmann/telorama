@@ -1110,3 +1110,49 @@ it. The first-occurrence rule is positional,
 traces before session, which the record now
 distinguishes from the sankey staging's
 field-chosen canonical copy.
+
+## Round 10: the named leftovers (2026-11-23)
+
+The three leftovers Rounds 8 and 9 recorded are
+closed (INV-86). The MCP input assembly dedupes
+its parsed spans by trace id and span id, first
+occurrence kept, the CLI combined set's rule, so
+the tools that compose, rank, and render report
+the same counts as the CLI on the same export.
+service_layers builds its adjacency and its
+component edges only from edges whose endpoints
+both stand in the graph's nodes, so a hand-built
+graph layers its named services instead of
+panicking or absorbing an unknown name.
+flame_from_spans assembles its tree on an
+explicit stack with the same build-once rule and
+insertion order, and a generated chain of fifty
+thousand spans builds with its depth and root
+value pinned.
+
+The reviews widened the round in one place and
+qualified it in three. The red team found the
+renderer's depth verdict itself recursive, so a
+deep flame panel overflowed inside the verdict
+before the 48-level refusal could fire. The
+verdict is iterative now, the renderer takes its
+tree apart iteratively on every path out, and a
+refusal pin stands at twenty thousand spans. The
+record was corrected in the same round, per the
+standing discipline. The design's claim that no
+tool can opt out of the dedup is scoped to the
+shared assembly, since the inspect tool parses
+its own argument on both surfaces and reports
+the raw counts on each. On duplicate-carrying
+input the MCP render panels now follow the
+deduped set while the CLI panels draw the raw
+traces, a parting in the direction of the honest
+count that the amendments name. The layers
+test pins the panic through the component-edge
+guard, the adjacency guard standing as
+defense-in-depth for the same invariant. Two
+depth paths are named as the next leftovers,
+the MCP panel summary and detail paths, which
+still own and drop the trees they build, and
+flame_tree, the folded-stack builder, which
+still inserts and freezes recursively.
