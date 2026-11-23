@@ -79,7 +79,7 @@ asserts the composed headline counts it once.
 A derive test layers a hand-built graph whose
 edge names an absent service and asserts the
 named services' layers. A derive test builds
-the flame tree for a generated chain of ten
+the flame tree for a generated chain of fifty
 thousand spans and asserts its depth and root
 value. The golden corpus and the scale hashes
 stand unchanged, which is the proof that

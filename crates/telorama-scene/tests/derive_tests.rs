@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use telorama_scene::{
-    Span, SpanKind, StackSample, TimeRange, critical_path, flame_from_spans, flame_tree,
+    MapEdge, Span, SpanKind, StackSample, TimeRange, critical_path, flame_from_spans, flame_tree,
     heatmap_grid, percentile_nanos, red_by_service, sankey_flow, service_graph, service_layers,
     waterfall_rows,
 };
@@ -858,4 +858,63 @@ fn service_layers_collapse_a_cycle_to_one_layer() {
     assert_eq!(layers["db"], 1);
     assert_eq!(layers["cache"], 2);
     assert_eq!(layers.len(), 4);
+}
+
+#[test]
+fn service_layers_ignore_edges_that_name_an_absent_service() {
+    // INV-86: a hand-built graph whose edges name a service
+    // outside its nodes layers its named services and does not
+    // panic.
+    let spans = vec![
+        span("s1", None, "web", SpanKind::Server, 0, 100, false),
+        span("s2", Some("s1"), "api", SpanKind::Client, 10, 90, false),
+    ];
+    let mut graph = service_graph(&spans, 10.0);
+    graph.edges.push(MapEdge {
+        from: "web".to_string(),
+        to: "ghost".to_string(),
+        calls: 1,
+        errors: 0,
+    });
+    graph.edges.push(MapEdge {
+        from: "ghost".to_string(),
+        to: "api".to_string(),
+        calls: 1,
+        errors: 0,
+    });
+    let layers = service_layers(&graph);
+    assert_eq!(layers.len(), 2);
+    assert_eq!(layers["web"], 0);
+    assert_eq!(layers["api"], 1);
+}
+
+#[test]
+fn flame_from_spans_builds_a_very_deep_chain() {
+    // INV-86: the iterative builder assembles a chain far
+    // deeper than a call stack survives, with the root value
+    // the recursion produced where it survived.
+    let depth: i64 = 50_000;
+    let mut spans = Vec::new();
+    for i in 0..depth {
+        let id = format!("s{i}");
+        let parent = (i > 0).then(|| format!("s{}", i - 1));
+        spans.push(span(
+            &id,
+            parent.as_deref(),
+            "svc",
+            SpanKind::Server,
+            i,
+            2 * depth - i,
+            false,
+        ));
+    }
+    let root = flame_from_spans(&spans, "t1");
+    assert_eq!(root.value, (2 * depth) as u64 * 1_000_000);
+    let mut levels = 0usize;
+    let mut node = &root;
+    while let Some(child) = node.children.first() {
+        levels += 1;
+        node = child;
+    }
+    assert_eq!(levels, depth as usize);
 }

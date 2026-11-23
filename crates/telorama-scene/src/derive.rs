@@ -517,30 +517,59 @@ pub fn flame_tree(stacks: &[StackSample]) -> FlameNode {
 /// is its self time plus its children's values. This is a derivation
 /// from spans, not a sampled profile, and renders must say so.
 pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
-    fn build(
-        span: &Span,
-        children: &BTreeMap<String, Vec<&Span>>,
+    // The builder runs on an explicit stack instead of recursion,
+    // so a very deep trace cannot overflow the call stack
+    // (INV-86). A span id builds once, so a cycle through
+    // repeated ids stops at the first build (INV-82).
+    struct Frame<'a> {
+        span: &'a Span,
+        kids: Vec<&'a Span>,
+        next: usize,
+        built: Vec<FlameNode>,
+    }
+    fn build<'a>(
+        root: &'a Span,
+        children: &BTreeMap<String, Vec<&'a Span>>,
         seen: &mut std::collections::BTreeSet<String>,
     ) -> FlameNode {
-        // A span id builds once, so a cycle through repeated ids
-        // stops at the first build instead of recursing forever
-        // (INV-82).
-        let kids: Vec<&Span> = children
-            .get(&span.span_id)
-            .cloned()
-            .unwrap_or_default()
-            .into_iter()
-            .filter(|kid| seen.insert(kid.span_id.clone()))
-            .collect();
-        let mut child_nodes: Vec<FlameNode> =
-            kids.iter().map(|k| build(k, children, seen)).collect();
-        sort_flame_children(&mut child_nodes);
-        let self_nanos = self_time(span, &kids).max(0) as u64;
-        let value = self_nanos + child_nodes.iter().map(|c| c.value).sum::<u64>();
-        FlameNode {
-            name: format!("{} · {}", span.service, span.name),
-            value,
-            children: child_nodes,
+        let frame_for = |span: &'a Span, seen: &mut std::collections::BTreeSet<String>| Frame<'a> {
+            let kids: Vec<&Span> = children
+                .get(&span.span_id)
+                .cloned()
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|kid| seen.insert(kid.span_id.clone()))
+                .collect();
+            Frame {
+                span,
+                kids,
+                next: 0,
+                built: Vec::new(),
+            }
+        };
+        let mut stack: Vec<Frame> = vec![frame_for(root, seen)];
+        loop {
+            let top = stack.last_mut().expect("a frame under construction");
+            if top.next < top.kids.len() {
+                let kid = top.kids[top.next];
+                top.next += 1;
+                stack.push(frame_for(kid, seen));
+                continue;
+            }
+            let frame = stack.pop().expect("a frame under construction");
+            let mut child_nodes = frame.built;
+            sort_flame_children(&mut child_nodes);
+            let self_nanos = self_time(frame.span, &frame.kids).max(0) as u64;
+            let value = self_nanos + child_nodes.iter().map(|c| c.value).sum::<u64>();
+            let node = FlameNode {
+                name: format!("{} · {}", frame.span.service, frame.span.name),
+                value,
+                children: child_nodes,
+            };
+            match stack.last_mut() {
+                Some(parent) => parent.built.push(node),
+                None => return node,
+            }
         }
     }
     let trace = trace_spans(spans, trace_id);
@@ -663,13 +692,19 @@ pub fn service_graph(spans: &[Span], window_seconds: f64) -> ServiceGraph {
 /// acyclic graph every component is a single service and the
 /// layers are the longest-path layers the renderer has always
 /// used. On a cyclic graph the cycle collapses to one layer
-/// instead of inflating the count (INV-82).
+/// instead of inflating the count (INV-82). An edge that names a
+/// service absent from the graph's nodes takes no part in the
+/// layering (INV-86).
 pub fn service_layers(graph: &ServiceGraph) -> std::collections::BTreeMap<String, usize> {
     use std::collections::{BTreeMap, BTreeSet};
     let names: Vec<&str> = graph.nodes.iter().map(|n| n.service.as_str()).collect();
+    let node_set: BTreeSet<&str> = names.iter().copied().collect();
     let mut out_adj: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
     let mut in_adj: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
     for edge in &graph.edges {
+        if !node_set.contains(edge.from.as_str()) || !node_set.contains(edge.to.as_str()) {
+            continue;
+        }
         out_adj
             .entry(edge.from.as_str())
             .or_default()
@@ -734,6 +769,9 @@ pub fn service_layers(graph: &ServiceGraph) -> std::collections::BTreeMap<String
     // reach the fixpoint.
     let mut comp_edges: BTreeSet<(usize, usize)> = BTreeSet::new();
     for edge in &graph.edges {
+        if !node_set.contains(edge.from.as_str()) || !node_set.contains(edge.to.as_str()) {
+            continue;
+        }
         let (from, to) = (comp_of[edge.from.as_str()], comp_of[edge.to.as_str()]);
         if from != to {
             comp_edges.insert((from, to));

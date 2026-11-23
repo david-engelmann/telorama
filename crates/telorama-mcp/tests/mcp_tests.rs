@@ -324,6 +324,30 @@ fn incident_scene_tool_composes_and_renders() {
 }
 
 #[test]
+fn incident_scene_tool_counts_a_duplicated_span_once() {
+    // INV-86: the input assembly dedupes, so an export whose
+    // error span arrives twice composes the same incident as
+    // the clean export, the counts the CLI reports.
+    let clean = workspace_file("tests/fixtures/otel-demo-checkout.json");
+    let mut doc: Value = serde_json::from_str(&clean).expect("the fixture must parse");
+    let spans = doc["resourceSpans"][0]["scopeSpans"][0]["spans"]
+        .as_array_mut()
+        .expect("the fixture carries a spans array");
+    let error_span = spans
+        .iter()
+        .find(|s| s["status"]["code"] == 2)
+        .expect("the fixture carries an error span")
+        .clone();
+    spans.push(error_span);
+    let duplicated = serde_json::to_string(&doc).expect("the export must serialize");
+    let plain = call_tool(13, "incident_scene", json!({"traces": clean}));
+    let doubled = call_tool(14, "incident_scene", json!({"traces": duplicated}));
+    assert_eq!(doubled["isError"], false);
+    assert_eq!(doubled["content"], plain["content"]);
+    assert_eq!(doubled["structuredContent"], plain["structuredContent"]);
+}
+
+#[test]
 fn render_scene_draws_the_agent_state_panel() {
     let result = call_tool(
         12,
