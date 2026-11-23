@@ -93,8 +93,7 @@ fn sections() -> Vec<Section> {
         .expect("session spans must parse");
         let run = telorama_ingest::parse_claude_code_session(&logs, &spans)
             .expect("session fixture must adapt");
-        let findings =
-            telorama_scene::investigate(&[], Some(&run), scene.context.range.seconds());
+        let findings = telorama_scene::investigate(&[], Some(&run), scene.context.range.seconds());
         let svg = telorama_svg::render_scene_with_data(
             &scene,
             &telorama_svg::SceneData {
@@ -113,10 +112,7 @@ fn sections() -> Vec<Section> {
         });
     }
     for (scene_file, logs_file) in [
-        (
-            "agent_run_codex_scene.json",
-            "codex-session-logs.json",
-        ),
+        ("agent_run_codex_scene.json", "codex-session-logs.json"),
         (
             "agent_run_codex_unpriced_scene.json",
             "codex-session-unpriced-logs.json",
@@ -129,8 +125,7 @@ fn sections() -> Vec<Section> {
         let logs = workspace_file(&format!("tests/fixtures/agents/{logs_file}"));
         let run =
             telorama_ingest::parse_codex_session(&logs, &[]).expect("codex fixture must adapt");
-        let findings =
-            telorama_scene::investigate(&[], Some(&run), scene.context.range.seconds());
+        let findings = telorama_scene::investigate(&[], Some(&run), scene.context.range.seconds());
         let svg = telorama_svg::render_scene_with_data(
             &scene,
             &telorama_svg::SceneData {
@@ -216,10 +211,9 @@ fn sections() -> Vec<Section> {
         "otel-demo-checkout.json",
     ));
     {
-        let scene = telorama_scene::parse_scene(&workspace_file(
-            "tests/fixtures/scenes/flame_scene.json",
-        ))
-        .expect("flame scene must validate");
+        let scene =
+            telorama_scene::parse_scene(&workspace_file("tests/fixtures/scenes/flame_scene.json"))
+                .expect("flame scene must validate");
         let stacks = telorama_ingest::parse_folded_stacks(&workspace_file(
             "tests/fixtures/profiles/checkout-cpu.txt",
         ))
