@@ -105,9 +105,9 @@ window.addEventListener("message", function (event) {
     }
   }
 });
-post({jsonrpc: "2.0", id: initId, method: "ui/initialize", params: {appCapabilities: {}, protocolVersion: "2026-01-26", appInfo: {name: "telorama-view", version: "##,
+post({jsonrpc: "2.0", id: initId, method: "ui/initialize", params: {appCapabilities: {}, protocolVersion: "2026-01-26", appInfo: {name: "telorama-view", version: ""##,
     env!("CARGO_PKG_VERSION"),
-    r##"}}});
+    r##""}}});
 </script>
 </body>
 </html>
