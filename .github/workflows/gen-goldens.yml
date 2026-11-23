@@ -1,0 +1,16 @@
+name: gen-goldens
+on:
+  workflow_dispatch:
+jobs:
+  gen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.100.0
+      - name: Measure the long session fixtures
+        run: |
+          cargo test -p telorama-ingest --test ingest_tests ten_thousand -- --nocapture 2>&1 | grep -E "long|test result|running" || true
+          echo MEASURE_STREAM_BEGIN
+          cargo test -p telorama-svg --test golden_tests frame_stream_at_five_thousand_turns -- --nocapture 2>&1 | grep -E "long session|test result|running|error" || true
+          echo MEASURE_STREAM_END

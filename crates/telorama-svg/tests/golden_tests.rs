@@ -1014,6 +1014,96 @@ fn frame_stream_totals_hold_at_five_hundred_turns() {
 }
 
 #[test]
+fn frame_stream_at_five_thousand_turns() {
+    // Round 14: the Round 4 session recipe at ten times the
+    // turns. The stream's construction and its final frame are
+    // what this test proves; the aggregate byte total of a
+    // full render is recorded in DECISIONS from the
+    // measurement run, because it grows with the square of
+    // the turn count by construction (INV-71).
+    use telorama_scene::{AgentRun, AgentStep, AgentTurn, Coverage, ModelCall, Pricing};
+    let call = |cost: f64| {
+        AgentStep::ModelCall(ModelCall {
+            model: "gpt-5.1".to_string(),
+            start_unix_nano: 0,
+            end_unix_nano: 1_000_000_000,
+            ttft_nanos: None,
+            attempts: 1,
+            is_error: false,
+            input_tokens: 100,
+            output_tokens: 10,
+            cache_read_tokens: 0,
+            cache_creation_tokens: 0,
+            cost_usd: cost,
+        })
+    };
+    let mut turns = Vec::with_capacity(5_000);
+    for k in 0..5_000i64 {
+        turns.push(AgentTurn {
+            prompt_id: format!("t{}", k + 1),
+            start_unix_nano: k * 10_000_000_000,
+            end_unix_nano: k * 10_000_000_000 + 9_000_000_000,
+            steps: vec![call(0.50), call(0.50)],
+            input_tokens: 200,
+            output_tokens: 20,
+            cache_read_tokens: 0,
+            cache_creation_tokens: 0,
+            cost_usd: 1.0,
+            coverage: Coverage {
+                log_events: 0,
+                spans_seen: 2,
+                spans_merged: 2,
+            },
+        });
+    }
+    let run = AgentRun {
+        session_id: "sess-long".to_string(),
+        dialect: "genai".to_string(),
+        turns,
+        coverage: Coverage {
+            log_events: 0,
+            spans_seen: 10_000,
+            spans_merged: 10_000,
+        },
+        pricing: Some(Pricing {
+            table_as_of: "2026-11-23".to_string(),
+            priced_models: vec!["gpt-5.1".to_string()],
+            unpriced_models: vec![],
+        }),
+    };
+    let started = std::time::Instant::now();
+    let frames = telorama_scene::session_frames(&run, "test");
+    let built = started.elapsed();
+    eprintln!("long session stream build {:?}", built);
+    assert_eq!(frames.len(), 5_000);
+    let last = frames.last().expect("the stream has a final frame");
+    assert_eq!(
+        last.scene.headline,
+        "After turn 5000: 1000000 input tokens, 100000 output tokens, $5000.0000 so far"
+    );
+    let svg = telorama_svg::render_scene_with_data(
+        &last.scene,
+        &telorama_svg::SceneData {
+            spans: &[],
+            stacks: &[],
+            agent_run: Some(&last.run),
+            agent_state: &[],
+            findings: &last.findings,
+        },
+    )
+    .expect("the final frame must render");
+    let hash = telorama_scene::content_hash(svg.as_bytes());
+    eprintln!("long session final frame hash {hash}");
+    eprintln!("long session final frame bytes {}", svg.len());
+    assert_eq!(hash, "MEASURE");
+    assert!(
+        built < std::time::Duration::from_secs(600),
+        "building the 5000-turn stream took {:?}",
+        built
+    );
+}
+
+#[test]
 fn many_trace_sankey_renders_pin_by_hash() {
     // The thousand-trace fixture rendered whole, through a
     // sankey panel whose data names no single trace, so the
