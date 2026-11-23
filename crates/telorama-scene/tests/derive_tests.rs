@@ -921,4 +921,11 @@ fn flame_from_spans_builds_a_very_deep_chain() {
         node = child;
     }
     assert_eq!(levels, depth as usize);
+    // Dismantle iteratively. Dropping a tree this deep would
+    // recurse through the drop glue, the caller's side of the
+    // same depth law the builder now obeys.
+    let mut pending = vec![root];
+    while let Some(mut node) = pending.pop() {
+        pending.append(&mut node.children);
+    }
 }
