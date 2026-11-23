@@ -1247,10 +1247,7 @@ fn render_service_map(
             bold: true,
             mono: false,
             anchor: "start",
-            content: truncate_label(
-                &node.service,
-                (((box_w - 12.0) / 6.5) as usize).max(4),
-            ),
+            content: truncate_label(&node.service, (((box_w - 12.0) / 6.5) as usize).max(4)),
         });
         prims.push(Prim::Text {
             x: bx + 8.0,
