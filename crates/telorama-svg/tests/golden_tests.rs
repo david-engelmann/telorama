@@ -1095,9 +1095,12 @@ fn frame_stream_at_five_thousand_turns() {
     let hash = telorama_scene::content_hash(svg.as_bytes());
     eprintln!("long session final frame hash {hash}");
     eprintln!("long session final frame bytes {}", svg.len());
-    assert_eq!(hash, "MEASURE");
+    assert_eq!(hash, "c5ed954ad4390b9f");
+    // The first hosted measurement built the stream in
+    // 13.06 seconds. The ceiling is ten times that,
+    // rounded up, per INV-70.
     assert!(
-        built < std::time::Duration::from_secs(600),
+        built < std::time::Duration::from_secs(131),
         "building the 5000-turn stream took {:?}",
         built
     );
