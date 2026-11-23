@@ -13,12 +13,15 @@
 //! generations added cache token attributes and a response model.
 //! The adapter reads the union of the 1.30, 1.37, and 1.41 shapes,
 //! so a span from any of those generations maps the same way. The
-//! conventions have since moved to their own repository with no
-//! new release yet, so the adapter pins to the released 1.41 text
-//! plus the deltas the Round 3 currency pass verified from the
-//! current sources: cache creation's new spelling
-//! gen_ai.usage.cache_write.input_tokens, the invoke_workflow
-//! operation, and the generate_content operation.
+//! conventions have since moved to their own repository, which
+//! has cut no versioned conventions release, so the adapter pins
+//! to that repository at commit
+//! ae8214a8f3a98786071736855093b74621174dc4 (2026-11-23), read
+//! against the released 1.41 text, plus the deltas the Round 3
+//! currency pass verified from the current sources: cache
+//! creation's new spelling gen_ai.usage.cache_write.input_tokens,
+//! the invoke_workflow operation, and the generate_content
+//! operation.
 //!
 //! Token accounting follows the house rule: reported input counts
 //! every input token including cached ones, so the model stores
