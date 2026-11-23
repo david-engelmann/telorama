@@ -383,7 +383,7 @@ fn emit(
     sink: &mut Vec<AgentStep>,
 ) -> Result<(), IngestError> {
     // The walk runs on an explicit stack (INV-87). Each frame
-    // holds the steps its subtree emitted; a container frame
+    // holds the steps its subtree emitted. A container frame
     // splices them into its parent on completion, an agent
     // frame wraps them in its subagent step. The seen rule
     // fires when a frame opens or a leaf is reached, the
