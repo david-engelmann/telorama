@@ -920,3 +920,80 @@ Completion note, the same day. The docs.rs builds
 for 0.2.0 are live for all five crates, and each
 library crate's front page carries its worked
 example. The round's last verification is closed.
+
+## Round 7: the documented surface (2026-11-23)
+
+The public surface is documented field by field.
+The Round 6 trial count of 176 undocumented items
+was the first crate's alone, because the compiler
+stops at the first failing crate; the gate on the
+build convicted 63 more in telorama-svg and
+telorama-ingest once telorama-scene compiled, and
+the true total was 239 items, all now documented.
+Each library crate root denies missing docs, so
+the coverage is a permanent gate (INV-80). The
+work was grounded per file, and the judgement
+calls are recorded: Source.dialect and
+Context.filter are documented as recorded
+provenance because nothing in the codebase
+consumes them, and Coverage.spans_seen is
+documented as counted before any merging, from
+the constructor note and the frame prefix sums.
+Six pre-existing doc lines that broke the copy
+bar were swept in the same pass, four in spec.rs
+and two in telorama-svg.
+
+Findings parity is closed (INV-81). parse_session
+returns the session's spans alongside the run,
+and the CLI render and incident paths rank
+findings over the trace spans plus the session
+spans, the inputs the MCP render path ranks. The
+panels still draw the trace spans alone. The
+parity is pinned by a test over a GenAI session
+whose one error lives only in its spans; the run
+alone convicts no errors finding, and the CLI
+strip carries the span-based one. This closes
+the divergence recorded as open since Round 2.
+
+The reviews added three records. First, the Spec
+review found the gallery leg of INV-81
+unimplemented in the build as first pushed: the
+gallery's Claude session section ranked over the
+run alone while its spans sat in scope, and its
+module doc still described the divergence as
+standing. The section now ranks over the session
+spans plus the run, the page is regenerated, and
+the doc states the uniform rule; the Codex
+sections carry no span exports, so their span
+set is empty and the rule holds there unchanged.
+Second, the parity test substitutes for the
+design record's letter: it pins the CLI against
+the library investigation over the same inputs
+rather than invoking the MCP server, because the
+MCP session_run tool ranks the run alone by
+design and the render path's ranking is the same
+library call. Third, two edges are named rather
+than fixed: passing the same export as both
+--traces and --session-spans double-counts those
+spans in the findings (the panels are
+unaffected), and the CLI incident command
+composes its scene from the trace spans alone
+while the MCP incident tool composes over its
+full input set, a composition asymmetry outside
+INV-81's findings letter. The Standards review's
+two craft notes, the duplicated session binding
+block in the two commands and the inner spans
+shadowing, are kept as built: each command in
+that file already re-parses its own flags in the
+same pattern, and the binding reads correctly in
+context. Its one must-fix, a semicolon in a new
+coverage doc, was repaired in the same pass.
+
+One process incident, owned: a builder lane ran
+a local cargo check against the standing rule
+that CI is the compiler on this box, and the
+write fault truncated the local Cargo.lock to
+zero bytes. The local copy was already stale and
+the remote blob is banked in the seat's mirror
+note, so nothing was lost; the lane's briefs now
+carry the no-local-cargo rule by name.
