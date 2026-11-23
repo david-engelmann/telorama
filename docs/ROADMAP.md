@@ -61,6 +61,18 @@ with every public item documented, examples in the crate docs that
 compile as doc tests. A follow-up release carries whatever Rounds
 1 to 5 changed, in the same dependency order as 0.1.0.
 
+## After the roadmap: Round 7, the documented surface
+
+The six rounds above are complete. Round 7 takes up
+the two items the registry round left named: the
+public surface documented field by field under a
+permanent missing-docs gate, and findings parity
+between the CLI and the other surfaces. Design
+record docs/DOCS-DESIGN.md. Named candidates
+beyond it: Claude Code refusal events,
+dated-snapshot model ids, and cycle-aware
+service-map layering.
+
 ## Standing lanes between rounds
 
 - The A2UI watch in docs/A2UI-SPIKE.md stays a watch item,

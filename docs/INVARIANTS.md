@@ -597,3 +597,18 @@ later milestones are marked as validator-side.
   Enforced by packaging_tests for the version
   agreement and by the publish record in DECISIONS.md
   for the order.
+
+## The documented surface (all library crates)
+
+- INV-80. Every public item in the four library
+  crates carries a doc comment that says what the
+  item holds or when it occurs, never a restatement
+  of its name.
+  Enforced by deny(missing_docs) at each library
+  crate root.
+- INV-81. Every surface that renders a session
+  computes its findings over the same inputs, the
+  session's spans plus the agent run, so the CLI,
+  the MCP server, and the gallery rank the same
+  findings for the same session.
+  Enforced by the parity test in cli_tests.
