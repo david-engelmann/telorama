@@ -94,6 +94,17 @@ input, and the CLI's two input flags can count
 one span twice. Design record
 docs/PARITY-DESIGN.md.
 
+## Round 10: the named leftovers
+
+Round 10 takes the three leftovers Rounds 8
+and 9 recorded without fixing: the MCP tools
+do not dedupe their input where the CLI now
+does, service_layers can panic on a hand-built
+graph whose edge names an absent service, and
+the flame builder's recursion can overflow on
+a very deep acyclic trace. Design record
+docs/LEFTOVERS-DESIGN.md.
+
 ## Standing lanes between rounds
 
 - The A2UI watch in docs/A2UI-SPIKE.md stays a watch item,
