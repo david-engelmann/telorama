@@ -198,7 +198,7 @@ fn codex_session_prices_tokens_and_pairs_tools() {
     assert_eq!(run.coverage.spans_seen, 0);
     assert_eq!(run.coverage.spans_merged, 0);
     let pricing = run.pricing.as_ref().expect("codex runs are priced");
-    assert_eq!(pricing.table_as_of, "2026-11-16");
+    assert_eq!(pricing.table_as_of, "2026-11-23");
     assert_eq!(
         pricing.priced_models,
         vec![
