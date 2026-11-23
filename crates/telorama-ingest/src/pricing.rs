@@ -116,44 +116,52 @@ mod tests {
         }
     }
 
-    /// One million tokens of each class costs exactly the row's
-    /// three published figures added together. Every row in the
-    /// table is pinned here, so an edit to any figure fails a
-    /// test that names the model.
-    fn million_each(model: &str, expected: f64) {
-        let cost = price_call(&call(model, 1_000_000, 1_000_000, 1_000_000))
-            .unwrap_or_else(|| panic!("{model} must have a price row"));
-        assert!((cost - expected).abs() < 1e-9, "{model}: {cost}");
+    /// Each figure of a row is pinned on its own: one million
+    /// tokens of a single class costs exactly that class's
+    /// published figure. Every row in the table is pinned here,
+    /// so an edit to any figure, or a swap of two figures within
+    /// a row, fails a test that names the model.
+    fn row(model: &str, input: f64, cached: f64, output: f64) {
+        let cases = [
+            (call(model, 1_000_000, 0, 0), input),
+            (call(model, 0, 1_000_000, 0), cached),
+            (call(model, 0, 0, 1_000_000), output),
+        ];
+        for (c, expected) in cases {
+            let cost =
+                price_call(&c).unwrap_or_else(|| panic!("{model} must have a price row"));
+            assert!((cost - expected).abs() < 1e-9, "{model}: {cost} != {expected}");
+        }
     }
 
     #[test]
     fn every_table_row_is_pinned() {
-        million_each("gpt-5.1", 11.375);
-        million_each("gpt-5.1-codex", 11.375);
-        million_each("gpt-5.1-codex-max", 11.375);
-        million_each("gpt-5", 11.375);
-        million_each("gpt-5-codex", 11.375);
-        million_each("gpt-5.1-mini", 2.275);
-        million_each("gpt-5.1-codex-mini", 2.275);
-        million_each("gpt-5-mini", 2.275);
-        million_each("gpt-5.2", 15.925);
-        million_each("gpt-5.2-codex", 15.925);
-        million_each("gpt-5.3-codex", 15.925);
-        million_each("gpt-5-nano", 0.455);
-        million_each("codex-mini-latest", 7.875);
-        million_each("claude-sonnet-5", 12.20);
-        million_each("claude-sonnet-5.5", 12.10);
-        million_each("claude-opus-5.5", 24.20);
-        million_each("claude-opus-5", 30.50);
-        million_each("claude-opus-4.5", 30.50);
-        million_each("claude-opus-4.6", 30.50);
-        million_each("claude-opus-4.7", 30.50);
-        million_each("claude-opus-4.8", 30.50);
-        million_each("claude-sonnet-4.5", 18.30);
-        million_each("claude-sonnet-4.6", 18.30);
-        million_each("claude-haiku-4.5", 6.10);
-        million_each("claude-fable-5.2", 48.20);
-        million_each("claude-mythos-5.2", 48.20);
+        row("gpt-5.1", 1.25, 0.125, 10.0);
+        row("gpt-5.1-codex", 1.25, 0.125, 10.0);
+        row("gpt-5.1-codex-max", 1.25, 0.125, 10.0);
+        row("gpt-5", 1.25, 0.125, 10.0);
+        row("gpt-5-codex", 1.25, 0.125, 10.0);
+        row("gpt-5.1-mini", 0.25, 0.025, 2.0);
+        row("gpt-5.1-codex-mini", 0.25, 0.025, 2.0);
+        row("gpt-5-mini", 0.25, 0.025, 2.0);
+        row("gpt-5.2", 1.75, 0.175, 14.0);
+        row("gpt-5.2-codex", 1.75, 0.175, 14.0);
+        row("gpt-5.3-codex", 1.75, 0.175, 14.0);
+        row("gpt-5-nano", 0.05, 0.005, 0.40);
+        row("codex-mini-latest", 1.50, 0.375, 6.0);
+        row("claude-sonnet-5", 2.0, 0.20, 10.0);
+        row("claude-sonnet-5.5", 2.0, 0.10, 10.0);
+        row("claude-opus-5.5", 4.0, 0.20, 20.0);
+        row("claude-opus-5", 5.0, 0.50, 25.0);
+        row("claude-opus-4.5", 5.0, 0.50, 25.0);
+        row("claude-opus-4.6", 5.0, 0.50, 25.0);
+        row("claude-opus-4.7", 5.0, 0.50, 25.0);
+        row("claude-opus-4.8", 5.0, 0.50, 25.0);
+        row("claude-sonnet-4.5", 3.0, 0.30, 15.0);
+        row("claude-sonnet-4.6", 3.0, 0.30, 15.0);
+        row("claude-haiku-4.5", 1.0, 0.10, 5.0);
+        row("claude-fable-5.2", 8.0, 0.20, 40.0);
+        row("claude-mythos-5.2", 8.0, 0.20, 40.0);
     }
 
     #[test]
