@@ -1072,3 +1072,41 @@ builder's recursion is bounded by distinct span
 ids, and a very deep acyclic trace can still
 overflow the stack, as it could before this
 round.
+
+## Round 9: parity completion (2026-11-23)
+
+The two asymmetries the Round 7 reviews named
+are closed (INV-85). Each CLI command that
+takes traces and a session builds one combined
+span set through a single helper, trace spans
+first, with each trace id and span id entering
+once and the first occurrence kept. The
+incident command composes its scene over that
+set and renders it from the same set, the
+pairing the MCP incident tool has always used,
+and both commands rank their findings over it.
+The render command's panels still draw the
+trace spans alone, as Round 7 settled.
+
+The reviews qualified the round's claims in
+one place, and the design record's amendments
+carry the correction. The combined set dedupes
+across the whole input, so a traces file with
+duplicate span ids inside it changes output
+against the pre-round code, where the fence
+had claimed byte-identity for single-input
+calls without the duplicate-free qualifier.
+The same class now separates the CLI from the
+MCP incident tool, which does not dedupe its
+input. The two agree exactly on duplicate-free
+input, and on malformed input the CLI reports
+the single count. Widening the dedup to the
+MCP tool is named as a candidate for a later
+round, not taken here. The composition test
+pins the combined window, which is the
+observable the scene JSON carries. The design
+record no longer claims a panel-level pin for
+it. The first-occurrence rule is positional,
+traces before session, which the record now
+distinguishes from the sankey staging's
+field-chosen canonical copy.
