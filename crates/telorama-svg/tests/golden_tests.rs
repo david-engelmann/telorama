@@ -659,6 +659,7 @@ fn scale_scene(panel: &str) -> telorama_scene::Scene {
 fn scale_trace_renders_pin_by_hash() {
     let spans = scale_spans();
     let started = std::time::Instant::now();
+    let mut hashes: Vec<String> = Vec::new();
     let panels = [
         ("waterfall", "{\"data\":\"trace\",\"type\":\"waterfall\"}"),
         (
@@ -675,17 +676,23 @@ fn scale_trace_renders_pin_by_hash() {
         let svg = telorama_svg::render_scene(&scene, &spans)
             .unwrap_or_else(|e| panic!("{name} must render at scale: {e}"));
         assert!(svg.len() > 10_000, "{name} render is {} bytes", svg.len());
-        assert_eq!(
-            telorama_scene::content_hash(svg.as_bytes()),
-            "PIN_AFTER_FIRST_RUN",
-            "{name} hash"
-        );
+        hashes.push(telorama_scene::content_hash(svg.as_bytes()));
+        let _ = name;
     }
+    assert_eq!(
+        hashes,
+        vec![
+            "74414c45532594f0".to_string(),
+            "PIN_SERVICE_MAP".to_string(),
+            "PIN_SANKEY".to_string()
+        ]
+    );
     assert!(
         started.elapsed() < std::time::Duration::from_secs(60),
         "trace renders at scale took {:?}",
         started.elapsed()
     );
+    eprintln!("scale trace renders {:?}", started.elapsed());
 }
 
 #[test]
@@ -733,10 +740,11 @@ fn profile_flame_renders_at_a_hundred_thousand_samples() {
         "flame render at scale took {:?}",
         started.elapsed()
     );
+    eprintln!("scale flame render {:?}", started.elapsed());
     assert!(svg.len() > 1_000, "flame render is {} bytes", svg.len());
     assert_eq!(
         telorama_scene::content_hash(svg.as_bytes()),
-        "PIN_AFTER_FIRST_RUN"
+        "345ec9af1621aa72"
     );
 }
 
@@ -817,10 +825,13 @@ fn frame_stream_totals_hold_at_five_hundred_turns() {
         "the rendered stream at 500 turns took {:?}",
         started.elapsed()
     );
-    // The ceiling is provisional until the first hosted run
-    // measures the real total, per INV-71.
+    eprintln!("scale rendered stream {:?}", started.elapsed());
+    // The first hosted run measured the stream at 104,428,401
+    // bytes. The total is deterministic, so the ceiling sits
+    // just above the measured figure and any growth fails
+    // until it is re-measured and re-recorded, per INV-71.
     assert!(
-        total_bytes <= 64_000_000,
+        total_bytes <= 105_000_000,
         "the rendered stream totals {total_bytes} bytes"
     );
     assert_eq!(

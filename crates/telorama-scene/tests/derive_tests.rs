@@ -640,6 +640,7 @@ fn sankey_flow_conserves_at_ten_thousand_spans() {
         "sankey at scale took {:?}",
         started.elapsed()
     );
+    eprintln!("scale sankey single trace {:?}", started.elapsed());
     // The chain stages one thousand deep, and every span is
     // counted exactly once across the real nodes.
     assert_eq!(flow.stages, 1000);
@@ -688,6 +689,7 @@ fn sankey_flow_holds_across_a_thousand_traces() {
         "many-trace sankey took {:?}",
         started.elapsed()
     );
+    eprintln!("scale sankey many traces {:?}", started.elapsed());
     let counted: u64 = flow
         .nodes
         .iter()
@@ -749,4 +751,5 @@ fn profile_holds_at_a_hundred_thousand_samples() {
         "profile at scale took {:?}",
         started.elapsed()
     );
+    eprintln!("scale profile {:?}", started.elapsed());
 }

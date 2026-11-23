@@ -166,6 +166,7 @@ fn session_frames_hold_at_five_hundred_turns() {
         elapsed < std::time::Duration::from_secs(60),
         "the frame stream at 500 turns took {elapsed:?}"
     );
+    eprintln!("scale frame stream build {elapsed:?}");
     assert_eq!(frames.len(), 500);
     let last = &frames[499];
     assert_eq!(last.turns, 500);
