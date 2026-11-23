@@ -915,3 +915,8 @@ The docs.rs builds for 0.2.0 were still queued when
 this record was written. Reading those pages
 firsthand stands open and closes the round's last
 verification.
+
+Completion note, the same day. The docs.rs builds
+for 0.2.0 are live for all five crates, and each
+library crate's front page carries its worked
+example. The round's last verification is closed.
