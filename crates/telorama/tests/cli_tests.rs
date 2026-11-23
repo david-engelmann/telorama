@@ -521,3 +521,33 @@ fn render_session_findings_cover_the_session_spans() {
         "the CLI strip must carry the span-based errors finding: {written}"
     );
 }
+
+#[test]
+fn render_refusal_session_draws_the_refusal_as_an_error() {
+    // INV-83 end to end: the refusal fixture's only error source
+    // is its claude_code.api_refusal event, so the error colour in
+    // the render can only come from the refusal's step.
+    let scene = workspace_file("tests/fixtures/scenes/agent_run_scene.json");
+    let logs = workspace_file("tests/fixtures/agents/claude-code-refusal-logs.json");
+    let out_path = std::env::temp_dir().join("telorama-cli-refusal.svg");
+    let out = telorama(&[
+        "render",
+        "--scene",
+        scene.to_str().unwrap(),
+        "--session-logs",
+        logs.to_str().unwrap(),
+        "--out",
+        out_path.to_str().unwrap(),
+    ]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let written = std::fs::read_to_string(&out_path).expect("the render must be written");
+    assert!(written.contains("claude-sonnet-4-5"), "{written}");
+    assert!(
+        written.contains("#D55E00"),
+        "the refusal must draw in the error colour: {written}"
+    );
+}

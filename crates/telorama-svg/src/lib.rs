@@ -1121,24 +1121,14 @@ fn plural(n: u64, singular: &str, plural_form: &str) -> String {
 /// by the barycenter of their predecessors in the layer above, then
 /// by name. Returns (service, layer, position in layer).
 fn map_positions(graph: &ServiceGraph) -> Vec<(String, usize, usize)> {
-    let mut layer: BTreeMap<&str, usize> = graph
-        .nodes
+    // Layers come from the graph's condensation, so a cyclic
+    // graph collapses its cycles instead of inflating the layer
+    // count (INV-82). Acyclic layers are unchanged.
+    let layer_owned = telorama_scene::service_layers(graph);
+    let layer: BTreeMap<&str, usize> = layer_owned
         .iter()
-        .map(|n| (n.service.as_str(), 0usize))
+        .map(|(name, layer)| (name.as_str(), *layer))
         .collect();
-    for _ in 0..graph.nodes.len() {
-        let mut changed = false;
-        for edge in &graph.edges {
-            let want = layer[edge.from.as_str()] + 1;
-            if layer[edge.to.as_str()] < want {
-                layer.insert(edge.to.as_str(), want);
-                changed = true;
-            }
-        }
-        if !changed {
-            break;
-        }
-    }
     let mut preds: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
     for edge in &graph.edges {
         preds

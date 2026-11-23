@@ -293,13 +293,21 @@ fn build_turn(
     unpriced: &mut BTreeSet<String>,
 ) -> AgentTurn {
     let mut steps = Vec::new();
+    let mut seen: BTreeSet<String> = BTreeSet::new();
     match (dialect.classify)(root) {
         Role::Agent | Role::Container => {
+            // The root itself never emits as a step, so seed the
+            // set with its id and a cycle back to it stops too.
+            seen.insert(root.span_id.clone());
             for child in children_of(children, root) {
-                emit(child, children, dialect, priced, unpriced, &mut steps);
+                emit(
+                    child, children, dialect, priced, unpriced, &mut seen, &mut steps,
+                );
             }
         }
-        _ => emit(root, children, dialect, priced, unpriced, &mut steps),
+        _ => emit(
+            root, children, dialect, priced, unpriced, &mut seen, &mut steps,
+        ),
     }
     let span_count = subtree_len(root, children);
     let mut turn = AgentTurn {
@@ -346,11 +354,16 @@ fn children_of<'a>(children: &'a BTreeMap<&str, Vec<&'a Span>>, span: &Span) -> 
 
 /// How many spans a root's subtree carries, the root included. The
 /// span dialects read and merge every span in the trace, so a turn's
-/// coverage is its subtree size.
+/// coverage is its subtree size. Each span id counts once, so a
+/// cycle through repeated ids terminates (INV-82).
 fn subtree_len(root: &Span, children: &BTreeMap<&str, Vec<&Span>>) -> u64 {
     let mut count = 0u64;
+    let mut seen: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
     let mut stack: Vec<&Span> = vec![root];
     while let Some(span) = stack.pop() {
+        if !seen.insert(span.span_id.as_str()) {
+            continue;
+        }
         count += 1;
         if let Some(kids) = children.get(span.span_id.as_str()) {
             stack.extend(kids.iter());
@@ -365,12 +378,18 @@ fn emit(
     dialect: &Dialect,
     priced: &mut BTreeSet<String>,
     unpriced: &mut BTreeSet<String>,
+    seen: &mut BTreeSet<String>,
     sink: &mut Vec<AgentStep>,
 ) {
+    // Each span id emits once per turn, so a cycle through
+    // repeated ids stops instead of recursing forever (INV-82).
+    if !seen.insert(span.span_id.clone()) {
+        return;
+    }
     match (dialect.classify)(span) {
         Role::Container => {
             for child in children_of(children, span) {
-                emit(child, children, dialect, priced, unpriced, sink);
+                emit(child, children, dialect, priced, unpriced, seen, sink);
             }
         }
         Role::Model => sink.push(AgentStep::ModelCall(model_call(
@@ -387,7 +406,7 @@ fn emit(
         Role::Agent => {
             let mut inner = Vec::new();
             for child in children_of(children, span) {
-                emit(child, children, dialect, priced, unpriced, &mut inner);
+                emit(child, children, dialect, priced, unpriced, seen, &mut inner);
             }
             sink.push(AgentStep::Subagent(SubagentRun {
                 agent_id: (dialect.agent_id)(span),

@@ -275,6 +275,33 @@ fn codex_session_needs_exactly_one_conversation() {
 }
 
 #[test]
+fn genai_session_terminates_on_a_cyclic_span_tree() {
+    // INV-82 in the dialect builder: the fixture's fourth span
+    // repeats the second span's id under the third, so the
+    // children map cycles. The turn builds with each span id
+    // emitted and counted once.
+    use telorama_scene::AgentStep;
+    let spans = telorama_ingest::parse_otlp_traces(&fixture_text(
+        "tests/fixtures/agents/genai-session-cyclic-spans.json",
+    ))
+    .expect("cyclic fixture must parse");
+    assert_eq!(spans.len(), 4);
+    let run = telorama_ingest::parse_genai_session(&spans).expect("spans must adapt");
+    assert_eq!(run.turns.len(), 1);
+    let turn = &run.turns[0];
+    assert_eq!(turn.coverage.spans_seen, 3);
+    assert_eq!(turn.steps.len(), 1);
+    let AgentStep::Subagent(stage) = &turn.steps[0] else {
+        panic!("the turn's one step must be the stage subagent");
+    };
+    assert_eq!(stage.steps.len(), 1);
+    let AgentStep::Subagent(step) = &stage.steps[0] else {
+        panic!("the stage's one step must be the step subagent");
+    };
+    assert!(step.steps.is_empty());
+}
+
+#[test]
 fn genai_session_maps_spans_to_a_run() {
     use telorama_scene::AgentStep;
     let spans = telorama_ingest::parse_otlp_traces(&fixture_text(
@@ -635,6 +662,31 @@ fn turn_coverages_sum_to_the_run_coverage() {
     assert_eq!(run.turns[1].coverage.spans_seen, 3);
     assert!(run.turns[0].coverage.log_events > 0);
     assert!(run.turns[1].coverage.log_events > 0);
+}
+
+#[test]
+fn claude_refusal_becomes_an_error_model_call() {
+    // INV-83: a claude_code.api_refusal event is a failed model
+    // call in its turn, with the error flag set and zero tokens,
+    // exactly the shape an api_error call gets.
+    let logs = include_str!("../../../tests/fixtures/agents/claude-code-refusal-logs.json");
+    let run = telorama_ingest::parse_claude_code_session(logs, &[]).expect("run must parse");
+    assert_eq!(run.session_id, "sess-2026-1116-refusal");
+    assert_eq!(run.turns.len(), 1);
+    let turn = &run.turns[0];
+    assert_eq!(turn.steps.len(), 2);
+    let refusal = match &turn.steps[1] {
+        telorama_scene::AgentStep::ModelCall(call) => call,
+        other => panic!("the second step must be the refusal model call, got {other:?}"),
+    };
+    assert!(refusal.is_error);
+    assert_eq!(refusal.model, "claude-sonnet-4-5");
+    assert_eq!(refusal.input_tokens, 0);
+    assert_eq!(refusal.output_tokens, 0);
+    assert_eq!(refusal.cost_usd, 0.0);
+    // The turn totals come from the successful call alone.
+    assert_eq!(turn.input_tokens, 1200);
+    assert_eq!(turn.output_tokens, 300);
 }
 
 #[test]

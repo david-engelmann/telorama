@@ -158,6 +158,28 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
                     cost_usd: 0.0,
                 }));
             }
+            "claude_code.api_refusal" => {
+                // A refusal is a failed call with no tokens, given
+                // exactly the shape an api_error call gets, so the
+                // step list and the error drawing see it (INV-83).
+                let duration = event.i64_attr("duration_ms") * 1_000_000;
+                turn.steps.push(AgentStep::ModelCall(ModelCall {
+                    model: event
+                        .str_attr("model")
+                        .unwrap_or("unknown model")
+                        .to_string(),
+                    start_unix_nano: event.time_nano - duration,
+                    end_unix_nano: event.time_nano,
+                    ttft_nanos: None,
+                    attempts: event.i64_attr("attempt").max(1) as u32,
+                    is_error: true,
+                    input_tokens: 0,
+                    output_tokens: 0,
+                    cache_read_tokens: 0,
+                    cache_creation_tokens: 0,
+                    cost_usd: 0.0,
+                }));
+            }
             "claude_code.tool_result" => {
                 let duration = event.i64_attr("duration_ms") * 1_000_000;
                 let name = event

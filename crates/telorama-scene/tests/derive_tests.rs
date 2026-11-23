@@ -1,7 +1,8 @@
 use std::collections::BTreeMap;
 use telorama_scene::{
     Span, SpanKind, StackSample, TimeRange, critical_path, flame_from_spans, flame_tree,
-    heatmap_grid, percentile_nanos, red_by_service, sankey_flow, service_graph, waterfall_rows,
+    heatmap_grid, percentile_nanos, red_by_service, sankey_flow, service_graph, service_layers,
+    waterfall_rows,
 };
 
 fn ms(v: i64) -> i64 {
@@ -790,4 +791,71 @@ fn profile_holds_at_a_hundred_thousand_samples() {
         started.elapsed()
     );
     eprintln!("scale profile {:?}", started.elapsed());
+}
+
+/// The cyclic shape a malformed export produces through a
+/// repeated span id: a, then b, then c, then b again under c, so
+/// the children of b include c and the children of c include b.
+fn cyclic_spans() -> Vec<Span> {
+    vec![
+        span("a", None, "web", SpanKind::Server, 0, 100, false),
+        span("b", Some("a"), "api", SpanKind::Server, 10, 90, false),
+        span("c", Some("b"), "db", SpanKind::Server, 20, 80, false),
+        span("b", Some("c"), "api", SpanKind::Server, 30, 70, false),
+    ]
+}
+
+#[test]
+fn waterfall_rows_terminate_on_a_cyclic_trace() {
+    // INV-82: each span id is emitted once, so the second b is
+    // not emitted and the walk stops instead of following the
+    // b-c cycle forever.
+    let rows = waterfall_rows(&cyclic_spans(), "t1");
+    let ids: Vec<&str> = rows.iter().map(|r| r.span_id.as_str()).collect();
+    assert_eq!(ids, ["a", "b", "c"]);
+    let depths: Vec<usize> = rows.iter().map(|r| r.depth).collect();
+    assert_eq!(depths, [0, 1, 2]);
+}
+
+#[test]
+fn critical_path_stops_at_the_first_repeated_span() {
+    // INV-82: the walk follows the latest-finishing child until
+    // that choice would revisit a span already on the path.
+    let path = critical_path(&cyclic_spans(), "t1");
+    assert_eq!(path, ["a", "b", "c"]);
+}
+
+#[test]
+fn flame_from_spans_terminates_on_a_cyclic_trace() {
+    // INV-82: the recursive builder used to recurse forever on
+    // this shape. Each span id builds once, so the tree is the
+    // a-b-c chain and the repeated b never builds.
+    let tree = flame_from_spans(&cyclic_spans(), "t1");
+    assert_eq!(tree.children.len(), 1);
+    let a = &tree.children[0];
+    assert_eq!(a.children.len(), 1);
+    let b = &a.children[0];
+    assert_eq!(b.children.len(), 1);
+    let c = &b.children[0];
+    assert!(c.children.is_empty());
+}
+
+#[test]
+fn service_layers_collapse_a_cycle_to_one_layer() {
+    // INV-82: api and db call each other, so they share a layer;
+    // the feeder and the exit keep their longest-path layers.
+    let spans = vec![
+        span("s1", None, "web", SpanKind::Server, 0, 100, false),
+        span("s2", Some("s1"), "api", SpanKind::Client, 10, 90, false),
+        span("s3", Some("s2"), "db", SpanKind::Client, 20, 80, false),
+        span("s4", Some("s3"), "api", SpanKind::Client, 30, 70, false),
+        span("s5", Some("s3"), "cache", SpanKind::Client, 30, 60, false),
+    ];
+    let graph = service_graph(&spans, 10.0);
+    let layers = service_layers(&graph);
+    assert_eq!(layers["web"], 0);
+    assert_eq!(layers["api"], 1);
+    assert_eq!(layers["db"], 1);
+    assert_eq!(layers["cache"], 2);
+    assert_eq!(layers.len(), 4);
 }

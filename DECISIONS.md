@@ -997,3 +997,78 @@ zero bytes. The local copy was already stale and
 the remote blob is banked in the seat's mirror
 note, so nothing was lost; the lane's briefs now
 carry the no-local-cargo rule by name.
+
+## Round 8: hostile inputs (2026-11-23)
+
+Cycle safety is closed (INV-82). The waterfall
+rows walk, the critical path, and the flame
+builder each stop at the first repeated span id,
+and service layers come from a new derivation,
+service_layers, that computes longest paths over
+the service graph's condensation, so services in
+one strongly connected component share a layer.
+The build found a fourth walk the design recon
+missed. flame_from_spans built its tree by
+unbounded recursion, so a cyclic trace overflowed
+the stack instead of hanging. One scale hash
+moved, with the reason pinned in the test. The
+scale fixture's services form a ring along the
+chain, so its old service map hash had captured
+the pre-INV-82 layering that a relaxation
+inflates on a cyclic graph, and the new hash
+pins the collapsed layout. The waterfall and
+sankey hashes, and every golden, stand unchanged,
+which is the acyclic byte-identity proof.
+
+Refusals are visible (INV-83). The Claude Code
+adapter reads claude_code.api_refusal events,
+fixtures first, and each refusal becomes a model
+call in its turn with the error flag set and zero
+tokens, the shape an api_error call already gets.
+The design record and the invariant correct an
+overclaim in their first text. The errors ranking
+is span-based, and failed calls surface in the
+step list and the error drawing, not the ranking.
+
+Snapshot ids price by their base model (INV-84).
+The price lookup tries the exact id, then the id
+with one trailing date suffix stripped in either
+the YYYYMMDD or the YYYY-MM-DD shape, then the
+dash version form read as the table's dot form,
+and every candidate must match a table row
+exactly. An id that matches nothing stays
+unpriced and is reported as such. The suffix
+rule reads digit shapes, not calendar dates,
+and the reviews found its first form could
+panic on a non-ASCII model id whose bytes put
+a multi-byte character at the cut point. The
+cut is now made only where the byte before it
+is an ASCII dash, with a test pinning it.
+
+The reviews added the rest of this record. The
+guards act on repeated span ids, which is the
+mechanism a cycle takes in this codebase,
+because the children maps are keyed by span id.
+A trace with duplicate ids and no cycle also
+emits each id once, where the pre-round code
+emitted every occurrence. The golden corpus
+carries no duplicate-id fixture, so INV-82
+states its byte-identity claim with the
+unique-id qualifier. The red team broke the
+round's first form in the span dialect session
+builder, whose subtree count and step emitter
+walked the same children map unguarded. Both
+now apply the emit-once rule, pinned by a
+cyclic session fixture, and INV-82's
+enforcement line names the dialect tests.
+service_layers indexes the graph's edges
+against its nodes directly, which a hand-built
+graph with an edge naming an absent service
+could panic. service_graph cannot produce such
+a graph, and the exposure matches the code it
+replaced, so it stands as a named leftover. A
+pre-existing limit also stands named. The flame
+builder's recursion is bounded by distinct span
+ids, and a very deep acyclic trace can still
+overflow the stack, as it could before this
+round.

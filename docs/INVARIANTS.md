@@ -619,14 +619,17 @@ later milestones are marked as validator-side.
   input. The critical path visits no span twice,
   and service map layers come from the graph's
   condensation, so one strongly connected
-  component shares a layer. Acyclic output is
+  component shares a layer. Acyclic output over
+  traces whose span ids are unique is
   byte-identical to the pre-cycle derivations.
-  Enforced by the cycle tests in derive_tests and
+  Enforced by the cycle tests in derive_tests,
+  the dialect session tests in ingest_tests, and
   the scale suite, with the goldens unchanged.
 - INV-83. A claude_code.api_refusal event becomes
   a model call in its turn with the error flag
   set and zero tokens, so a refusal is visible in
-  the step list and the errors ranking.
+  the turn's step list and drawn as an error step,
+  the treatment an api_error call already gets.
   Enforced by the refusal fixture tests in the
   ingest and scene test suites.
 - INV-84. A dated or dash-form snapshot model id

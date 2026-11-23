@@ -680,10 +680,18 @@ fn scale_trace_renders_pin_by_hash() {
         hashes,
         vec![
             "74414c45532594f0".to_string(),
-            "ed46032a8015bee4".to_string(),
+            "7c8f942722799c15".to_string(),
             "92b9037620a3a948".to_string()
         ]
     );
+    // The service map hash moved in Round 8, and only that
+    // one: the scale fixture's services form a ring along the
+    // chain, so the old hash pinned the layering the pre-INV-82
+    // relaxation inflated on a cyclic graph. The condensation
+    // layers the ring at one layer, and this hash pins the
+    // collapsed layout. The waterfall and sankey hashes, over
+    // derivations whose inputs are trees and staged flows,
+    // stand unchanged.
     // The flame over this trace refuses by name. The chain
     // makes the span tree a thousand levels deep, beyond
     // the renderer's 48-level flame limit, a standing bound
@@ -708,6 +716,67 @@ fn scale_trace_renders_pin_by_hash() {
         started.elapsed()
     );
     eprintln!("scale trace renders {:?}", started.elapsed());
+}
+
+#[test]
+fn cyclic_spans_at_scale_render_and_terminate() {
+    // INV-82 at the scale suite's width, in two shapes. The
+    // service ring: 10,000 spans with unique ids whose services
+    // cycle an eight-service ring, so the layering faces a
+    // cycle. The id ring: 10,000 spans whose ids cycle a
+    // three-id ring, so the waterfall walk faces a cycle. The
+    // shapes are separate because the service graph resolves
+    // parents by span id, and repeated ids would scramble the
+    // ring's edges.
+    const SERVICES: [&str; 8] = [
+        "web", "api", "db", "cache", "queue", "worker", "auth", "search",
+    ];
+    let mut ring_spans = Vec::with_capacity(10_000);
+    for i in 0..10_000usize {
+        let parent = (i > 0).then(|| format!("s{:05}", i - 1));
+        ring_spans.push(scale_span(
+            &format!("s{i:05}"),
+            parent.as_deref(),
+            SERVICES[i % 8],
+            (i % 100) as i64,
+            (i % 100) as i64 + 5,
+        ));
+    }
+    let ring = ["a", "b", "c"];
+    let mut id_spans = Vec::with_capacity(10_000);
+    for i in 0..10_000usize {
+        let parent = (i > 0).then(|| ring[(i - 1) % 3]);
+        id_spans.push(scale_span(
+            ring[i % 3],
+            parent,
+            SERVICES[i % 8],
+            (i % 100) as i64,
+            (i % 100) as i64 + 5,
+        ));
+    }
+    let started = std::time::Instant::now();
+    let map_scene = scale_scene("{\"data\":\"trace\",\"type\":\"service_map\"}");
+    let svg = telorama_svg::render_scene(&map_scene, &ring_spans)
+        .unwrap_or_else(|e| panic!("the service map must render a cyclic graph: {e}"));
+    assert!(svg.len() > 1_000, "a render is {} bytes", svg.len());
+    let fall_scene = scale_scene("{\"data\":\"trace\",\"type\":\"waterfall\"}");
+    let svg = telorama_svg::render_scene(&fall_scene, &id_spans)
+        .unwrap_or_else(|e| panic!("the waterfall must render a cyclic trace: {e}"));
+    assert!(svg.len() > 1_000, "a render is {} bytes", svg.len());
+    // The whole service ring is one strongly connected
+    // component, so every service layers at zero.
+    let graph = telorama_scene::service_graph(&ring_spans, 20.0);
+    let layers = telorama_scene::service_layers(&graph);
+    assert_eq!(layers.len(), 8);
+    assert!(layers.values().all(|layer| *layer == 0));
+    // The ceiling matches the acyclic trace renders' ten-times
+    // bound; a walk that loops would never reach the assert.
+    assert!(
+        started.elapsed() < std::time::Duration::from_millis(3100),
+        "cyclic renders at scale took {:?}",
+        started.elapsed()
+    );
+    eprintln!("scale cyclic renders {:?}", started.elapsed());
 }
 
 #[test]

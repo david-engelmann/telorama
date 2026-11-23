@@ -54,7 +54,7 @@ pub use derive::{
     Exemplar, FlameNode, HeatmapGrid, HeatmapRow, MapEdge, RedStats, SankeyFlow, SankeyLink,
     SankeyNode, ServiceGraph, WaterfallRow, content_hash, critical_path, flame_from_spans,
     flame_tree, heatmap_grid, percentile_nanos, red_by_service, sankey_flow, service_graph,
-    waterfall_rows,
+    service_layers, waterfall_rows,
 };
 pub use field::{
     ThresholdStep, Thresholds, format_bytes, format_duration_nanos, format_number, format_ratio,

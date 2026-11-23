@@ -88,6 +88,9 @@ fn self_time(span: &Span, children: &[&Span]) -> i64 {
 /// canonical order, roots (spans whose parent is absent or outside the
 /// trace) first in canonical order. Missing parents render as roots
 /// rather than vanishing: a gap in the data stays visible as structure.
+/// A span id is emitted once, so a repeated id, and any cycle the
+/// parent links form through repeated ids, stops at the first
+/// emission and the walk always terminates (INV-82).
 pub fn waterfall_rows(spans: &[Span], trace_id: &str) -> Vec<WaterfallRow> {
     let owned = trace_spans(spans, trace_id);
     let children = children_map(&owned);
@@ -103,8 +106,12 @@ pub fn waterfall_rows(spans: &[Span], trace_id: &str) -> Vec<WaterfallRow> {
 
     let mut rows = Vec::with_capacity(owned.len());
     // Iterative depth-first walk so deep traces cannot overflow the stack.
+    let mut seen: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
     let mut stack: Vec<(&Span, usize)> = roots.iter().rev().map(|s| (*s, 0usize)).collect();
     while let Some((span, depth)) = stack.pop() {
+        if !seen.insert(span.span_id.as_str()) {
+            continue;
+        }
         let kids: Vec<&Span> = children.get(&span.span_id).cloned().unwrap_or_default();
         rows.push(WaterfallRow {
             span_id: span.span_id.clone(),
@@ -125,6 +132,9 @@ pub fn waterfall_rows(spans: &[Span], trace_id: &str) -> Vec<WaterfallRow> {
 /// the one holding the parent open at its end. Shortening any span on
 /// this chain shortens the trace; shortening anything off it does not.
 /// Ties break on span id so the result is a pure function of the trace.
+/// The walk stops at the first repeated span id, so a cyclic trace
+/// yields the longest walk that visits no span twice instead of
+/// looping forever (INV-82).
 pub fn critical_path(spans: &[Span], trace_id: &str) -> Vec<String> {
     let owned = trace_spans(spans, trace_id);
     if owned.is_empty() {
@@ -148,6 +158,7 @@ pub fn critical_path(spans: &[Span], trace_id: &str) -> Vec<String> {
         return Vec::new();
     };
     let mut path = vec![current.span_id.clone()];
+    let mut seen: std::collections::BTreeSet<String> = path.iter().cloned().collect();
     loop {
         let kids = children.get(&current.span_id);
         let next = kids.and_then(|list| {
@@ -158,11 +169,11 @@ pub fn critical_path(spans: &[Span], trace_id: &str) -> Vec<String> {
             })
         });
         match next {
-            Some(child) => {
+            Some(child) if seen.insert(child.span_id.clone()) => {
                 path.push(child.span_id.clone());
                 current = child;
             }
-            None => break,
+            _ => break,
         }
     }
     path
@@ -506,9 +517,23 @@ pub fn flame_tree(stacks: &[StackSample]) -> FlameNode {
 /// is its self time plus its children's values. This is a derivation
 /// from spans, not a sampled profile, and renders must say so.
 pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
-    fn build(span: &Span, children: &BTreeMap<String, Vec<&Span>>) -> FlameNode {
-        let kids: Vec<&Span> = children.get(&span.span_id).cloned().unwrap_or_default();
-        let mut child_nodes: Vec<FlameNode> = kids.iter().map(|k| build(k, children)).collect();
+    fn build(
+        span: &Span,
+        children: &BTreeMap<String, Vec<&Span>>,
+        seen: &mut std::collections::BTreeSet<String>,
+    ) -> FlameNode {
+        // A span id builds once, so a cycle through repeated ids
+        // stops at the first build instead of recursing forever
+        // (INV-82).
+        let kids: Vec<&Span> = children
+            .get(&span.span_id)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|kid| seen.insert(kid.span_id.clone()))
+            .collect();
+        let mut child_nodes: Vec<FlameNode> =
+            kids.iter().map(|k| build(k, children, seen)).collect();
         sort_flame_children(&mut child_nodes);
         let self_nanos = self_time(span, &kids).max(0) as u64;
         let value = self_nanos + child_nodes.iter().map(|c| c.value).sum::<u64>();
@@ -521,6 +546,7 @@ pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
     let trace = trace_spans(spans, trace_id);
     let children = children_map(&trace);
     let ids: std::collections::BTreeSet<&str> = trace.iter().map(|s| s.span_id.as_str()).collect();
+    let mut seen: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
     let mut root = FlameNode {
         name: "trace".to_string(),
         value: 0,
@@ -531,8 +557,8 @@ pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
             .parent_span_id
             .as_deref()
             .is_none_or(|p| !ids.contains(p));
-        if is_root {
-            let node = build(span, &children);
+        if is_root && seen.insert(span.span_id.clone()) {
+            let node = build(span, &children, &mut seen);
             root.value += node.value;
             root.children.push(node);
         }
@@ -627,6 +653,109 @@ pub fn service_graph(spans: &[Span], window_seconds: f64) -> ServiceGraph {
         nodes: red_by_service(spans, window_seconds),
         edges,
     }
+}
+
+/// The layer of every service in a service graph, keyed by service
+/// name. Layers are longest paths over the graph's condensation.
+/// Services in one strongly connected component share a layer, and
+/// a component's layer is one more than the greatest layer among
+/// the components that call into it, or zero when none do. On an
+/// acyclic graph every component is a single service and the
+/// layers are the longest-path layers the renderer has always
+/// used. On a cyclic graph the cycle collapses to one layer
+/// instead of inflating the count (INV-82).
+pub fn service_layers(graph: &ServiceGraph) -> std::collections::BTreeMap<String, usize> {
+    use std::collections::{BTreeMap, BTreeSet};
+    let names: Vec<&str> = graph.nodes.iter().map(|n| n.service.as_str()).collect();
+    let mut out_adj: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+    let mut in_adj: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+    for edge in &graph.edges {
+        out_adj
+            .entry(edge.from.as_str())
+            .or_default()
+            .insert(edge.to.as_str());
+        in_adj
+            .entry(edge.to.as_str())
+            .or_default()
+            .insert(edge.from.as_str());
+    }
+    // Kosaraju pass one: finish order over the call graph.
+    let mut visited: BTreeSet<&str> = BTreeSet::new();
+    let mut finish: Vec<&str> = Vec::new();
+    for start in &names {
+        if visited.contains(start) {
+            continue;
+        }
+        let mut stack: Vec<(&str, bool)> = vec![(start, false)];
+        while let Some((node, exiting)) = stack.pop() {
+            if exiting {
+                finish.push(node);
+                continue;
+            }
+            if !visited.insert(node) {
+                continue;
+            }
+            stack.push((node, true));
+            if let Some(nexts) = out_adj.get(node) {
+                for next in nexts {
+                    if !visited.contains(next) {
+                        stack.push((next, false));
+                    }
+                }
+            }
+        }
+    }
+    // Pass two: components over the reversed graph, in reverse
+    // finish order.
+    let mut comp_of: BTreeMap<&str, usize> = BTreeMap::new();
+    let mut comp_count = 0usize;
+    for start in finish.iter().rev() {
+        if comp_of.contains_key(start) {
+            continue;
+        }
+        let mut stack: Vec<&str> = vec![start];
+        while let Some(node) = stack.pop() {
+            if comp_of.contains_key(node) {
+                continue;
+            }
+            comp_of.insert(node, comp_count);
+            if let Some(preds) = in_adj.get(node) {
+                for pred in preds {
+                    if !comp_of.contains_key(pred) {
+                        stack.push(pred);
+                    }
+                }
+            }
+        }
+        comp_count += 1;
+    }
+    // Longest path over the component graph, by relaxation. The
+    // component graph is acyclic, so comp_count passes always
+    // reach the fixpoint.
+    let mut comp_edges: BTreeSet<(usize, usize)> = BTreeSet::new();
+    for edge in &graph.edges {
+        let (from, to) = (comp_of[edge.from.as_str()], comp_of[edge.to.as_str()]);
+        if from != to {
+            comp_edges.insert((from, to));
+        }
+    }
+    let mut comp_layer = vec![0usize; comp_count];
+    for _ in 0..comp_count {
+        let mut changed = false;
+        for (from, to) in &comp_edges {
+            if comp_layer[*to] < comp_layer[*from] + 1 {
+                comp_layer[*to] = comp_layer[*from] + 1;
+                changed = true;
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    names
+        .iter()
+        .map(|name| (name.to_string(), comp_layer[comp_of[name]]))
+        .collect()
 }
 
 /// One node of a sankey flow: one service at one call-depth stage,
