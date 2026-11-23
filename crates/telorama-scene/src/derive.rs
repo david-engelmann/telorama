@@ -657,6 +657,7 @@ pub fn sankey_flow(spans: &[Span], residual_name: &str) -> SankeyFlow {
     }
     let mut canonical_index: BTreeMap<(&str, &str), usize> = BTreeMap::new();
     let mut canonical_by_key: BTreeMap<(&str, &str), &Span> = BTreeMap::new();
+    let mut canonical_by_trace: BTreeMap<&str, BTreeMap<&str, &Span>> = BTreeMap::new();
     for (trace_id, members) in &traces {
         let mut best: BTreeMap<&str, (usize, &Span)> = BTreeMap::new();
         for &(idx, member) in members {
@@ -667,21 +668,24 @@ pub fn sankey_flow(spans: &[Span], residual_name: &str) -> SankeyFlow {
                 }
             }
         }
+        let mut by_id: BTreeMap<&str, &Span> = BTreeMap::new();
         for (span_id, (idx, member)) in best {
             canonical_index.insert((*trace_id, span_id), idx);
             canonical_by_key.insert((*trace_id, span_id), member);
+            by_id.insert(span_id, member);
         }
+        canonical_by_trace.insert(*trace_id, by_id);
     }
 
     // Stage the canonical spans, trace by trace, walking parent
     // links. Ids are unique in this pass by construction.
     let mut staged: BTreeMap<(&str, &str), (usize, SankeyEntry)> = BTreeMap::new();
     for trace_id in traces.keys() {
-        let by_id: BTreeMap<&str, &Span> = canonical_by_key
-            .iter()
-            .filter(|((t, _), _)| t == trace_id)
-            .map(|((_, id), s)| (*id, *s))
-            .collect();
+        // The trace's canonical spans, grouped once in the pass
+        // above. Filtering the whole canonical map once per
+        // trace made staging quadratic in the trace count,
+        // convicted by the thousand-trace scale fixture.
+        let by_id = &canonical_by_trace[*trace_id];
         for span in by_id.values() {
             if staged.contains_key(&(*trace_id, span.span_id.as_str())) {
                 continue;

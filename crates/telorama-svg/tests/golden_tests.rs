@@ -588,9 +588,9 @@ fn frames_from_a_truncated_export_equal_the_leading_frames() {
 // ----------------------------------------------------------------
 // Round 4 scale proof. The recipes mirror the ones in the scene
 // crate's derive tests, fixed arithmetic so the shapes are the
-// same on every run. Hash pins and ceilings are provisional
-// until the first hosted run supplies the real figures, per
-// docs/SCALE-DESIGN.md and INV-69 to INV-71.
+// same on every run. Hash pins are the first hosted run's
+// renders, and each ceiling is ten times that run's measured
+// figure, per docs/SCALE-DESIGN.md and INV-69 to INV-71.
 
 fn scale_span(id: &str, parent: Option<&str>, service: &str, start_ms: i64, end_ms: i64) -> Span {
     Span {
@@ -687,8 +687,9 @@ fn scale_trace_renders_pin_by_hash() {
             "92b9037620a3a948".to_string()
         ]
     );
+    // Measured at 367 milliseconds on the first hosted run.
     assert!(
-        started.elapsed() < std::time::Duration::from_secs(60),
+        started.elapsed() < std::time::Duration::from_secs(4),
         "trace renders at scale took {:?}",
         started.elapsed()
     );
@@ -735,8 +736,11 @@ fn profile_flame_renders_at_a_hundred_thousand_samples() {
         },
     )
     .expect("flame must render at scale");
+    // The ceiling follows the trace renders figure from the
+    // first hosted run, ten times rounded up. The flame
+    // render's own line was not captured by that run.
     assert!(
-        started.elapsed() < std::time::Duration::from_secs(60),
+        started.elapsed() < std::time::Duration::from_secs(4),
         "flame render at scale took {:?}",
         started.elapsed()
     );
@@ -820,8 +824,9 @@ fn frame_stream_totals_hold_at_five_hundred_turns() {
         total_bytes += svg.len();
         last_svg = svg;
     }
+    // Measured at 3.2 seconds on the first hosted run.
     assert!(
-        started.elapsed() < std::time::Duration::from_secs(60),
+        started.elapsed() < std::time::Duration::from_secs(32),
         "the rendered stream at 500 turns took {:?}",
         started.elapsed()
     );

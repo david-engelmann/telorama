@@ -565,11 +565,9 @@ fn sankey_edge_cases_hold() {
 
 // ----------------------------------------------------------------
 // Round 4 scale proof. The recipes are fixed arithmetic, so the
-// shapes below are the same on every run and every machine. The
-// ceilings are provisional until the first hosted run measures
-// the real times, when INV-70 sets each at ten times measured.
-
-const SCALE_CEILING: std::time::Duration = std::time::Duration::from_secs(60);
+// shapes below are the same on every run and every machine.
+// Each ceiling is ten times the first hosted run's measured
+// figure, rounded up to whole seconds, per INV-70.
 
 const SCALE_SERVICES: [&str; 8] = [
     "web", "api", "db", "cache", "queue", "worker", "auth", "search",
@@ -635,8 +633,9 @@ fn sankey_flow_conserves_at_ten_thousand_spans() {
     let spans = scale_spans_single_trace();
     let started = std::time::Instant::now();
     let flow = sankey_flow(&spans, "other");
+    // Measured at 114 milliseconds on the first hosted run.
     assert!(
-        started.elapsed() < SCALE_CEILING,
+        started.elapsed() < std::time::Duration::from_secs(2),
         "sankey at scale took {:?}",
         started.elapsed()
     );
@@ -684,8 +683,10 @@ fn sankey_flow_holds_across_a_thousand_traces() {
     assert_eq!(spans.len(), 10_000);
     let started = std::time::Instant::now();
     let flow = sankey_flow(&spans, "other");
+    // Measured at 717 milliseconds on the first hosted run,
+    // before the grouping fix in sankey_flow.
     assert!(
-        started.elapsed() < SCALE_CEILING,
+        started.elapsed() < std::time::Duration::from_secs(8),
         "many-trace sankey took {:?}",
         started.elapsed()
     );
@@ -746,8 +747,9 @@ fn profile_holds_at_a_hundred_thousand_samples() {
     let bucketed: u64 = grid.rows.iter().map(|r| r.total).sum();
     assert_eq!(bucketed + grid.outside_window as u64, 10_000);
     assert_eq!(grid.outside_window, 0);
+    // Measured at 21 milliseconds on the first hosted run.
     assert!(
-        started.elapsed() < SCALE_CEILING,
+        started.elapsed() < std::time::Duration::from_secs(1),
         "profile at scale took {:?}",
         started.elapsed()
     );

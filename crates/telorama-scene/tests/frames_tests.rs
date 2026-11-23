@@ -122,9 +122,8 @@ fn session_frames_hold_at_five_hundred_turns() {
     // model calls each. The stream's total size is quadratic in
     // the turn count by construction. This test holds the
     // stream's shape and cost, and the golden suite holds the
-    // rendered total against its ceiling. The ceilings are
-    // provisional until the first hosted run measures the real
-    // figures.
+    // rendered total against its ceiling. The ceiling is ten
+    // times the first hosted run's measured figure.
     let mut turns = Vec::with_capacity(500);
     for k in 0..500i64 {
         turns.push(AgentTurn {
@@ -162,8 +161,9 @@ fn session_frames_hold_at_five_hundred_turns() {
     let started = std::time::Instant::now();
     let frames = session_frames(&run, "test");
     let elapsed = started.elapsed();
+    // Measured at 97 milliseconds on the first hosted run.
     assert!(
-        elapsed < std::time::Duration::from_secs(60),
+        elapsed < std::time::Duration::from_secs(1),
         "the frame stream at 500 turns took {elapsed:?}"
     );
     eprintln!("scale frame stream build {elapsed:?}");

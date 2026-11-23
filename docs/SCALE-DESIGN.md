@@ -126,3 +126,32 @@ convicts the cost first. No change to any scene, figure,
 or byte at small scale, so the existing goldens and the
 gallery stand untouched. No new panel, dialect, or
 surface of any kind.
+
+## Amendments, 2026-11-23
+
+The build convicted two of the three suspects and one
+defect the suspect list did not name. The many-trace
+fixture measured 717 milliseconds against the single
+trace fixture's 114 at the same span count, convicting
+the staging walk's per-trace index rebuild. The fix
+groups each trace's canonical spans once in the
+canonical pass, as this record proposed. The prefix
+cloning suspect was cleared. Building five hundred
+frames measured 97 milliseconds, and the stream's
+rendered total measured 104,428,401 bytes against the
+ceiling INV-71 now records.
+
+The unnamed defect was a panic. The service map's label
+budget reached zero on the trace fixture's cyclic
+service graph and the truncation helper subtracted
+from zero, which fails outright in a debug build and
+wraps silently in a release build. The truncation
+helper is now total at a zero budget, the service map
+floors its box width and label budget the way the
+sankey narrows past seven stages, and INV-73 states
+the rule. The layering itself still relaxes around a
+cycle up to the node-count bound, so a cyclic graph
+lays out deeper than its diameter. That is recorded
+here as an observation. A cycle-aware layering is
+design work for a later round, not a fix this round
+makes.
