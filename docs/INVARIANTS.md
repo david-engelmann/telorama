@@ -491,3 +491,44 @@ later milestones are marked as validator-side.
   Enforced by the pricing module's unit tests, ingest_tests
   codex_session_names_unpriced_models, and ingest_tests
   openinference_session_ignores_span_carried_cost.
+
+## Scale bounds (telorama-scene derive and frames, telorama-svg)
+
+- INV-69. The scale fixtures stand at ten thousand spans
+  in one trace, ten thousand spans across one thousand
+  traces, five hundred session turns, and one hundred
+  thousand stack samples, each generated in its test from
+  a fixed recipe. Every fixture pins its renders by
+  FNV-1a hash and its headline counts by assertion, so a
+  change at scale fails the suite the way a changed
+  golden fails it at small scale.
+  Enforced by the scale tests in derive_tests,
+  golden_tests, and frames_tests.
+- INV-70. Derivation and rendering grow no faster than
+  the input times its logarithm. Session adaptation is
+  linear in spans, and one frame's work is linear in the
+  turns it carries. Each scale test also carries a
+  wall-clock ceiling set at ten times its first measured
+  hosted time, a gross-regression gate and never a
+  benchmark claim.
+  Enforced by the scale tests named under INV-69.
+- INV-71. The frame stream's total output is quadratic
+  in the turn count by construction, because every frame
+  is a complete scene. The five-hundred-turn stream's
+  total size is asserted against the ceiling recorded in
+  its test, so the bound is held by the suite rather
+  than by hope.
+  Enforced by frames_tests
+  session_frames_hold_at_five_hundred_turns and
+  golden_tests frame_stream_totals_hold_at_five_hundred_turns,
+  which holds the rendered stream's total bytes against
+  the ceiling recorded in that test.
+- INV-72. At large volumes a sankey ribbon may fall
+  below one pixel in height. The diagram stays exact
+  regardless, with every span's flow drawn at its
+  computed height and the panel's figures exact, and no
+  aggregation or cutoff is introduced to hide the
+  slivers, because dropping flow would break INV-59.
+  Enforced by derive_tests
+  sankey_flow_conserves_on_the_fixtures and the trace
+  scale assertions under INV-69.
