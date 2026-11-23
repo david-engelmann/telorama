@@ -584,3 +584,430 @@ fn frames_from_a_truncated_export_equal_the_leading_frames() {
     };
     assert_eq!(render(&cut_frames[0]), render(&full_frames[0]));
 }
+
+// ----------------------------------------------------------------
+// Round 4 scale proof. The recipes mirror the ones in the scene
+// crate's derive tests, fixed arithmetic so the shapes are the
+// same on every run. Hash pins are the first hosted run's
+// renders, and each ceiling is ten times that run's measured
+// figure, per docs/SCALE-DESIGN.md and INV-69 to INV-71.
+
+fn scale_span(id: &str, parent: Option<&str>, service: &str, start_ms: i64, end_ms: i64) -> Span {
+    Span {
+        trace_id: "t1".to_string(),
+        span_id: id.to_string(),
+        parent_span_id: parent.map(|p| p.to_string()),
+        name: format!("op-{id}"),
+        kind: telorama_scene::SpanKind::Server,
+        start_unix_nano: start_ms * 1_000_000,
+        end_unix_nano: end_ms * 1_000_000,
+        is_error: false,
+        service: service.to_string(),
+        attributes: std::collections::BTreeMap::new(),
+    }
+}
+
+fn scale_spans() -> Vec<Span> {
+    const SERVICES: [&str; 8] = [
+        "web", "api", "db", "cache", "queue", "worker", "auth", "search",
+    ];
+    let mut spans = Vec::with_capacity(10_000);
+    for i in 0..1000 {
+        let parent = (i > 0).then(|| format!("c{:04}", i - 1));
+        spans.push(scale_span(
+            &format!("c{i:04}"),
+            parent.as_deref(),
+            SERVICES[i % 8],
+            i as i64,
+            i as i64 + 5,
+        ));
+    }
+    for h in 0..100 {
+        let hub = format!("h{h:03}");
+        spans.push(scale_span(&hub, None, SERVICES[h % 8], 0, 500));
+        for j in 0..80 {
+            spans.push(scale_span(
+                &format!("k{h:03}-{j:02}"),
+                Some(&hub),
+                SERVICES[(h + j) % 8],
+                j as i64,
+                j as i64 + 3,
+            ));
+        }
+    }
+    for o in 0..900 {
+        spans.push(scale_span(
+            &format!("o{o:03}"),
+            Some("absent"),
+            SERVICES[o % 8],
+            0,
+            2,
+        ));
+    }
+    assert_eq!(spans.len(), 10_000);
+    spans
+}
+
+fn scale_scene(panel: &str) -> telorama_scene::Scene {
+    let text = format!(
+        "{{\"context\":{{\"filter\":{{}},\"provenance\":{{\"generated_by\":\"test\",\"question\":\"Does it hold at scale?\"}},\"range\":{{\"from_unix_ms\":0,\"to_unix_ms\":20000}}}},\"data\":[{{\"id\":\"trace\",\"sampled\":\"unknown\",\"source\":{{\"kind\":\"otlp_file\",\"trace_id\":\"t1\"}}}}],\"headline\":\"Scale proof\",\"narrative\":[{{\"panel\":0,\"text\":\"Scale proof.\"}}],\"panels\":[{panel}],\"scene\":\"0.1\",\"title\":\"Scale trace\"}}"
+    );
+    telorama_scene::parse_scene(&text).expect("scale scene must validate")
+}
+
+#[test]
+fn scale_trace_renders_pin_by_hash() {
+    let spans = scale_spans();
+    let started = std::time::Instant::now();
+    let mut hashes: Vec<String> = Vec::new();
+    // The flame panel over a trace declares the tree's total
+    // self time as its sample count, computed from the same
+    // spans the panel renders.
+    let flame_total = telorama_scene::flame_from_spans(&spans, "t1").value;
+    let panels: Vec<String> = vec![
+        "{\"data\":\"trace\",\"type\":\"waterfall\"}".to_string(),
+        "{\"data\":\"trace\",\"type\":\"service_map\"}".to_string(),
+        "{\"data\":\"trace\",\"residual\":\"other\",\"type\":\"sankey\"}".to_string(),
+    ];
+    for panel in &panels {
+        let scene = scale_scene(panel);
+        let svg = telorama_svg::render_scene(&scene, &spans)
+            .unwrap_or_else(|e| panic!("a panel must render at scale: {e}"));
+        assert!(svg.len() > 1_000, "a render is {} bytes", svg.len());
+        hashes.push(telorama_scene::content_hash(svg.as_bytes()));
+    }
+    assert_eq!(
+        hashes,
+        vec![
+            "74414c45532594f0".to_string(),
+            "ed46032a8015bee4".to_string(),
+            "92b9037620a3a948".to_string()
+        ]
+    );
+    // The flame over this trace refuses by name. The chain
+    // makes the span tree a thousand levels deep, beyond
+    // the renderer's 48-level flame limit, a standing bound
+    // recorded in docs/SCALE-DESIGN.md. The wide fixture
+    // below proves the flame render itself at this count.
+    let deep_flame = scale_scene(&format!(
+        "{{\"data\":\"trace\",\"min_samples\":1,\"sample_count\":{flame_total},\"sample_type\":\"cpu\",\"type\":\"flame\"}}"
+    ));
+    match telorama_svg::render_scene(&deep_flame, &spans) {
+        Ok(_) => panic!("the deep flame must refuse"),
+        Err(e) => assert!(
+            e.to_string().contains("beyond the 48-level render limit"),
+            "{e}"
+        ),
+    }
+    // Measured at 306 milliseconds on the first hosted run
+    // of the final code. The ceiling is ten times that,
+    // rounded up to the nearest hundred milliseconds.
+    assert!(
+        started.elapsed() < std::time::Duration::from_millis(3100),
+        "trace renders at scale took {:?}",
+        started.elapsed()
+    );
+    eprintln!("scale trace renders {:?}", started.elapsed());
+}
+
+#[test]
+fn wide_trace_flame_renders_pin_by_hash() {
+    // Ten thousand spans at depth two, one hundred roots
+    // with ninety-nine children each, so the span-derived
+    // flame renders at the same count the deep fixture
+    // refuses. The recipe mirrors the scale family's
+    // arithmetic, fixed so the shape is the same every run.
+    const SERVICES: [&str; 8] = [
+        "web", "api", "db", "cache", "queue", "worker", "auth", "search",
+    ];
+    let mut spans = Vec::with_capacity(10_000);
+    for r in 0..100 {
+        let root = format!("r{r:03}");
+        spans.push(scale_span(&root, None, SERVICES[r % 8], 0, 500));
+        for j in 0..99 {
+            spans.push(scale_span(
+                &format!("w{r:03}-{j:02}"),
+                Some(&root),
+                SERVICES[(r + j) % 8],
+                j as i64,
+                j as i64 + 3,
+            ));
+        }
+    }
+    assert_eq!(spans.len(), 10_000);
+    let flame_total = telorama_scene::flame_from_spans(&spans, "t1").value;
+    let scene = scale_scene(&format!(
+        "{{\"data\":\"trace\",\"min_samples\":1,\"sample_count\":{flame_total},\"sample_type\":\"cpu\",\"type\":\"flame\"}}"
+    ));
+    let started = std::time::Instant::now();
+    let svg = telorama_svg::render_scene(&scene, &spans).expect("the wide flame must render");
+    eprintln!("scale wide flame render {:?}", started.elapsed());
+    assert!(svg.len() > 1_000, "the render is {} bytes", svg.len());
+    assert_eq!(
+        telorama_scene::content_hash(svg.as_bytes()),
+        "3337414d89172e42"
+    );
+}
+
+#[test]
+fn profile_flame_renders_at_a_hundred_thousand_samples() {
+    // The stack recipe mirrors the scene crate's profile test,
+    // counts summing to exactly one hundred thousand.
+    let mut stacks: Vec<telorama_scene::StackSample> = Vec::new();
+    let mut assigned: u64 = 0;
+    for i in 0..199 {
+        let count = (i * 37 % 400) + 100;
+        assigned += count;
+        stacks.push(telorama_scene::StackSample {
+            frames: vec![
+                "root".to_string(),
+                format!("svc-{}", i % 10),
+                format!("fn-{i}"),
+            ],
+            count,
+        });
+    }
+    stacks.push(telorama_scene::StackSample {
+        frames: vec![
+            "root".to_string(),
+            "svc-0".to_string(),
+            "fn-last".to_string(),
+        ],
+        count: 100_000 - assigned,
+    });
+    let text = "{\"context\":{\"filter\":{},\"provenance\":{\"generated_by\":\"test\",\"question\":\"Does it hold at scale?\"},\"range\":{\"from_unix_ms\":0,\"to_unix_ms\":20000}},\"data\":[{\"id\":\"profile\",\"sampled\":\"unsampled\",\"source\":{\"kind\":\"folded_profile\",\"query\":\"scale profile\"}}],\"headline\":\"Scale proof\",\"narrative\":[{\"panel\":0,\"text\":\"Scale proof.\"}],\"panels\":[{\"data\":\"profile\",\"min_samples\":100,\"sample_count\":100000,\"sample_type\":\"cpu\",\"type\":\"flame\"}],\"scene\":\"0.1\",\"title\":\"Scale profile\"}";
+    let scene = telorama_scene::parse_scene(text).expect("flame scene must validate");
+    let started = std::time::Instant::now();
+    let svg = telorama_svg::render_scene_with_data(
+        &scene,
+        &telorama_svg::SceneData {
+            spans: &[],
+            stacks: &stacks,
+            agent_run: None,
+            agent_state: &[],
+            findings: &[],
+        },
+    )
+    .expect("flame must render at scale");
+    // Measured at 1.5 milliseconds on the first hosted run
+    // of the final code. Ten times that is under the one
+    // hundred millisecond floor INV-70 sets for the
+    // smallest figures, so the floor is the ceiling.
+    assert!(
+        started.elapsed() < std::time::Duration::from_millis(100),
+        "flame render at scale took {:?}",
+        started.elapsed()
+    );
+    eprintln!("scale flame render {:?}", started.elapsed());
+    assert!(svg.len() > 1_000, "flame render is {} bytes", svg.len());
+    assert_eq!(
+        telorama_scene::content_hash(svg.as_bytes()),
+        "345ec9af1621aa72"
+    );
+}
+
+#[test]
+fn frame_stream_totals_hold_at_five_hundred_turns() {
+    use telorama_scene::{AgentRun, AgentStep, AgentTurn, Coverage, ModelCall, Pricing};
+    let call = |cost: f64| {
+        AgentStep::ModelCall(ModelCall {
+            model: "gpt-5.1".to_string(),
+            start_unix_nano: 0,
+            end_unix_nano: 1_000_000_000,
+            ttft_nanos: None,
+            attempts: 1,
+            is_error: false,
+            input_tokens: 100,
+            output_tokens: 10,
+            cache_read_tokens: 0,
+            cache_creation_tokens: 0,
+            cost_usd: cost,
+        })
+    };
+    let mut turns = Vec::with_capacity(500);
+    for k in 0..500i64 {
+        turns.push(AgentTurn {
+            prompt_id: format!("t{}", k + 1),
+            start_unix_nano: k * 10_000_000_000,
+            end_unix_nano: k * 10_000_000_000 + 9_000_000_000,
+            steps: vec![call(0.50), call(0.50)],
+            input_tokens: 200,
+            output_tokens: 20,
+            cache_read_tokens: 0,
+            cache_creation_tokens: 0,
+            cost_usd: 1.0,
+            coverage: Coverage {
+                log_events: 0,
+                spans_seen: 2,
+                spans_merged: 2,
+            },
+        });
+    }
+    let run = AgentRun {
+        session_id: "sess-scale".to_string(),
+        dialect: "genai".to_string(),
+        turns,
+        coverage: Coverage {
+            log_events: 0,
+            spans_seen: 1000,
+            spans_merged: 1000,
+        },
+        pricing: Some(Pricing {
+            table_as_of: "2026-11-23".to_string(),
+            priced_models: vec!["gpt-5.1".to_string()],
+            unpriced_models: vec![],
+        }),
+    };
+    let started = std::time::Instant::now();
+    let frames = telorama_scene::session_frames(&run, "test");
+    assert_eq!(frames.len(), 500);
+    let mut total_bytes = 0usize;
+    let mut last_svg = String::new();
+    for frame in &frames {
+        let svg = telorama_svg::render_scene_with_data(
+            &frame.scene,
+            &telorama_svg::SceneData {
+                spans: &[],
+                stacks: &[],
+                agent_run: Some(&frame.run),
+                agent_state: &[],
+                findings: &frame.findings,
+            },
+        )
+        .expect("frame must render");
+        total_bytes += svg.len();
+        last_svg = svg;
+    }
+    // Measured at 2.5 seconds on the first hosted run of
+    // the final code. The ceiling is ten times that,
+    // rounded up.
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(26),
+        "the rendered stream at 500 turns took {:?}",
+        started.elapsed()
+    );
+    eprintln!("scale rendered stream {:?}", started.elapsed());
+    // The first hosted run measured the stream at 104,428,401
+    // bytes. The total is deterministic, so the ceiling sits
+    // just above the measured figure and any growth fails
+    // until it is re-measured and re-recorded, per INV-71.
+    assert!(
+        total_bytes <= 105_000_000,
+        "the rendered stream totals {total_bytes} bytes"
+    );
+    assert_eq!(
+        telorama_scene::content_hash(last_svg.as_bytes()),
+        "49f00fd8a1ffe9eb"
+    );
+}
+
+#[test]
+fn many_trace_sankey_renders_pin_by_hash() {
+    // The thousand-trace fixture rendered whole, through a
+    // sankey panel whose data names no single trace, so the
+    // render covers every trace in the set. The recipe
+    // mirrors the derive suite's, with each trace's service
+    // rotation offset so the traces differ.
+    const SERVICES: [&str; 8] = [
+        "web", "api", "db", "cache", "queue", "worker", "auth", "search",
+    ];
+    let mut spans = Vec::with_capacity(10_000);
+    for t in 0..1000 {
+        for i in 0..10 {
+            let mut s = scale_span(
+                &format!("s{i}"),
+                (i > 0).then(|| format!("s{}", i - 1)).as_deref(),
+                SERVICES[(t + i) % 8],
+                i as i64,
+                i as i64 + 2,
+            );
+            s.trace_id = format!("mt{t:04}");
+            spans.push(s);
+        }
+    }
+    assert_eq!(spans.len(), 10_000);
+    let text = "{\"context\":{\"filter\":{},\"provenance\":{\"generated_by\":\"test\",\"question\":\"Does it hold at scale?\"},\"range\":{\"from_unix_ms\":0,\"to_unix_ms\":20000}},\"data\":[{\"id\":\"all\",\"sampled\":\"unknown\",\"source\":{\"kind\":\"otlp_file\",\"query\":\"all traces\"}}],\"headline\":\"Scale proof\",\"narrative\":[{\"panel\":0,\"text\":\"Scale proof.\"}],\"panels\":[{\"data\":\"all\",\"residual\":\"other\",\"type\":\"sankey\"}],\"scene\":\"0.1\",\"title\":\"Scale traces\"}";
+    let scene = telorama_scene::parse_scene(text).expect("scale scene must validate");
+    let started = std::time::Instant::now();
+    let svg = telorama_svg::render_scene(&scene, &spans).expect("the sankey must render at scale");
+    eprintln!("scale many trace sankey render {:?}", started.elapsed());
+    assert!(svg.len() > 1_000, "the render is {} bytes", svg.len());
+    assert_eq!(
+        telorama_scene::content_hash(svg.as_bytes()),
+        "3bbc3b37c3a4caa1"
+    );
+}
+
+#[test]
+fn deep_subagent_nesting_renders_with_an_empty_label_budget() {
+    // INV-73's zero budget guard, exercised through the one
+    // caller that can still reach it. The agent step label
+    // budget falls with nesting depth and saturates to zero
+    // at depth twelve, where truncation must return an empty
+    // label instead of failing.
+    use telorama_scene::{AgentRun, AgentStep, AgentTurn, Coverage, ModelCall, SubagentRun};
+    fn nest(depth: usize, leaf: AgentStep) -> AgentStep {
+        if depth == 0 {
+            leaf
+        } else {
+            AgentStep::Subagent(SubagentRun {
+                agent_id: format!("agent-{depth}"),
+                start_unix_nano: 0,
+                end_unix_nano: 9_000_000_000,
+                steps: vec![nest(depth - 1, leaf)],
+            })
+        }
+    }
+    let leaf = AgentStep::ModelCall(ModelCall {
+        model: "gpt-5.1".to_string(),
+        start_unix_nano: 0,
+        end_unix_nano: 1_000_000_000,
+        ttft_nanos: None,
+        attempts: 1,
+        is_error: false,
+        input_tokens: 100,
+        output_tokens: 10,
+        cache_read_tokens: 0,
+        cache_creation_tokens: 0,
+        cost_usd: 0.5,
+    });
+    let run = AgentRun {
+        session_id: "sess-deep".to_string(),
+        dialect: "genai".to_string(),
+        turns: vec![AgentTurn {
+            prompt_id: "t1".to_string(),
+            start_unix_nano: 0,
+            end_unix_nano: 9_000_000_000,
+            steps: vec![nest(12, leaf)],
+            input_tokens: 100,
+            output_tokens: 10,
+            cache_read_tokens: 0,
+            cache_creation_tokens: 0,
+            cost_usd: 0.5,
+            coverage: Coverage {
+                log_events: 0,
+                spans_seen: 1,
+                spans_merged: 1,
+            },
+        }],
+        coverage: Coverage {
+            log_events: 0,
+            spans_seen: 1,
+            spans_merged: 1,
+        },
+        pricing: None,
+    };
+    let frames = telorama_scene::session_frames(&run, "test");
+    let svg = telorama_svg::render_scene_with_data(
+        &frames[0].scene,
+        &telorama_svg::SceneData {
+            spans: &[],
+            stacks: &[],
+            agent_run: Some(&frames[0].run),
+            agent_state: &[],
+            findings: &frames[0].findings,
+        },
+    )
+    .expect("deep nesting must render");
+    assert!(svg.contains("<svg"));
+}

@@ -126,3 +126,69 @@ convicts the cost first. No change to any scene, figure,
 or byte at small scale, so the existing goldens and the
 gallery stand untouched. No new panel, dialect, or
 surface of any kind.
+
+## Amendments, 2026-11-23
+
+The build convicted two of the three suspects and one
+defect the suspect list did not name. The many-trace
+fixture measured 717 milliseconds against the single
+trace fixture's 114 at the same span count, convicting
+the staging walk's per-trace index rebuild. The fix
+groups each trace's canonical spans once in the
+canonical pass, as this record proposed. The prefix
+cloning suspect was cleared. Building five hundred
+frames measured 97 milliseconds, and the stream's
+rendered total measured 104,428,401 bytes against the
+ceiling INV-71 now records.
+
+The unnamed defect was a panic. The service map's label
+budget reached zero on the trace fixture's cyclic
+service graph and the truncation helper subtracted
+from zero, which fails outright in a debug build and
+wraps silently in a release build. The truncation
+helper is now total at a zero budget, the service map
+floors its box width and label budget the way the
+sankey narrows past seven stages, and INV-73 states
+the rule. The layering itself still relaxes around a
+cycle up to the node-count bound, so a cyclic graph
+lays out deeper than its diameter. That is recorded
+here as an observation. A cycle-aware layering is
+design work for a later round, not a fix this round
+makes.
+
+## Amendments from the checkpoint reviews, 2026-11-23
+
+The checkpoint reviews found the paper trail weaker
+than the code, and the build was completed to match
+this record. The thousand-trace fixture now renders
+through a sankey over the whole set, so INV-69's
+hash claim covers every fixture. The flame render
+is proven on a wide trace of the same span count,
+and the deep trace's flame refusal is pinned as a
+named error. The renderer holds a standing bound
+of 48 levels on flame trees, and the deep fixture's
+span tree stands a thousand levels past it. The
+bound is the product's own, set before this round,
+and this round records it rather than relitigating
+it. The per-node form
+of the INV-59 identity is now checked at scale, not
+only its aggregate consequences. The many-trace
+ceiling was re-based on the fixed code's measured
+82 milliseconds, since a ceiling set from the
+convicted code's 717 could never catch that code
+returning. Ceilings are rounded to the nearest
+hundred milliseconds rather than whole seconds, and
+the smallest figures carry the floor INV-70 now
+states. The zero budget guard gained its own test
+through the one caller that can still reach it, a
+subagent nest twelve deep.
+
+Two sentences in this record were loose and are
+corrected here. The waterfall reports no span count.
+Its output is pinned byte for byte by its hash, which
+is the stronger check, and the count wording is
+withdrawn. And the profile paragraph's heatmap
+sentence mixed its units. The buckets sum with the
+outside count to the trace fixture's span count,
+while the sample count belongs to the flame tree
+over the stacks.

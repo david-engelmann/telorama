@@ -562,3 +562,232 @@ fn sankey_edge_cases_hold() {
     assert!(flow.nodes.is_empty());
     assert_eq!(flow.residual_spans, 0);
 }
+
+// ----------------------------------------------------------------
+// Round 4 scale proof. The recipes are fixed arithmetic, so the
+// shapes below are the same on every run and every machine.
+// Each ceiling is ten times the first hosted run's measured
+// figure, rounded up to the nearest hundred milliseconds,
+// per INV-70.
+
+const SCALE_SERVICES: [&str; 8] = [
+    "web", "api", "db", "cache", "queue", "worker", "auth", "search",
+];
+
+/// Ten thousand spans in one trace. A chain one thousand deep,
+/// one hundred hub roots with eighty children each, and nine
+/// hundred orphans naming a parent the data does not contain.
+fn scale_spans_single_trace() -> Vec<Span> {
+    let mut spans = Vec::with_capacity(10_000);
+    for i in 0..1000 {
+        let parent = (i > 0).then(|| format!("c{:04}", i - 1));
+        spans.push(span(
+            &format!("c{i:04}"),
+            parent.as_deref(),
+            SCALE_SERVICES[i % 8],
+            SpanKind::Server,
+            i as i64,
+            i as i64 + 5,
+            false,
+        ));
+    }
+    for h in 0..100 {
+        let hub = format!("h{h:03}");
+        spans.push(span(
+            &hub,
+            None,
+            SCALE_SERVICES[h % 8],
+            SpanKind::Server,
+            0,
+            500,
+            false,
+        ));
+        for j in 0..80 {
+            spans.push(span(
+                &format!("k{h:03}-{j:02}"),
+                Some(&hub),
+                SCALE_SERVICES[(h + j) % 8],
+                SpanKind::Client,
+                j as i64,
+                j as i64 + 3,
+                false,
+            ));
+        }
+    }
+    for o in 0..900 {
+        spans.push(span(
+            &format!("o{o:03}"),
+            Some("absent"),
+            SCALE_SERVICES[o % 8],
+            SpanKind::Server,
+            0,
+            2,
+            false,
+        ));
+    }
+    assert_eq!(spans.len(), 10_000);
+    spans
+}
+
+#[test]
+fn sankey_flow_conserves_at_ten_thousand_spans() {
+    let spans = scale_spans_single_trace();
+    let started = std::time::Instant::now();
+    let flow = sankey_flow(&spans, "other");
+    // Measured at 102 milliseconds on the first hosted run
+    // of the final code. The ceiling is ten times that,
+    // rounded up to the nearest hundred milliseconds.
+    assert!(
+        started.elapsed() < std::time::Duration::from_millis(1100),
+        "sankey at scale took {:?}",
+        started.elapsed()
+    );
+    eprintln!("scale sankey single trace {:?}", started.elapsed());
+    // The chain stages one thousand deep, and every span is
+    // counted exactly once across the real nodes.
+    assert_eq!(flow.stages, 1000);
+    let counted: u64 = flow
+        .nodes
+        .iter()
+        .filter(|n| !n.residual)
+        .map(|n| n.value)
+        .sum();
+    assert_eq!(counted, 10_000);
+    // The nine hundred orphans enter through the residual.
+    assert_eq!(flow.residual_spans, 900);
+    // Total inflow plus staged roots equals the span count.
+    let inflow: u64 = flow.links.iter().map(|l| l.value).sum();
+    let roots = spans.iter().filter(|s| s.parent_span_id.is_none()).count() as u64;
+    assert_eq!(inflow + roots, 10_000);
+    // The per-node identity of INV-59, checked at scale. For
+    // every node, inflow plus the roots staged there equals
+    // the node's count exactly.
+    for node in flow.nodes.iter().filter(|n| !n.residual) {
+        let node_inflow: u64 = flow
+            .links
+            .iter()
+            .filter(|l| l.to_stage == node.stage && l.to_service == node.service)
+            .map(|l| l.value)
+            .sum();
+        let node_roots = spans
+            .iter()
+            .filter(|s| s.parent_span_id.is_none() && s.service == node.service && node.stage == 0)
+            .count() as u64;
+        assert_eq!(
+            node_inflow + node_roots,
+            node.value,
+            "node {} at stage {} must account for every staged span",
+            node.service,
+            node.stage
+        );
+    }
+    // The residual node's outflow is exactly the orphan count.
+    let residual_out: u64 = flow
+        .links
+        .iter()
+        .filter(|l| l.from_residual)
+        .map(|l| l.value)
+        .sum();
+    assert_eq!(residual_out, flow.residual_spans);
+}
+
+#[test]
+fn sankey_flow_holds_across_a_thousand_traces() {
+    // The same span count spread over one thousand traces, the
+    // shape that convicts or clears the staging walk's per-trace
+    // index rebuild named in docs/SCALE-DESIGN.md.
+    let mut spans = Vec::with_capacity(10_000);
+    for t in 0..1000 {
+        let trace = format!("mt{t:04}");
+        for i in 0..10 {
+            let mut s = span(
+                &format!("s{i}"),
+                (i > 0).then(|| format!("s{}", i - 1)).as_deref(),
+                SCALE_SERVICES[(t + i) % 8],
+                SpanKind::Server,
+                i as i64,
+                i as i64 + 2,
+                false,
+            );
+            s.trace_id = trace.clone();
+            spans.push(s);
+        }
+    }
+    assert_eq!(spans.len(), 10_000);
+    let started = std::time::Instant::now();
+    let flow = sankey_flow(&spans, "other");
+    // The pre-fix code measured 717 milliseconds here. The
+    // fixed code measures 82, and the ceiling is ten times
+    // that, so the convicted shape cannot pass if it returns.
+    assert!(
+        started.elapsed() < std::time::Duration::from_millis(900),
+        "many-trace sankey took {:?}",
+        started.elapsed()
+    );
+    eprintln!("scale sankey many traces {:?}", started.elapsed());
+    let counted: u64 = flow
+        .nodes
+        .iter()
+        .filter(|n| !n.residual)
+        .map(|n| n.value)
+        .sum();
+    assert_eq!(counted, 10_000);
+    assert_eq!(flow.residual_spans, 0);
+    assert_eq!(flow.stages, 10);
+}
+
+#[test]
+fn profile_holds_at_a_hundred_thousand_samples() {
+    // Two hundred stacks whose counts sum to exactly one
+    // hundred thousand samples, the last stack taking the
+    // remainder so the total is exact by construction.
+    let mut stacks: Vec<StackSample> = Vec::new();
+    let mut assigned: u64 = 0;
+    for i in 0..199 {
+        let count = (i * 37 % 400) + 100;
+        assigned += count;
+        stacks.push(StackSample {
+            frames: vec![
+                "root".to_string(),
+                format!("svc-{}", i % 10),
+                format!("fn-{i}"),
+            ],
+            count,
+        });
+    }
+    stacks.push(StackSample {
+        frames: vec![
+            "root".to_string(),
+            "svc-0".to_string(),
+            "fn-last".to_string(),
+        ],
+        count: 100_000 - assigned,
+    });
+    let started = std::time::Instant::now();
+    let tree = flame_tree(&stacks);
+    assert_eq!(tree.value, 100_000);
+    // The heatmap over the trace fixture accounts for every
+    // span, in a bucket or in the outside count.
+    let spans = scale_spans_single_trace();
+    let grid = heatmap_grid(
+        &spans,
+        TimeRange {
+            from_unix_ms: 0,
+            to_unix_ms: 20_000,
+        },
+        &[0.001, 0.005, 0.010],
+        10,
+    );
+    let bucketed: u64 = grid.rows.iter().map(|r| r.total).sum();
+    assert_eq!(bucketed + grid.outside_window as u64, 10_000);
+    assert_eq!(grid.outside_window, 0);
+    // Measured at 16 milliseconds on the first hosted run
+    // of the final code. The ceiling is ten times that,
+    // rounded up to the nearest hundred milliseconds.
+    assert!(
+        started.elapsed() < std::time::Duration::from_millis(200),
+        "profile at scale took {:?}",
+        started.elapsed()
+    );
+    eprintln!("scale profile {:?}", started.elapsed());
+}

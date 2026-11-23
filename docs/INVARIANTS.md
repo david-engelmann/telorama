@@ -495,7 +495,8 @@ later milestones are marked as validator-side.
 ## Scale bounds (telorama-scene derive and frames, telorama-svg)
 
 - INV-69. The scale fixtures stand at ten thousand spans
-  in one trace, ten thousand spans across one thousand
+  in one trace, a wide trace of ten thousand spans at
+  depth two, ten thousand spans across one thousand
   traces, five hundred session turns, and one hundred
   thousand stack samples, each generated in its test from
   a fixed recipe. Every fixture pins its renders by
@@ -510,7 +511,9 @@ later milestones are marked as validator-side.
   turns it carries. Each scale test also carries a
   wall-clock ceiling set at ten times its first measured
   hosted time, a gross-regression gate and never a
-  benchmark claim.
+  benchmark claim. Figures under ten milliseconds carry
+  a one hundred millisecond floor, the smallest ceiling
+  a shared runner can hold.
   Enforced by the scale tests named under INV-69.
 - INV-71. The frame stream's total output is quadratic
   in the turn count by construction, because every frame
@@ -532,3 +535,14 @@ later milestones are marked as validator-side.
   Enforced by derive_tests
   sankey_flow_conserves_on_the_fixtures and the trace
   scale assertions under INV-69.
+
+- INV-73. Rendering never panics at scale or shape
+  extremes. Label truncation is total at a zero
+  character budget, and panel geometry floors its
+  widths the way the sankey narrows past seven
+  stages, so deep traces and cyclic service graphs
+  narrow instead of failing. Enforced by
+  golden_tests scale_trace_renders_pin_by_hash,
+  whose service graph is a cycle, and golden_tests
+  deep_subagent_nesting_renders_with_an_empty_label_budget
+  for the zero budget guard.
