@@ -333,6 +333,65 @@ fn genai_session_reads_the_legacy_cache_attribute_names() {
 }
 
 #[test]
+fn genai_session_reads_the_cache_write_attribute_name() {
+    let spans = telorama_ingest::parse_otlp_traces(&fixture_text(
+        "tests/fixtures/agents/genai-session-cachewrite-spans.json",
+    ))
+    .expect("cache-write genai fixture must parse");
+    let run = telorama_ingest::parse_genai_session(&spans).expect("spans must adapt");
+    assert_eq!(run.session_id, "conv-genai-cachewrite");
+    assert_eq!(run.turns.len(), 1);
+    let turn = &run.turns[0];
+    // The current spelling carries the same figures the legacy
+    // fixture carries under its own. Before this read existed the
+    // creation count silently landed at zero on current emitters.
+    assert_eq!(turn.input_tokens, 6200);
+    assert_eq!(turn.output_tokens, 1500);
+    assert_eq!(turn.cache_read_tokens, 3000);
+    assert_eq!(turn.cache_creation_tokens, 400);
+    assert!((turn.cost_usd - 0.023125).abs() < 1e-9, "{}", turn.cost_usd);
+}
+
+#[test]
+fn genai_session_stages_a_workflow_root() {
+    use telorama_scene::AgentStep;
+    let spans = telorama_ingest::parse_otlp_traces(&fixture_text(
+        "tests/fixtures/agents/genai-session-workflow-spans.json",
+    ))
+    .expect("workflow genai fixture must parse");
+    let run = telorama_ingest::parse_genai_session(&spans).expect("spans must adapt");
+    assert_eq!(run.session_id, "conv-genai-workflow");
+    assert_eq!(run.turns.len(), 1);
+    let pricing = run.pricing.as_ref().expect("span runs are priced");
+    assert_eq!(
+        pricing.priced_models,
+        vec!["claude-sonnet-5".to_string(), "gpt-5.2".to_string()]
+    );
+    assert!(pricing.unpriced_models.is_empty());
+    let turn = &run.turns[0];
+    // The workflow root is structure, so the turn's one step is the
+    // triage agent, holding a chat call, a generate_content call
+    // read as a model call, and a tool call.
+    assert_eq!(turn.steps.len(), 1);
+    let AgentStep::Subagent(sub) = &turn.steps[0] else {
+        panic!("the turn's step must be the triage subagent");
+    };
+    assert_eq!(sub.agent_id, "agent-triage");
+    assert_eq!(sub.steps.len(), 3);
+    assert!(matches!(sub.steps[0], AgentStep::ModelCall(_)));
+    assert!(matches!(sub.steps[1], AgentStep::ModelCall(_)));
+    let AgentStep::ToolCall(tool) = &sub.steps[2] else {
+        panic!("step 3 must be the doc_lookup tool call");
+    };
+    assert_eq!(tool.name, "doc_lookup");
+    // Net input 3000 at sonnet prices plus 2000 at gpt-5.2 prices.
+    assert_eq!(turn.input_tokens, 5000);
+    assert_eq!(turn.output_tokens, 1100);
+    assert_eq!(turn.cache_read_tokens, 1000);
+    assert!((turn.cost_usd - 0.0227).abs() < 1e-9, "{}", turn.cost_usd);
+}
+
+#[test]
 fn genai_session_refuses_two_conversations() {
     let spans = telorama_ingest::parse_otlp_traces(&fixture_text(
         "tests/fixtures/agents/genai-session-spans.json",
@@ -371,6 +430,35 @@ fn openinference_session_maps_span_kinds() {
         panic!("step 2 must be the calculator tool call");
     };
     assert_eq!(tool.name, "calculator");
+}
+
+#[test]
+fn openinference_session_maps_a_reranker_step() {
+    use telorama_scene::AgentStep;
+    let spans = telorama_ingest::parse_otlp_traces(&fixture_text(
+        "tests/fixtures/agents/openinference-session-reranker-spans.json",
+    ))
+    .expect("reranker fixture must parse");
+    let run = telorama_ingest::parse_openinference_session(&spans).expect("spans must adapt");
+    assert_eq!(run.session_id, "sess-oi-rerank");
+    assert_eq!(run.turns.len(), 1);
+    let turn = &run.turns[0];
+    // The chain is structure. The retriever and the reranker are
+    // both tool steps, the reranker named by its span name, and
+    // the model call closes the turn. Before the reranker kind
+    // was classified, its step vanished from the run.
+    assert_eq!(turn.steps.len(), 3);
+    let AgentStep::ToolCall(retriever) = &turn.steps[0] else {
+        panic!("step 1 must be the retriever tool call");
+    };
+    assert_eq!(retriever.name, "vector search");
+    let AgentStep::ToolCall(reranker) = &turn.steps[1] else {
+        panic!("step 2 must be the reranker tool call");
+    };
+    assert_eq!(reranker.name, "rerank results");
+    assert!(matches!(turn.steps[2], AgentStep::ModelCall(_)));
+    assert_eq!(turn.input_tokens, 1500);
+    assert_eq!(turn.output_tokens, 250);
 }
 
 #[test]
