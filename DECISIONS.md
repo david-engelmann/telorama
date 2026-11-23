@@ -1261,3 +1261,49 @@ also split a semicolon out of the emit header
 comment and corrected INV-87's remain-list,
 which still named the shared step walk the same
 diff had converted.
+
+## Round 13: the registry, refreshed (2026-11-23)
+
+The design record is docs/REGISTRY-REFRESH-DESIGN.md.
+All five crates version together at 0.3.0, the
+workspace pins move with them, and Cargo.lock is
+regenerated in the packaging pass, its diff
+exactly the five version lines. The root
+readme's Current state paragraph is rewritten
+for the finished surface. It counts thirteen
+rounds, states the documented surface under its
+deny gate, the cycle and depth law, the nesting
+budget, and CLI and MCP findings parity, and
+closes at version 0.3.0. Every new claim was
+verified against the repo by the review lanes.
+
+The red team's sweep found one live surface
+still presenting an old version. The MCP
+server's initialize reply hardcoded version
+0.1.0, and the Apps view's ui/initialize named
+the same, stale through the whole 0.2.0 era.
+Both now read env!("CARGO_PKG_VERSION"), so the
+handshake tracks the manifest forever, and two
+assertions pin the served version against the
+manifest in the MCP suite. This is a recorded
+deviation from the design's no-other-changes
+letter, taken because presenting the current
+version honestly is the round's whole subject,
+and the fix is confined to the two strings and
+their pins. The repair's first form split the
+view's raw string for a concat and silently
+consumed the quotes around the version, which
+the new pin caught on its first run. The quotes
+stand restored as doubled delimiters.
+
+The round count in the paragraph follows the
+repo's own convention. The 0.2.0 paragraph
+shipped in Round 6's build counting six rounds,
+the round it shipped in included, so this
+paragraph counts thirteen. The plugin
+manifest's version stays 0.1.0 on its own
+track, as it has through both registry bumps,
+pinned deliberately by the packaging test. The
+publish follows in this round's own record,
+each version confirmed live before the next is
+sent.

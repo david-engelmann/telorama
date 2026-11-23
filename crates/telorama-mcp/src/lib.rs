@@ -45,7 +45,8 @@ const VIEW_MIME: &str = "text/html;profile=mcp-app";
 /// app bridge (ui/initialize, then it waits for the tool result
 /// notification) and injects the SVG the render tool carried in its
 /// `_meta`. It fetches nothing.
-pub const VIEW_HTML: &str = r##"<!DOCTYPE html>
+pub const VIEW_HTML: &str = concat!(
+    r##"<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -104,11 +105,14 @@ window.addEventListener("message", function (event) {
     }
   }
 });
-post({jsonrpc: "2.0", id: initId, method: "ui/initialize", params: {appCapabilities: {}, protocolVersion: "2026-01-26", appInfo: {name: "telorama-view", version: "0.1.0"}}});
+post({jsonrpc: "2.0", id: initId, method: "ui/initialize", params: {appCapabilities: {}, protocolVersion: "2026-01-26", appInfo: {name: "telorama-view", version: ""##,
+    env!("CARGO_PKG_VERSION"),
+    r##""}}});
 </script>
 </body>
 </html>
-"##;
+"##
+);
 
 /// Handle one JSON-RPC line. Returns the response line, or None for
 /// notifications, which take no reply.
@@ -132,7 +136,7 @@ pub fn handle_message(line: &str) -> Option<String> {
         "initialize" => Ok(json!({
             "protocolVersion": PROTOCOL_VERSION,
             "capabilities": {"tools": {}, "resources": {}},
-            "serverInfo": {"name": "telorama", "version": "0.1.0"}
+            "serverInfo": {"name": "telorama", "version": env!("CARGO_PKG_VERSION")}
         })),
         "ping" => Ok(json!({})),
         "tools/list" => Ok(json!({"tools": tool_definitions()})),
