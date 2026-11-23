@@ -84,6 +84,16 @@ vanishes from the session record, and a dated
 snapshot model id silently goes unpriced. Design
 record docs/HOSTILE-DESIGN.md.
 
+## Round 9: parity completion
+
+Round 9 closes the two asymmetries the Round 7
+reviews named and left standing: the CLI
+incident command composes over its traces alone
+while the MCP tool composes over its full
+input, and the CLI's two input flags can count
+one span twice. Design record
+docs/PARITY-DESIGN.md.
+
 ## Standing lanes between rounds
 
 - The A2UI watch in docs/A2UI-SPIKE.md stays a watch item,
