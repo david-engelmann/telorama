@@ -836,6 +836,6 @@ fn frame_stream_totals_hold_at_five_hundred_turns() {
     );
     assert_eq!(
         telorama_scene::content_hash(last_svg.as_bytes()),
-        "PIN_AFTER_FIRST_RUN"
+        "49f00fd8a1ffe9eb"
     );
 }

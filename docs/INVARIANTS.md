@@ -532,3 +532,12 @@ later milestones are marked as validator-side.
   Enforced by derive_tests
   sankey_flow_conserves_on_the_fixtures and the trace
   scale assertions under INV-69.
+
+- INV-73. Rendering never panics at scale or shape
+  extremes. Label truncation is total at a zero
+  character budget, and panel geometry floors its
+  widths the way the sankey narrows past seven
+  stages, so deep traces and cyclic service graphs
+  narrow instead of failing. Enforced by
+  golden_tests scale_trace_renders_pin_by_hash,
+  whose service graph is a cycle.

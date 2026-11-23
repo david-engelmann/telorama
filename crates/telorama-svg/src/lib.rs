@@ -330,6 +330,9 @@ fn text(
 }
 
 fn truncate_label(label: &str, max_chars: usize) -> String {
+    if max_chars == 0 {
+        return String::new();
+    }
     if label.chars().count() <= max_chars {
         return label.to_string();
     }
@@ -1171,7 +1174,11 @@ fn render_service_map(
     let layers = positions.iter().map(|(_, l, _)| *l).max().unwrap_or(0) + 1;
     let rows = positions.iter().map(|(_, _, i)| *i).max().unwrap_or(0) + 1;
     let step = (WIDTH - 2.0 * MARGIN) / layers as f64;
-    let box_w = (step - 10.0).min(160.0);
+    // The width floors at eight pixels, the same narrowing the
+    // sankey applies past seven stages, so a deep or cyclic
+    // graph narrows its boxes instead of driving the width and
+    // the label budget negative.
+    let box_w = (step - 10.0).min(160.0).max(8.0);
     let box_h = 32.0;
     let row_step = 46.0;
     let map_top = *y;
@@ -1240,7 +1247,10 @@ fn render_service_map(
             bold: true,
             mono: false,
             anchor: "start",
-            content: truncate_label(&node.service, ((box_w - 12.0) / 6.5) as usize),
+            content: truncate_label(
+                &node.service,
+                (((box_w - 12.0) / 6.5) as usize).max(4),
+            ),
         });
         prims.push(Prim::Text {
             x: bx + 8.0,
