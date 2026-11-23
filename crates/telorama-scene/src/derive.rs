@@ -527,35 +527,37 @@ pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
         next: usize,
         built: Vec<FlameNode>,
     }
+    fn frame_for<'a>(
+        span: &'a Span,
+        children: &BTreeMap<String, Vec<&'a Span>>,
+        seen: &mut std::collections::BTreeSet<String>,
+    ) -> Frame<'a> {
+        let kids: Vec<&Span> = children
+            .get(&span.span_id)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|kid| seen.insert(kid.span_id.clone()))
+            .collect();
+        Frame {
+            span,
+            kids,
+            next: 0,
+            built: Vec::new(),
+        }
+    }
     fn build<'a>(
         root: &'a Span,
         children: &BTreeMap<String, Vec<&'a Span>>,
         seen: &mut std::collections::BTreeSet<String>,
     ) -> FlameNode {
-        let frame_for = |span: &'a Span,
-                         seen: &mut std::collections::BTreeSet<String>|
-         -> Frame<'a> {
-            let kids: Vec<&Span> = children
-                .get(&span.span_id)
-                .cloned()
-                .unwrap_or_default()
-                .into_iter()
-                .filter(|kid| seen.insert(kid.span_id.clone()))
-                .collect();
-            Frame {
-                span,
-                kids,
-                next: 0,
-                built: Vec::new(),
-            }
-        };
-        let mut stack: Vec<Frame> = vec![frame_for(root, seen)];
+        let mut stack: Vec<Frame> = vec![frame_for(root, children, seen)];
         loop {
             let top = stack.last_mut().expect("a frame under construction");
             if top.next < top.kids.len() {
                 let kid = top.kids[top.next];
                 top.next += 1;
-                stack.push(frame_for(kid, seen));
+                stack.push(frame_for(kid, children, seen));
                 continue;
             }
             let frame = stack.pop().expect("a frame under construction");
