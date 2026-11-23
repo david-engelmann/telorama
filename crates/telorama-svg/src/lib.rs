@@ -1329,7 +1329,7 @@ fn render_service_map(
         let fill = colors
             .get(&node.service)
             .cloned()
-            .unwrap_or_else(|| palette.fallback.to_string());
+            .unwrap_or_else(|| palette.residual.to_string());
         prims.push(Prim::Rect {
             x: bx,
             y: by,
@@ -1401,24 +1401,61 @@ fn render_service_map(
 
 /// FNV-1a over a frame name, for palette assignment: the same frame
 /// keeps its color wherever it appears in the tree.
-fn name_hash(name: &str, palette: &Palette) -> usize {
+fn name_hash(name: &str, palette_len: usize) -> usize {
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
     for b in name.as_bytes() {
         h ^= u64::from(*b);
         h = h.wrapping_mul(0x0000_0100_0000_01b3);
     }
-    (h % palette.service.len() as u64) as usize
+    (h % palette_len as u64) as usize
 }
 
 fn flame_depth(node: &FlameNode) -> usize {
     1 + node.children.iter().map(flame_depth).max().unwrap_or(0)
 }
 
-/// Text color for a bar of the given fill: white on dark fills, ink on
-/// light ones, by perceived luminance.
+/// WCAG relative luminance of a hex color, or None when the
+/// value is not a six-digit hex color.
+fn relative_luminance(hex: &str) -> Option<f64> {
+    let hex = hex.trim_start_matches('#');
+    if hex.len() != 6 {
+        return None;
+    }
+    let channel = |i: usize| {
+        let c = u32::from_str_radix(&hex[i..i + 2], 16).ok()? as f64 / 255.0;
+        Some(if c <= 0.04045 {
+            c / 12.92
+        } else {
+            ((c + 0.055) / 1.055).powf(2.4)
+        })
+    };
+    Some(0.2126 * channel(0)? + 0.7152 * channel(2)? + 0.0722 * channel(4)?)
+}
+
+/// The WCAG contrast ratio between two hex colors. An
+/// unparseable color ratios at one to one, so a caller
+/// comparing candidates falls back to its second choice.
+fn contrast_ratio(a: &str, b: &str) -> f64 {
+    let (Some(la), Some(lb)) = (relative_luminance(a), relative_luminance(b)) else {
+        return 1.0;
+    };
+    let (hi, lo) = if la >= lb { (la, lb) } else { (lb, la) };
+    (hi + 0.05) / (lo + 0.05)
+}
+
+/// Text color for a label drawn on a fill. Under the light
+/// theme, white on dark fills and ink on light ones, by
+/// perceived luminance. Under the dark theme, whichever of
+/// the ground and the ink contrasts more with the fill, so
+/// a label on the dark surface root of a flame graph takes
+/// the ink while a label on a light service fill takes the
+/// ground.
 fn bar_text_fill(fill: &str, palette: &Palette) -> &'static str {
     if palette.dark {
-        return palette.background;
+        if contrast_ratio(fill, palette.background) >= contrast_ratio(fill, palette.ink) {
+            return palette.background;
+        }
+        return palette.ink;
     }
     let hex = fill.trim_start_matches('#');
     if hex.len() != 6 {
@@ -1449,7 +1486,7 @@ fn layout_flame(
     let fill = if depth == 0 {
         palette.surface.to_string()
     } else {
-        palette.service[name_hash(&node.name, palette)].to_string()
+        palette.service[name_hash(&node.name, palette.service.len())].to_string()
     };
     prims.push(Prim::Rect {
         x,

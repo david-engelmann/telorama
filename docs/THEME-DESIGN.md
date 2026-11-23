@@ -115,3 +115,9 @@ too. It takes the palette's background, white under
 light and the dark ground under dark, and INV-77 is
 worded accordingly in the same landing. Nothing else
 in the record changes.
+
+One phrase is clarified in the same pass. Where the
+record says the HTML export paints the dark surface,
+read the palette's background in both themes. The
+export paints the same ground the drawing itself
+carries, so the page and the picture never disagree.

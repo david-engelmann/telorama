@@ -562,7 +562,10 @@ later milestones are marked as validator-side.
   renderer can emit under the dark theme clears its
   contrast floor, four and a half to one for text and
   three to one for data marks, computed from the
-  palette constants themselves.
+  palette constants themselves. Grid strokes are
+  chrome rather than text or marks and hold a quiet
+  floor of their own, one point four to one, the same
+  subtlety the light grid has always had.
   Enforced by golden_tests dark_palette_pairs_clear_
   their_contrast_floors.
 - INV-76. The same scene rendered in both themes

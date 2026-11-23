@@ -271,4 +271,9 @@ fn theme_rejects_any_other_value_with_a_named_error() {
         "{}",
         messages(&errors)
     );
+    assert!(
+        messages(&errors).contains("theme must be \"light\" or \"dark\""),
+        "{}",
+        messages(&errors)
+    );
 }
