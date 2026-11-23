@@ -48,6 +48,8 @@
 //! assert!(svg.contains("One request"));
 //! ```
 
+#![deny(missing_docs)]
+
 use std::collections::BTreeMap;
 use std::fmt;
 use telorama_scene::{
@@ -59,7 +61,7 @@ use telorama_scene::{
 
 /// Canonical float formatting for emitted geometry. The implementation
 /// lives in telorama-scene's field system, so every surface formats a
-/// value the same way; these are the renderer's handles on it.
+/// value the same way. These are the renderer's handles on it.
 pub fn fmt_num(v: f64) -> String {
     telorama_scene::format_number(v)
 }
@@ -120,36 +122,73 @@ fn escape_xml(text: &str) -> String {
 /// One drawing primitive in the DisplayList.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Prim {
+    /// A filled rectangle, emitted as an SVG `rect` element.
     Rect {
+        /// Left edge in SVG user units.
         x: f64,
+        /// Top edge in SVG user units.
         y: f64,
+        /// Width in SVG user units.
         w: f64,
+        /// Height in SVG user units.
         h: f64,
+        /// Fill color as a CSS color string.
         fill: String,
+        /// Fill opacity from 0 to 1. `None` emits no opacity
+        /// attribute, so the fill is fully opaque.
         opacity: Option<f64>,
+        /// Border as a color and a width in SVG user units.
+        /// `None` emits no stroke.
         stroke: Option<(String, f64)>,
     },
+    /// A straight segment, emitted as an SVG `line` element.
     Line {
+        /// Start point's horizontal coordinate in SVG user units.
         x1: f64,
+        /// Start point's vertical coordinate in SVG user units.
         y1: f64,
+        /// End point's horizontal coordinate in SVG user units.
         x2: f64,
+        /// End point's vertical coordinate in SVG user units.
         y2: f64,
+        /// Stroke color as a CSS color string.
         stroke: String,
+        /// Stroke width in SVG user units.
         width: f64,
     },
+    /// A filled shape through a list of vertices, emitted as an
+    /// SVG `polygon` element. Sankey links are drawn this way.
     Polygon {
+        /// Vertices in draw order, each a pair of coordinates in
+        /// SVG user units.
         points: Vec<(f64, f64)>,
+        /// Fill color as a CSS color string.
         fill: String,
+        /// Fill opacity from 0 to 1. `None` emits no opacity
+        /// attribute, so the fill is fully opaque.
         opacity: Option<f64>,
     },
+    /// A run of text, emitted as an SVG `text` element.
     Text {
+        /// Horizontal position of the anchor point in SVG user
+        /// units.
         x: f64,
+        /// Vertical position of the text baseline in SVG user
+        /// units.
         y: f64,
+        /// Font size in SVG user units.
         size: f64,
+        /// Text color as a CSS color string.
         fill: String,
+        /// When true, the text renders at font weight 700.
         bold: bool,
+        /// When true, the text renders in a monospace family
+        /// instead of the default sans family.
         mono: bool,
+        /// The SVG `text-anchor` value, one of `start`, `middle`,
+        /// or `end`.
         anchor: &'static str,
+        /// The literal characters drawn, XML-escaped at emission.
         content: String,
     },
 }
@@ -158,11 +197,22 @@ pub enum Prim {
 /// same DisplayList always produces the same SVG bytes.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DisplayList {
+    /// Canvas width in SVG user units. Also the `viewBox` width.
     pub width: f64,
+    /// Canvas height in SVG user units. Also the `viewBox`
+    /// height.
     pub height: f64,
+    /// Emitted as the SVG document's `title` element, the
+    /// accessible name of the drawing.
     pub title: String,
+    /// Emitted as the SVG document's `desc` element, a one-line
+    /// summary of what the drawing shows.
     pub description: String,
+    /// Color of the full-canvas rectangle painted behind every
+    /// primitive, as a CSS color string.
     pub background: String,
+    /// The primitives in draw order. Later entries paint over
+    /// earlier ones.
     pub prims: Vec<Prim>,
 }
 
@@ -294,6 +344,8 @@ impl DisplayList {
 /// cannot support it fails with a specific reason.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RenderError {
+    /// The specific reason rendering failed, worded for the
+    /// caller to show as-is.
     pub message: String,
 }
 
@@ -335,20 +387,49 @@ const MARGIN: f64 = 24.0;
 /// never pass through here (INV-74).
 #[derive(Debug, Clone, Copy)]
 pub struct Palette {
+    /// Ground color painted behind the whole canvas, and the
+    /// page background of the themed HTML export.
     pub background: &'static str,
+    /// Fill of the flame graph's root box, the one box that
+    /// carries no service color.
     pub surface: &'static str,
+    /// Fill of a heatmap cell whose count is zero.
     pub empty_cell: &'static str,
+    /// Primary text color, for values and labels a reader must
+    /// not miss.
     pub ink: &'static str,
+    /// Secondary text color, for captions, notes, and axis
+    /// labels.
     pub muted: &'static str,
+    /// Stroke color of gridlines and axis rules.
     pub grid: &'static str,
+    /// Color that marks errors under this theme, on error spans
+    /// and error counts.
     pub error: &'static str,
+    /// The eight categorical colors assigned to services in
+    /// sorted service-name order.
     pub service: [&'static str; 8],
+    /// Neutral gray used when a mark has no assigned service
+    /// color, and the base a verdict threshold blends from.
     pub fallback: &'static str,
+    /// Color of the sankey residual bucket, for spans whose
+    /// parent chain could not be staged.
     pub residual: &'static str,
+    /// Fill of the permission-wait segment at the head of a
+    /// tool-call bar in agent-run panels.
     pub waiting: &'static str,
+    /// Color of the critical-path highlight in waterfall
+    /// panels, a stroke around path bars and a band beneath
+    /// them.
     pub outline: &'static str,
+    /// Thin stroke separating adjacent flame boxes, so
+    /// neighbouring fills stay distinct.
     pub flame_stroke: &'static str,
+    /// Color nonzero heatmap cells are filled with. Each cell's
+    /// opacity carries its share of the maximum count.
     pub heatmap_base: &'static str,
+    /// True in the dark palette. Filled-bar labels use it to
+    /// pick between the background and ink colors by contrast.
     pub dark: bool,
 }
 
@@ -406,6 +487,8 @@ pub fn palette_for(theme: telorama_scene::Theme) -> Palette {
     }
 }
 
+/// Service colors under the light palette, keyed by service
+/// name. Kept for callers that render without a theme.
 pub fn service_colors(spans: &[Span]) -> BTreeMap<String, String> {
     service_colors_for(spans, &LIGHT_PALETTE)
 }
@@ -1666,7 +1749,7 @@ fn band_label(edges: &[f64], row: usize) -> String {
 }
 
 /// Cell shading for a count, in four steps up to the busiest cell.
-/// The full step returns no opacity (solid); an empty cell is drawn by
+/// The full step returns no opacity (solid). An empty cell is drawn by
 /// the caller in the empty grey, never by this function.
 fn cell_shade(count: u64, max: u64) -> Option<f64> {
     if count == 0 || max == 0 {
@@ -2172,8 +2255,14 @@ fn render_red_row(
 /// Everything a scene can read: the span set, the folded stacks for
 /// flame panels, and the agent run for agent_run panels.
 pub struct SceneData<'a> {
+    /// The span set trace panels read, and the input every
+    /// derivation runs over.
     pub spans: &'a [Span],
+    /// Folded stack samples for flame panels. Empty when the
+    /// scene's flame panels derive from spans instead.
     pub stacks: &'a [StackSample],
+    /// The agent run agent_run panels read. `None` when the
+    /// scene carries no session data.
     pub agent_run: Option<&'a AgentRun>,
     /// The agent-state entries, when a panel renders them.
     pub agent_state: &'a [AgentStateEntry],

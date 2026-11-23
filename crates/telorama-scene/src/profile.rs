@@ -11,6 +11,8 @@ use serde::{Deserialize, Serialize};
 /// One folded stack: frames from root to leaf, and its sample count.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StackSample {
+    /// The call path, root frame first and leaf last.
     pub frames: Vec<String>,
+    /// How many samples took exactly this path.
     pub count: u64,
 }

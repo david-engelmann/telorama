@@ -31,6 +31,8 @@
 //! assert_eq!(scene.title, "One request");
 //! ```
 
+#![deny(missing_docs)]
+
 pub mod agent;
 pub mod compose;
 pub mod derive;

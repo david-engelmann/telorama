@@ -32,7 +32,11 @@ use std::fmt;
 /// One validation failure, located by a JSON path.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidationError {
+    /// JSON path of the offending value, such as
+    /// `$.panels[0].data`.
     pub path: String,
+    /// What is wrong and how to fix it, worded so the spec's
+    /// author can repair it in one round trip.
     pub message: String,
 }
 

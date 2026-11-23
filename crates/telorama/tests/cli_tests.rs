@@ -467,3 +467,57 @@ fn render_html_honours_a_dark_scene() {
     let _ = std::fs::remove_file(&tmp);
     let _ = std::fs::remove_file(&tmp_scene);
 }
+
+#[test]
+fn render_session_findings_cover_the_session_spans() {
+    // INV-81: the CLI ranks findings over the session's spans plus
+    // the run, the same inputs the MCP render path ranks. The one
+    // error in this GenAI session lives only in its spans, so a CLI
+    // that ranked the run alone would draw no errors finding.
+    let scene_path = workspace_file("tests/fixtures/scenes/agent_run_scene.json");
+    let spans_path = workspace_file("tests/fixtures/agents/genai-session-error-spans.json");
+    let scene = telorama_scene::parse_scene(
+        &std::fs::read_to_string(&scene_path).expect("the scene fixture must read"),
+    )
+    .expect("the scene fixture must parse");
+    let session_spans = telorama_ingest::parse_otlp_traces(
+        &std::fs::read_to_string(&spans_path).expect("the spans fixture must read"),
+    )
+    .expect("the spans fixture must parse");
+    let run = telorama_ingest::parse_genai_session(&session_spans)
+        .expect("the session fixture must parse");
+    let window = scene.context.range.seconds();
+    let run_only = telorama_scene::investigate(&[], Some(&run), window);
+    assert!(
+        run_only.iter().all(|f| f.kind != "errors"),
+        "the run alone must convict no errors finding: {run_only:?}"
+    );
+    let with_spans = telorama_scene::investigate(&session_spans, Some(&run), window);
+    let errors = with_spans
+        .iter()
+        .find(|f| f.kind == "errors")
+        .expect("the session spans must convict an errors finding");
+    let out_path = std::env::temp_dir().join("telorama-cli-session-findings.svg");
+    let out = telorama(&[
+        "render",
+        "--scene",
+        scene_path.to_str().unwrap(),
+        "--session-spans",
+        spans_path.to_str().unwrap(),
+        "--dialect",
+        "genai",
+        "--out",
+        out_path.to_str().unwrap(),
+    ]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let written = std::fs::read_to_string(&out_path).expect("the render must be written");
+    assert!(written.contains("Look here first"), "{written}");
+    assert!(
+        written.contains(&errors.statement),
+        "the CLI strip must carry the span-based errors finding: {written}"
+    );
+}

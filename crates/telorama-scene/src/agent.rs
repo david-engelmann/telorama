@@ -11,10 +11,16 @@ use serde::{Deserialize, Serialize};
 /// One agent session.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AgentRun {
+    /// The session's identifier in the source dialect. Frame
+    /// scenes title themselves with it.
     pub session_id: String,
     /// The dialect that produced the run, for example "claude_code".
     pub dialect: String,
+    /// The session's turns in the order their prompts arrived.
     pub turns: Vec<AgentTurn>,
+    /// What the sources contributed across every turn, as
+    /// session totals. Each turn carries its own share in its
+    /// coverage.
     pub coverage: Coverage,
     /// Renderer-side pricing, present when the dialect exports tokens
     /// but no cost (Codex). The run's cost figures are then estimates
@@ -46,8 +52,14 @@ pub struct Pricing {
 /// a prefix.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Coverage {
+    /// Log events folded into this part of the run. Log events
+    /// are authoritative for tokens and cost.
     pub log_events: u64,
+    /// Spans the sources supplied in this part of the run,
+    /// counted before any merging.
     pub spans_seen: u64,
+    /// Spans merged into the step tree. Spans are authoritative
+    /// for permission waits and subagent structure.
     pub spans_merged: u64,
 }
 
@@ -95,17 +107,31 @@ pub struct AgentStateEntry {
 /// calls, subagents included.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AgentTurn {
+    /// Identifier of the user prompt this turn answers, in the
+    /// source dialect's own terms.
     pub prompt_id: String,
+    /// The turn's first activity, in Unix nanoseconds.
     pub start_unix_nano: i64,
+    /// The turn's last activity, in Unix nanoseconds.
     pub end_unix_nano: i64,
+    /// The turn's steps in the order they ran.
     pub steps: Vec<AgentStep>,
+    /// Input tokens summed over the turn's model calls,
+    /// subagents included.
     pub input_tokens: u64,
+    /// Output tokens summed over the turn's model calls,
+    /// subagents included.
     pub output_tokens: u64,
+    /// Tokens the turn's model calls read from the prompt cache.
     pub cache_read_tokens: u64,
+    /// Tokens the turn's model calls wrote into the prompt cache.
     pub cache_creation_tokens: u64,
+    /// The turn's cost in US dollars, summed over its model
+    /// calls. An estimate from the price table when the run
+    /// carries pricing.
     pub cost_usd: f64,
     /// What the sources contributed to this turn alone. The run's
-    /// coverage is the session total; a frame's coverage is the sum
+    /// coverage is the session total. A frame's coverage is the sum
     /// over its prefix turns, plus the session's supplied span count
     /// where the dialect counts spans as an input statistic.
     #[serde(default)]
@@ -116,8 +142,13 @@ pub struct AgentTurn {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AgentStep {
+    /// One model invocation, with its timing, tokens, and cost.
     ModelCall(ModelCall),
+    /// One tool invocation, with any permission wait the spans
+    /// observed.
     ToolCall(ToolCall),
+    /// A delegated subagent's run, nested inside the turn that
+    /// spawned it.
     Subagent(SubagentRun),
 }
 
@@ -135,6 +166,8 @@ impl AgentStep {
         }
     }
 
+    /// The step's start in Unix nanoseconds, whichever kind of
+    /// step it is.
     pub fn start_unix_nano(&self) -> i64 {
         match self {
             AgentStep::ModelCall(s) => s.start_unix_nano,
@@ -143,6 +176,8 @@ impl AgentStep {
         }
     }
 
+    /// The step's end in Unix nanoseconds, whichever kind of
+    /// step it is.
     pub fn end_unix_nano(&self) -> i64 {
         match self {
             AgentStep::ModelCall(s) => s.end_unix_nano,
@@ -155,31 +190,50 @@ impl AgentStep {
 /// One call to a model, successful or not.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ModelCall {
+    /// The model that served the call, under the name the
+    /// dialect reports. Pricing looks models up by this name.
     pub model: String,
+    /// When the call began, in Unix nanoseconds.
     pub start_unix_nano: i64,
+    /// When the call finished, in Unix nanoseconds.
     pub end_unix_nano: i64,
+    /// Time to first token in nanoseconds, when the dialect
+    /// reports it.
     pub ttft_nanos: Option<i64>,
     /// Attempts the call took, when the dialect reports retries.
     pub attempts: u32,
+    /// True when the call ended in error, after any retries
+    /// `attempts` records.
     pub is_error: bool,
+    /// Input tokens for this call, with cache reads and writes
+    /// counted in their own fields.
     pub input_tokens: u64,
+    /// Output tokens for this call.
     pub output_tokens: u64,
+    /// Input tokens served from the prompt cache.
     pub cache_read_tokens: u64,
+    /// Input tokens written into the prompt cache.
     pub cache_creation_tokens: u64,
+    /// Cost of this call in US dollars. An estimate from the
+    /// price table when the run carries pricing.
     pub cost_usd: f64,
 }
 
 /// One tool invocation.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ToolCall {
+    /// The tool's name as the dialect reports it.
     pub name: String,
+    /// When the invocation began, in Unix nanoseconds.
     pub start_unix_nano: i64,
+    /// When the invocation finished, in Unix nanoseconds.
     pub end_unix_nano: i64,
     /// Time blocked on the user for permission, taken from the
     /// dialect's wait spans when spans were supplied. Zero means no
     /// wait was observed, and the coverage line says whether spans
     /// were there to observe one.
     pub wait_nanos: i64,
+    /// True when the invocation ended in error.
     pub is_error: bool,
     /// The permission decision the user gave, when the dialect
     /// reports one: "accept", "reject", and their kin.
@@ -191,8 +245,15 @@ pub struct ToolCall {
 /// alone never invent one.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SubagentRun {
+    /// The subagent's identifier, carried by the span that
+    /// proved it exists.
     pub agent_id: String,
+    /// When the subagent's first step began, in Unix
+    /// nanoseconds.
     pub start_unix_nano: i64,
+    /// When the subagent's last step ended, in Unix
+    /// nanoseconds.
     pub end_unix_nano: i64,
+    /// The steps the subagent took, in the order they ran.
     pub steps: Vec<AgentStep>,
 }

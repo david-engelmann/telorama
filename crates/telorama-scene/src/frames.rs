@@ -32,8 +32,13 @@ pub struct Frame {
     pub index: usize,
     /// How many turns the frame covers.
     pub turns: usize,
+    /// The complete scene for this prefix, ready to render.
     pub scene: Scene,
+    /// The prefix run the scene renders, its turns verbatim
+    /// from the session.
     pub run: AgentRun,
+    /// Findings derived from this prefix alone, so an early
+    /// frame never reports what only later turns reveal.
     pub findings: Vec<Finding>,
 }
 
