@@ -683,8 +683,8 @@ fn scale_trace_renders_pin_by_hash() {
         hashes,
         vec![
             "74414c45532594f0".to_string(),
-            "PIN_SERVICE_MAP".to_string(),
-            "PIN_SANKEY".to_string()
+            "ed46032a8015bee4".to_string(),
+            "92b9037620a3a948".to_string()
         ]
     );
     assert!(
