@@ -80,3 +80,39 @@ The one deliberate change is the incident
 command with a session input, whose composition
 now covers the spans its findings already
 ranked. No new panel, dialect, or surface.
+
+## Amendments, 2026-11-23
+
+The reviews found one input class the fence
+above states too broadly. The combined set
+dedupes over the whole chained input, so a
+single traces file carrying duplicate span ids
+internally also loses its later copies, and its
+output changes against the pre-round code. The
+fence's byte-identity claim therefore holds for
+duplicate-free inputs, which is the class every
+fixture and golden exercises. INV-85 mandates
+the behavior as built, each span id entering
+once with no carve-out, and the deduped count
+is the honest one for malformed telemetry.
+
+The same exception qualifies the parity claim.
+The MCP incident tool does not dedupe its
+input, so on a duplicate-carrying export the
+CLI and the MCP tool now compose different
+counts where they once agreed on every input.
+The agreement is exact on duplicate-free input,
+and the CLI's side of the difference is the
+single count the invariant requires. Widening
+the dedup to the MCP tool is a change of its
+own and is named here as a candidate, not
+taken in this round.
+
+One wording correction. The finish calls the
+first-occurrence rule the canonical-copy rule
+from Round 1; the sankey rule chooses its
+canonical copy by the span's own fields,
+independent of input order, while the combined
+set chooses by position, traces before session.
+The operative rule is the one stated in the
+finish; only the lineage was loose.

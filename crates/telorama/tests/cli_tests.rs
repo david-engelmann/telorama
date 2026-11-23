@@ -523,6 +523,98 @@ fn render_session_findings_cover_the_session_spans() {
 }
 
 #[test]
+fn incident_composes_over_the_session_spans() {
+    // INV-85: the incident command composes over the combined
+    // set, so the composed scene's window covers the session's
+    // spans. The GenAI session ends after the checkout traces,
+    // at 1794852012000 ms, so a scene composed from the traces
+    // alone closes earlier.
+    let traces = workspace_file("tests/fixtures/otel-demo-checkout.json");
+    let session = workspace_file("tests/fixtures/agents/genai-session-error-spans.json");
+    let only = telorama(&[
+        "incident",
+        "--traces",
+        traces.to_str().expect("path is utf8"),
+    ]);
+    assert!(
+        only.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&only.stderr)
+    );
+    assert!(
+        !stdout(&only).contains("1794852012000"),
+        "the traces alone must close before the session ends"
+    );
+    let both = telorama(&[
+        "incident",
+        "--traces",
+        traces.to_str().expect("path is utf8"),
+        "--session-spans",
+        session.to_str().expect("path is utf8"),
+        "--dialect",
+        "genai",
+    ]);
+    assert!(
+        both.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&both.stderr)
+    );
+    assert!(
+        stdout(&both).contains("\"to_unix_ms\": 1794852012000"),
+        "the composed scene's window must cover the session's spans: {}",
+        stdout(&both)
+    );
+}
+
+#[test]
+fn duplicate_inputs_count_each_span_once() {
+    // INV-85: the same export under both flags enters the
+    // combined set once, so the rendered findings equal the ones
+    // the single-flag inputs rank.
+    let scene_path = workspace_file("tests/fixtures/scenes/agent_run_scene.json");
+    let spans_path = workspace_file("tests/fixtures/agents/genai-session-error-spans.json");
+    let scene = telorama_scene::parse_scene(
+        &std::fs::read_to_string(&scene_path).expect("the scene fixture must read"),
+    )
+    .expect("the scene fixture must parse");
+    let session_spans = telorama_ingest::parse_otlp_traces(
+        &std::fs::read_to_string(&spans_path).expect("the spans fixture must read"),
+    )
+    .expect("the spans fixture must parse");
+    let run = telorama_ingest::parse_genai_session(&session_spans)
+        .expect("the session fixture must parse");
+    let window = scene.context.range.seconds();
+    let errors = telorama_scene::investigate(&session_spans, Some(&run), window)
+        .into_iter()
+        .find(|f| f.kind == "errors")
+        .expect("the session spans must convict an errors finding");
+    let out_path = std::env::temp_dir().join("telorama-cli-duplicate-inputs.svg");
+    let out = telorama(&[
+        "render",
+        "--scene",
+        scene_path.to_str().unwrap(),
+        "--traces",
+        spans_path.to_str().unwrap(),
+        "--session-spans",
+        spans_path.to_str().unwrap(),
+        "--dialect",
+        "genai",
+        "--out",
+        out_path.to_str().unwrap(),
+    ]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let written = std::fs::read_to_string(&out_path).expect("the render must be written");
+    assert!(
+        written.contains(&errors.statement),
+        "the strip must carry the single-count errors finding: {written}"
+    );
+}
+
+#[test]
 fn render_refusal_session_draws_the_refusal_as_an_error() {
     // INV-83 end to end: the refusal fixture's only error source
     // is its claude_code.api_refusal event, so the error colour in

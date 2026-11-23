@@ -17,6 +17,25 @@ fn read_file(path: &str) -> Result<String, String> {
     std::fs::read_to_string(path).map_err(|e| format!("cannot read {path}: {e}"))
 }
 
+/// The combined span set for a command that takes traces and a
+/// session (INV-85): the trace spans first, then the session
+/// spans, with each trace id and span id entering once and the
+/// first occurrence kept, so an export passed under both flags
+/// counts once.
+fn combined_spans(
+    spans: &[telorama_scene::Span],
+    session_spans: Vec<telorama_scene::Span>,
+) -> Vec<telorama_scene::Span> {
+    let mut seen: std::collections::BTreeSet<(&str, &str)> = std::collections::BTreeSet::new();
+    let mut out: Vec<telorama_scene::Span> = Vec::new();
+    for span in spans.iter().chain(session_spans.iter()) {
+        if seen.insert((span.trace_id.as_str(), span.span_id.as_str())) {
+            out.push(span.clone());
+        }
+    }
+    out
+}
+
 fn cmd_inspect(path: &str) -> Result<String, String> {
     let text = read_file(path)?;
     let spans = telorama_ingest::parse_otlp_traces(&text).map_err(|e| e.to_string())?;
@@ -195,11 +214,10 @@ fn cmd_render_like(args: &[String], html: bool) -> Result<String, String> {
         }
         None => Vec::new(),
     };
-    // Findings rank over the trace spans and the session's own
-    // spans together, the same inputs the MCP render path ranks
-    // (INV-81). The panels keep drawing the trace spans alone.
-    let mut finding_spans = spans.clone();
-    finding_spans.extend(session_spans);
+    // Findings rank over the combined span set (INV-85), the
+    // same inputs the MCP render path ranks (INV-81). The panels
+    // keep drawing the trace spans alone.
+    let finding_spans = combined_spans(&spans, session_spans);
     let findings =
         telorama_scene::investigate(&finding_spans, run.as_ref(), scene.context.range.seconds());
     let data = telorama_svg::SceneData {
@@ -269,25 +287,23 @@ fn cmd_incident(args: &[String]) -> Result<String, String> {
     } else {
         None
     };
-    let scene = telorama_scene::incident_scene(&spans, run.as_ref(), "telorama-cli")?;
+    // The scene composes over the combined span set (INV-85),
+    // the rule the MCP incident tool applies to its input, and
+    // the rendered findings rank over the same set (INV-81).
+    let combined = combined_spans(&spans, session_spans);
+    let scene = telorama_scene::incident_scene(&combined, run.as_ref(), "telorama-cli")?;
     let mut text = serde_json::to_string_pretty(&scene).map_err(|e| e.to_string())?;
     text.push('\n');
     if let Some(out_path) = flag(args, "--out")? {
         std::fs::write(out_path, &text).map_err(|e| format!("cannot write {out_path}: {e}"))?;
     }
     if let Some(render_path) = flag(args, "--render")? {
-        // The same findings inputs as the render command (INV-81).
-        let mut finding_spans = spans.clone();
-        finding_spans.extend(session_spans);
-        let findings = telorama_scene::investigate(
-            &finding_spans,
-            run.as_ref(),
-            scene.context.range.seconds(),
-        );
+        let findings =
+            telorama_scene::investigate(&combined, run.as_ref(), scene.context.range.seconds());
         let svg = telorama_svg::render_scene_with_data(
             &scene,
             &telorama_svg::SceneData {
-                spans: &spans,
+                spans: &combined,
                 stacks: &[],
                 agent_run: run.as_ref(),
                 agent_state: &[],
