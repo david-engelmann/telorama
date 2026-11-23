@@ -74,3 +74,28 @@ same tree, and dismantling happens after the
 values are read. No behavior change in the
 renderer beyond calling the shared dismantle
 where its private one stood.
+
+## Amendments, 2026-11-23
+
+The build's red team swept the workspace
+against INV-87's letter and found two paths
+outside this round's scope that still recurse
+over input depth. The dialect session
+builder's emit recurses over an acyclic span
+tree's depth (its Round 8 guard bounds cycles
+only), so a session export carrying a chain of
+tens of thousands of nested agent spans
+overflows inside parse. The agent-run layout
+walk recurses over a run's nesting depth with
+no verdict capping it, and the run trees
+themselves drop recursively on the same
+paths. Both predate this round and neither is
+a regression from it. INV-87 as landed names
+both as the Round 12 leftovers instead of
+claiming the finished property outright, and
+the exception retirement above applies to
+INV-86 only. The MCP pin was also raised from
+twenty thousand frames to fifty thousand, the
+depth at which a deep tree's drop is proven to
+overflow, so the panel paths' dismantles are
+pinned by a test and not by reading alone.

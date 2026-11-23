@@ -622,8 +622,7 @@ later milestones are marked as validator-side.
   it. Enforced by the parity tests in cli_tests.
 - INV-86. Every public derivation tolerates a
   malformed graph or an extreme shape without
-  panicking, the two depth paths the Round 10
-  record names as leftovers excepted. The MCP
+  panicking. The MCP
   input assembly dedupes its
   spans by trace id and span id, first
   occurrence kept, so its tools report the same
@@ -640,7 +639,14 @@ later milestones are marked as validator-side.
   the MCP, derive, and golden suites.
 - INV-87. No derivation, verdict, walk, or drop
   in the workspace recurses over the depth of
-  its input. The folded-stack builder inserts
+  its input, two paths named as the Round 12
+  leftovers excepted: the dialect session
+  builder's emit, which recurses over an
+  acyclic span tree's depth, and the agent-run
+  layout walk, which recurses over a run's
+  nesting depth, with the run trees' own drops
+  on the same paths. The folded-stack builder
+  inserts
   and freezes iteratively, and every consumer
   that owns a flame tree takes it apart with
   telorama-scene's dismantle_flame_tree once it

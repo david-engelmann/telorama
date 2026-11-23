@@ -835,8 +835,11 @@ fn panel_summary(scene: &Scene, inputs: &Inputs, panel: &Panel) -> Value {
             })
         }
         Panel::Flame { data, .. } => {
-            let tree = flame_tree_for(scene, inputs, data);
-            json!({"type": "flame", "total": tree.value, "top_frames": tree.children.len()})
+            let mut tree = flame_tree_for(scene, inputs, data);
+            let summary =
+                json!({"type": "flame", "total": tree.value, "top_frames": tree.children.len()});
+            telorama_scene::dismantle_flame_tree(&mut tree);
+            summary
         }
         Panel::Heatmap { data, .. } => {
             let grid = heatmap_grid(
@@ -998,7 +1001,7 @@ fn panel_detail(scene: &Scene, inputs: &Inputs, panel: &Panel) -> Value {
             })
         }
         Panel::Flame { data, .. } => {
-            let tree = flame_tree_for(scene, inputs, data);
+            let mut tree = flame_tree_for(scene, inputs, data);
             let frames: Vec<Value> = tree
                 .children
                 .iter()
@@ -1014,7 +1017,9 @@ fn panel_detail(scene: &Scene, inputs: &Inputs, panel: &Panel) -> Value {
                     })
                 })
                 .collect();
-            json!({"type": "flame", "total": tree.value, "frames": frames})
+            let detail = json!({"type": "flame", "total": tree.value, "frames": frames});
+            telorama_scene::dismantle_flame_tree(&mut tree);
+            detail
         }
         Panel::Heatmap { data, .. } => {
             let grid = heatmap_grid(

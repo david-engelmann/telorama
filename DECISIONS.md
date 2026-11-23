@@ -1156,3 +1156,45 @@ the MCP panel summary and detail paths, which
 still own and drop the trees they build, and
 flame_tree, the folded-stack builder, which
 still inserts and freezes recursively.
+
+## Round 11: depth, finished (2026-11-23)
+
+The two depth paths Round 10 named are closed.
+telorama-scene carries one public
+dismantle_flame_tree, the renderer's private
+helper is deleted in its favor, and the MCP
+panel summary and detail paths dismantle the
+flame trees they build once they have read
+them. The folded-stack builder inserts by
+walking the frame path in a loop and freezes
+on an explicit stack. Both review lanes traced
+the rewrites against the recursions they
+replace on shared-prefix and branching
+constructions and found the values, the node
+membership, and the child order identical,
+with the sort's total order making the output
+certain twice over. INV-86's exception clause
+is removed, the property it qualified now
+holding without exception.
+
+The red team's workspace sweep found the
+finished property does not yet hold for
+INV-87 as first written, and the record was
+corrected in the same round. Two paths outside
+the round's scope still recurse over input
+depth. The dialect session builder's emit
+recurses over an acyclic span tree, its Round
+8 guard bounding cycles only, and the
+agent-run layout walk recurses over a run's
+nesting depth with no verdict capping it,
+while the run trees drop recursively on the
+same paths. INV-87 as landed names both as
+the Round 12 leftovers, and the design record
+carries the same correction in its amendments.
+The MCP depth pin stands at fifty thousand
+frames, raised from twenty on review, so the
+panel detail dismantle is convicted by a test
+at the depth where a drop is proven to
+overflow. The panel summary dismantle, the
+same one-line pattern in the adjacent arm, is
+verified by reading.
