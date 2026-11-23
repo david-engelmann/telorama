@@ -592,13 +592,7 @@ fn frames_from_a_truncated_export_equal_the_leading_frames() {
 // until the first hosted run supplies the real figures, per
 // docs/SCALE-DESIGN.md and INV-69 to INV-71.
 
-fn scale_span(
-    id: &str,
-    parent: Option<&str>,
-    service: &str,
-    start_ms: i64,
-    end_ms: i64,
-) -> Span {
+fn scale_span(id: &str, parent: Option<&str>, service: &str, start_ms: i64, end_ms: i64) -> Span {
     Span {
         trace_id: "t1".to_string(),
         span_id: id.to_string(),
@@ -667,7 +661,10 @@ fn scale_trace_renders_pin_by_hash() {
     let started = std::time::Instant::now();
     let panels = [
         ("waterfall", "{\"data\":\"trace\",\"type\":\"waterfall\"}"),
-        ("service_map", "{\"data\":\"trace\",\"type\":\"service_map\"}"),
+        (
+            "service_map",
+            "{\"data\":\"trace\",\"type\":\"service_map\"}",
+        ),
         (
             "sankey",
             "{\"data\":\"trace\",\"residual\":\"other\",\"type\":\"sankey\"}",
@@ -710,7 +707,11 @@ fn profile_flame_renders_at_a_hundred_thousand_samples() {
         });
     }
     stacks.push(telorama_scene::StackSample {
-        frames: vec!["root".to_string(), "svc-0".to_string(), "fn-last".to_string()],
+        frames: vec![
+            "root".to_string(),
+            "svc-0".to_string(),
+            "fn-last".to_string(),
+        ],
         count: 100_000 - assigned,
     });
     let text = "{\"context\":{\"filter\":{},\"provenance\":{\"generated_by\":\"test\",\"question\":\"Does it hold at scale?\"},\"range\":{\"from_unix_ms\":0,\"to_unix_ms\":20000}},\"data\":[{\"id\":\"profile\",\"sampled\":\"unsampled\",\"source\":{\"kind\":\"folded_profile\",\"query\":\"scale profile\"}}],\"headline\":\"Scale proof\",\"narrative\":[{\"panel\":0,\"text\":\"Scale proof.\"}],\"panels\":[{\"data\":\"profile\",\"min_samples\":100,\"sample_count\":100000,\"sample_type\":\"cpu\",\"type\":\"flame\"}],\"scene\":\"0.1\",\"title\":\"Scale profile\"}";

@@ -719,7 +719,11 @@ fn profile_holds_at_a_hundred_thousand_samples() {
         });
     }
     stacks.push(StackSample {
-        frames: vec!["root".to_string(), "svc-0".to_string(), "fn-last".to_string()],
+        frames: vec![
+            "root".to_string(),
+            "svc-0".to_string(),
+            "fn-last".to_string(),
+        ],
         count: 100_000 - assigned,
     });
     let started = std::time::Instant::now();
