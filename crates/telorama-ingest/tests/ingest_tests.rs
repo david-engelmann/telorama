@@ -310,7 +310,8 @@ fn genai_session_maps_spans_to_a_run() {
     ))
     .expect("genai fixture must parse");
     let run = telorama_ingest::parse_genai_session(&spans).expect("spans must adapt");
-    assert_eq!(run.session_id, "conv-genai-demo");    assert_eq!(run.dialect, "genai");
+    assert_eq!(run.session_id, "conv-genai-demo");
+    assert_eq!(run.dialect, "genai");
     assert_eq!(run.turns.len(), 1);
     assert_eq!(run.coverage.log_events, 0);
     assert_eq!(run.coverage.spans_seen, 6);

@@ -93,10 +93,7 @@ fn price_exact(model: &str) -> Option<ModelPrice> {
 fn strip_date_suffix(model: &str) -> Option<&str> {
     let bytes = model.as_bytes();
     let digits = |b: &[u8]| b.iter().all(|c| c.is_ascii_digit());
-    if bytes.len() > 9
-        && bytes[bytes.len() - 9] == b'-'
-        && digits(&bytes[bytes.len() - 8..])
-    {
+    if bytes.len() > 9 && bytes[bytes.len() - 9] == b'-' && digits(&bytes[bytes.len() - 8..]) {
         return Some(&model[..bytes.len() - 9]);
     }
     if bytes.len() > 11 {
@@ -286,6 +283,14 @@ mod tests {
         // char boundary, so an id whose bytes put a multi-byte
         // character at the cut point prices nothing and returns.
         assert!(price_call(&call("ab\u{00e9}20250929", 1_000, 0, 1_000)).is_none());
-        assert!(price_call(&call("\u{00e9}\u{00e9}\u{00e9}\u{00e9}\u{00e9}", 1_000, 0, 1_000)).is_none());
+        assert!(
+            price_call(&call(
+                "\u{00e9}\u{00e9}\u{00e9}\u{00e9}\u{00e9}",
+                1_000,
+                0,
+                1_000
+            ))
+            .is_none()
+        );
     }
 }

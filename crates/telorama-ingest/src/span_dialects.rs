@@ -301,24 +301,12 @@ fn build_turn(
             seen.insert(root.span_id.clone());
             for child in children_of(children, root) {
                 emit(
-                    child,
-                    children,
-                    dialect,
-                    priced,
-                    unpriced,
-                    &mut seen,
-                    &mut steps,
+                    child, children, dialect, priced, unpriced, &mut seen, &mut steps,
                 );
             }
         }
         _ => emit(
-            root,
-            children,
-            dialect,
-            priced,
-            unpriced,
-            &mut seen,
-            &mut steps,
+            root, children, dialect, priced, unpriced, &mut seen, &mut steps,
         ),
     }
     let span_count = subtree_len(root, children);
