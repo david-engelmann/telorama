@@ -295,7 +295,7 @@ fn arg_str<'a>(args: &'a Value, key: &str) -> Option<&'a str> {
 }
 
 fn build_inputs(args: &Value) -> Result<Inputs, String> {
-    let mut spans = match arg_str(args, "traces") {
+    let parsed = match arg_str(args, "traces") {
         Some(text) => telorama_ingest::parse_otlp_traces(text).map_err(|e| e.to_string())?,
         None => Vec::new(),
     };
@@ -304,7 +304,11 @@ fn build_inputs(args: &Value) -> Result<Inputs, String> {
     // the MCP tools report the same counts as the CLI on the
     // same export.
     let mut seen: std::collections::BTreeSet<(&str, &str)> = std::collections::BTreeSet::new();
-    spans.retain(|s| seen.insert((s.trace_id.as_str(), s.span_id.as_str())));
+    let spans: Vec<Span> = parsed
+        .iter()
+        .filter(|s| seen.insert((s.trace_id.as_str(), s.span_id.as_str())))
+        .cloned()
+        .collect();
     let stacks = match arg_str(args, "profile") {
         Some(text) => telorama_ingest::parse_folded_stacks(text).map_err(|e| e.to_string())?,
         None => Vec::new(),
