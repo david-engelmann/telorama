@@ -620,6 +620,18 @@ later milestones are marked as validator-side.
   the rule the MCP incident tool applies to its
   input, and both commands rank findings over
   it. Enforced by the parity tests in cli_tests.
+- INV-86. Every public derivation tolerates a
+  malformed graph or an extreme shape without
+  panicking. The MCP input assembly dedupes its
+  spans by trace id and span id, first
+  occurrence kept, so its tools report the same
+  counts as the CLI on the same export.
+  service_layers ignores an edge that names a
+  service absent from the graph's nodes. The
+  flame builder assembles its tree iteratively,
+  so depth alone cannot overflow the stack.
+  Enforced by the leftover tests in the MCP and
+  derive suites.
 
 ## Hostile inputs (derive, ingest, pricing)
 
