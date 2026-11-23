@@ -398,7 +398,7 @@ fn emit(
 
     fn open<'a>(
         span: &'a Span,
-        children: &BTreeMap<&str, Vec<&'a Span>>,
+        children: &'a BTreeMap<&str, Vec<&'a Span>>,
         agent_depth: usize,
         seen: &mut BTreeSet<String>,
     ) -> Option<Frame<'a>> {
