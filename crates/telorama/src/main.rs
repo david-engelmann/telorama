@@ -125,7 +125,7 @@ fn parse_session(
         other => {
             return Err(format!(
                 "unknown dialect {other:?}: expected claude_code, codex, genai, or openinference"
-            ))
+            ));
         }
     };
     Ok((run, spans))
