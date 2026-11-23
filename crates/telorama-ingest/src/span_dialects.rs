@@ -302,13 +302,7 @@ fn build_turn(
             seen.insert(root.span_id.clone());
             for child in children_of(children, root) {
                 emit(
-                    child,
-                    children,
-                    dialect,
-                    priced,
-                    unpriced,
-                    &mut seen,
-                    &mut steps,
+                    child, children, dialect, priced, unpriced, &mut seen, &mut steps,
                 )?;
             }
         }

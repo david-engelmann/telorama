@@ -33,8 +33,7 @@ fn nesting_depth(steps: &[AgentStep]) -> usize {
         usize::from(matches!(step, AgentStep::Subagent(_)))
     }
     let mut deepest = 0usize;
-    let mut stack: Vec<(&AgentStep, usize)> =
-        steps.iter().map(|s| (s, level(s))).collect();
+    let mut stack: Vec<(&AgentStep, usize)> = steps.iter().map(|s| (s, level(s))).collect();
     while let Some((step, depth)) = stack.pop() {
         deepest = deepest.max(depth);
         if let AgentStep::Subagent(run) = step {
