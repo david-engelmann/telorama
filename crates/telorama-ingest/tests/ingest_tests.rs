@@ -498,7 +498,7 @@ fn claude_session_parses_ten_thousand_events() {
     // prompts, five events each, in one OTLP document.
     fn record(at: i64, name: &str, prompt: &str, extra: &str) -> String {
         format!(
-            "{{\"timeUnixNano\":\"{at}\",\"body\":{{\"stringValue\":\"{name}\"}},\"attributes\":[{{\"key\":\"session.id\",\"value\":{{\"stringValue\":\"sess-long\"}}}},{{\"key\":\"prompt.id\",\"value\":{{\"stringValue\":\"{prompt}\"}}}}{extra}]}}"
+            "{{\"timeUnixNano\":\"{at}\",\"body\":{{\"stringValue\":\"{name}\"}},\"attributes\":[{{\"key\":\"event.name\",\"value\":{{\"stringValue\":\"{name}\\"}}}},{{\"key\":\"session.id\",\"value\":{{\"stringValue\":\"sess-long\"}}}},{{\"key\":\"prompt.id\",\"value\":{{\"stringValue\":\"{prompt}\"}}}}{extra}]}}"
         )
     }
     let mut records: Vec<String> = Vec::with_capacity(10_000);
