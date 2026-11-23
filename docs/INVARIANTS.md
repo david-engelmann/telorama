@@ -632,8 +632,10 @@ later milestones are marked as validator-side.
   and the renderer's depth verdict is computed
   iteratively, so a deep trace reaches the
   named depth refusal instead of overflowing
-  inside the verdict. Enforced by the leftover
-  tests in the MCP, derive, and golden suites.
+  inside the verdict, and the renderer takes
+  its tree apart iteratively when it is done
+  with it. Enforced by the leftover tests in
+  the MCP, derive, and golden suites.
 
 ## Hostile inputs (derive, ingest, pricing)
 

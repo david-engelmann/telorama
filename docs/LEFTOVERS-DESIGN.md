@@ -124,11 +124,12 @@ reviews found the renderer's depth verdict was
 itself recursive, so a deep flame panel
 overflowed inside the verdict before the
 48-level refusal could fire. flame_depth is
-iterative in this round, with a refusal pin at
-twenty thousand spans. Two depth paths remain
-outside the round and are named as the next
-leftovers: dropping a very deep flame tree
-still recurses through the drop glue in the
-consumers that own one, and flame_tree, the
-folded-stack builder, still inserts and
-freezes recursively.
+iterative in this round, the renderer takes
+its tree apart iteratively on every path out,
+and a refusal pin stands at twenty thousand
+spans. Two depth paths remain outside the
+round and are named as the next leftovers:
+the MCP panel summary and detail paths still
+own and drop the trees they build, and
+flame_tree, the folded-stack builder, still
+inserts and freezes recursively.

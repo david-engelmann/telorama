@@ -841,7 +841,14 @@ fn deep_flame_refusal_is_reached_at_extreme_depth() {
             attributes: BTreeMap::new(),
         });
     }
-    let flame_total = telorama_scene::flame_from_spans(&spans, "t1").value;
+    let mut tree = telorama_scene::flame_from_spans(&spans, "t1");
+    let flame_total = tree.value;
+    // Dismantle iteratively, as the derive suite's deep-chain
+    // test does: dropping this tree would recurse.
+    let mut pending: Vec<telorama_scene::FlameNode> = tree.children.drain(..).collect();
+    while let Some(mut node) = pending.pop() {
+        pending.append(&mut node.children);
+    }
     let scene = scale_scene(&format!(
         "{{\"data\":\"trace\",\"min_samples\":1,\"sample_count\":{flame_total},\"sample_type\":\"cpu\",\"type\":\"flame\"}}"
     ));
