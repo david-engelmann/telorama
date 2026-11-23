@@ -63,23 +63,45 @@ fn every_crate_readme_is_its_own_and_absolute() {
         );
         let readme = read(&format!("{dir}/README.md"));
         assert!(
-            readme.contains(&format!("# {name}")),
+            readme.starts_with(&format!("# {name}\n")),
             "{name} readme must open with its own title"
         );
+        let mut targets: Vec<String> = Vec::new();
         let mut rest = readme.as_str();
         while let Some(idx) = rest.find("](") {
             let after = &rest[idx + 2..];
-            let target: String = after
-                .chars()
-                .take_while(|c| *c != ')' && *c != ' ')
-                .collect();
+            targets.push(
+                after
+                    .chars()
+                    .take_while(|c| *c != ')' && *c != ' ')
+                    .collect(),
+            );
+            rest = after;
+        }
+        for line in readme.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with('[') {
+                if let Some((_, target)) = trimmed.split_once("]: ") {
+                    targets.push(
+                        target
+                            .chars()
+                            .take_while(|c| !c.is_whitespace())
+                            .collect(),
+                    );
+                }
+            }
+            if let Some(at) = trimmed.find("src=\"") {
+                let after = &trimmed[at + 5..];
+                targets.push(after.chars().take_while(|c| *c != '"').collect());
+            }
+        }
+        for target in targets {
             if !target.starts_with('#') {
                 assert!(
                     target.starts_with("https://"),
                     "{name} readme carries a relative link target: {target}"
                 );
             }
-            rest = after;
         }
     }
 }

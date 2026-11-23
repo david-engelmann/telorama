@@ -1,3 +1,4 @@
+#![deny(missing_docs)]
 //! telorama-svg: the DisplayList and the deterministic SVG emitter.
 //!
 //! Rendering is a pure function of the scene and the data. Layout is
@@ -5,9 +6,9 @@
 //! one canonical function; element order is insertion order over sorted
 //! data. The same scene and the same data produce the same bytes.
 //!
-//! M1 layout uses fixed columns rather than measured text. The text
-//! crate (fontdb plus harfrust over an embedded subset font) replaces
-//! the fixed label column with measured widths in a later milestone.
+//! Layout uses fixed columns and character counts rather than
+//! measured text, so the output is byte-identical on every
+//! machine without a font dependency.
 //!
 //! # Example
 //!

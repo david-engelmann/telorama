@@ -1,3 +1,4 @@
+#![deny(missing_docs)]
 //! telorama-mcp: the MCP server for the telorama visualization engine.
 //!
 //! The server speaks JSON-RPC 2.0 over stdio, one message per line,

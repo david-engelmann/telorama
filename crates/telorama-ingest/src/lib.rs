@@ -1,10 +1,11 @@
+#![deny(missing_docs)]
 //! telorama-ingest: OpenTelemetry data in, canonical spans out.
 //!
 //! M1 reads OTLP trace exports in JSON form, either a single
 //! `ExportTraceServiceRequest` document or JSON Lines with one document
-//! per line, from a file's text. Live backend adapters and the agent
-//! dialect adapters arrive in later milestones behind this same
-//! canonical output.
+//! per line, from a file's text. The agent dialect adapters for
+//! the Claude Code, Codex, GenAI and OpenInference dialects read
+//! behind this same canonical output.
 //!
 //! # Example
 //!
