@@ -628,10 +628,12 @@ later milestones are marked as validator-side.
   counts as the CLI on the same export.
   service_layers ignores an edge that names a
   service absent from the graph's nodes. The
-  flame builder assembles its tree iteratively,
-  so depth alone cannot overflow the stack.
-  Enforced by the leftover tests in the MCP and
-  derive suites.
+  flame builder assembles its tree iteratively
+  and the renderer's depth verdict is computed
+  iteratively, so a deep trace reaches the
+  named depth refusal instead of overflowing
+  inside the verdict. Enforced by the leftover
+  tests in the MCP, derive, and golden suites.
 
 ## Hostile inputs (derive, ingest, pricing)
 

@@ -95,3 +95,40 @@ the iterative builder returns the same tree.
 No change to the CLI, whose combined set
 already applies the dedup rule this round
 extends.
+
+## Amendments, 2026-11-23
+
+The reviews qualified three sentences above,
+and one gap closed inside the round.
+
+The dedup's home is the input assembly the
+composing, ranking, and rendering tools share.
+The inspect tool parses its own argument on
+both surfaces and reports the raw counts on
+each, so the parity the finish claims holds
+there by symmetry rather than by the shared
+rule. The sentence that no tool can opt out
+reads too broadly and this amendment scopes
+it.
+
+On a duplicate-carrying export the MCP render
+tool's panel data now follows its deduped set,
+while the CLI render command's panels still
+draw the raw traces it was handed, so the two
+surfaces part on that malformed class in the
+direction of the honest count. The incident
+and findings surfaces agree exactly.
+
+The flame scope widened by one function. The
+reviews found the renderer's depth verdict was
+itself recursive, so a deep flame panel
+overflowed inside the verdict before the
+48-level refusal could fire. flame_depth is
+iterative in this round, with a refusal pin at
+twenty thousand spans. Two depth paths remain
+outside the round and are named as the next
+leftovers: dropping a very deep flame tree
+still recurses through the drop glue in the
+consumers that own one, and flame_tree, the
+folded-stack builder, still inserts and
+freezes recursively.

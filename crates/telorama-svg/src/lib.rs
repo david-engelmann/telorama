@@ -1523,7 +1523,16 @@ fn name_hash(name: &str, palette_len: usize) -> usize {
 }
 
 fn flame_depth(node: &FlameNode) -> usize {
-    1 + node.children.iter().map(flame_depth).max().unwrap_or(0)
+    // Iterative, like the builder (INV-86): the depth verdict
+    // must not overflow the stack on the deep trees it exists
+    // to refuse.
+    let mut deepest = 0usize;
+    let mut stack: Vec<(&FlameNode, usize)> = vec![(node, 1)];
+    while let Some((node, depth)) = stack.pop() {
+        deepest = deepest.max(depth);
+        stack.extend(node.children.iter().map(|child| (child, depth + 1)));
+    }
+    deepest
 }
 
 /// WCAG relative luminance of a hex color, or None when the
