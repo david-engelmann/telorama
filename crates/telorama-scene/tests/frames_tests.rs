@@ -115,3 +115,60 @@ fn every_frame_scene_validates_and_frames_are_deterministic() {
         .expect("the full session carries a cost finding");
     assert!(cost.statement.contains("$0.5000"), "{}", cost.statement);
 }
+
+#[test]
+fn session_frames_hold_at_five_hundred_turns() {
+    // Round 4 scale proof, per INV-71. Five hundred turns, two
+    // model calls each. The stream's total size is quadratic in
+    // the turn count by construction. This test holds the
+    // stream's shape and cost, and the golden suite holds the
+    // rendered total against its ceiling. The ceilings are
+    // provisional until the first hosted run measures the real
+    // figures.
+    let mut turns = Vec::with_capacity(500);
+    for k in 0..500i64 {
+        turns.push(AgentTurn {
+            prompt_id: format!("t{}", k + 1),
+            start_unix_nano: k * 10_000_000_000,
+            end_unix_nano: k * 10_000_000_000 + 9_000_000_000,
+            steps: vec![call("gpt-5.1", 0.50), call("gpt-5.1", 0.50)],
+            input_tokens: 200,
+            output_tokens: 20,
+            cache_read_tokens: 0,
+            cache_creation_tokens: 0,
+            cost_usd: 1.0,
+            coverage: Coverage {
+                log_events: 0,
+                spans_seen: 2,
+                spans_merged: 2,
+            },
+        });
+    }
+    let run = AgentRun {
+        session_id: "sess-scale".to_string(),
+        dialect: "genai".to_string(),
+        turns,
+        coverage: Coverage {
+            log_events: 0,
+            spans_seen: 1000,
+            spans_merged: 1000,
+        },
+        pricing: Some(Pricing {
+            table_as_of: "2026-11-23".to_string(),
+            priced_models: vec!["gpt-5.1".to_string()],
+            unpriced_models: vec![],
+        }),
+    };
+    let started = std::time::Instant::now();
+    let frames = session_frames(&run, "test");
+    let elapsed = started.elapsed();
+    assert!(
+        elapsed < std::time::Duration::from_secs(60),
+        "the frame stream at 500 turns took {elapsed:?}"
+    );
+    assert_eq!(frames.len(), 500);
+    let last = &frames[499];
+    assert_eq!(last.turns, 500);
+    assert!(last.scene.headline.contains("After turn 500:"));
+    assert!(last.scene.headline.contains("$500.0000 so far"));
+}
