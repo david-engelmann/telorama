@@ -845,7 +845,7 @@ fn deep_flame_refusal_is_reached_at_extreme_depth() {
     let flame_total = tree.value;
     // Dismantle iteratively, as the derive suite's deep-chain
     // test does: dropping this tree would recurse.
-    let mut pending: Vec<telorama_scene::FlameNode> = tree.children.drain(..).collect();
+    let mut pending: Vec<telorama_scene::FlameNode> = std::mem::take(&mut tree.children);
     while let Some(mut node) = pending.pop() {
         pending.append(&mut node.children);
     }

@@ -1659,7 +1659,7 @@ fn layout_flame(
 /// stack (INV-86), so a consumer that owns one dismantles it
 /// once it is done with it.
 fn dismantle_flame_tree(tree: &mut FlameNode) {
-    let mut pending: Vec<FlameNode> = tree.children.drain(..).collect();
+    let mut pending: Vec<FlameNode> = std::mem::take(&mut tree.children);
     while let Some(mut node) = pending.pop() {
         pending.append(&mut node.children);
     }
