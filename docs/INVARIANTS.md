@@ -622,7 +622,9 @@ later milestones are marked as validator-side.
   it. Enforced by the parity tests in cli_tests.
 - INV-86. Every public derivation tolerates a
   malformed graph or an extreme shape without
-  panicking. The MCP input assembly dedupes its
+  panicking, the two depth paths the Round 10
+  record names as leftovers excepted. The MCP
+  input assembly dedupes its
   spans by trace id and span id, first
   occurrence kept, so its tools report the same
   counts as the CLI on the same export.
