@@ -1186,10 +1186,7 @@ fn dark_palette_pairs_clear_their_contrast_floors() {
     labelled.extend(p.service.iter());
     for fill in labelled {
         let best = contrast(p.background, fill).max(contrast(p.ink, fill));
-        assert!(
-            best >= 4.5,
-            "best label on {fill} is {best:.2}",
-        );
+        assert!(best >= 4.5, "best label on {fill} is {best:.2}",);
     }
     assert!(
         contrast(p.grid, p.background) >= 1.4,
@@ -1278,8 +1275,8 @@ fn themes_differ_only_in_color() {
         "tests/fixtures/otel-demo-checkout.json",
     ))
     .expect("checkout fixture must parse");
-    let light_scene = telorama_scene::incident_scene(&spans, None, "agent")
-        .expect("composition must succeed");
+    let light_scene =
+        telorama_scene::incident_scene(&spans, None, "agent").expect("composition must succeed");
     let dark_scene = telorama_scene::incident_scene_with_theme(
         &spans,
         None,
@@ -1287,9 +1284,9 @@ fn themes_differ_only_in_color() {
         telorama_scene::Theme::Dark,
     )
     .expect("dark composition must succeed");
-    let window_seconds =
-        (light_scene.context.range.to_unix_ms - light_scene.context.range.from_unix_ms) as f64
-            / 1000.0;
+    let window_seconds = (light_scene.context.range.to_unix_ms
+        - light_scene.context.range.from_unix_ms) as f64
+        / 1000.0;
     let findings = telorama_scene::investigate(&spans, None, window_seconds);
     let incident_data = telorama_svg::SceneData {
         spans: &spans,
