@@ -71,3 +71,35 @@ impl Span {
             .max(0)
     }
 }
+
+/// The distinct spans of a set, in first-delivery order. The
+/// comparison is the whole span value, so a span delivered
+/// twice identically enters once (INV-86) and two different
+/// spans under one id both enter (INV-89). Boundary
+/// assemblies that merge span sources share this one dedup,
+/// so every surface counts the same spans.
+pub fn unique_spans(spans: Vec<Span>) -> Vec<Span> {
+    let mut seen: std::collections::BTreeSet<_> = std::collections::BTreeSet::new();
+    let mut out: Vec<Span> = Vec::new();
+    for span in spans {
+        let key = (
+            span.trace_id.clone(),
+            span.span_id.clone(),
+            span.parent_span_id.clone(),
+            span.name.clone(),
+            span.service.clone(),
+            span.kind,
+            span.start_unix_nano,
+            span.end_unix_nano,
+            span.is_error,
+            span.attributes
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect::<Vec<_>>(),
+        );
+        if seen.insert(key) {
+            out.push(span);
+        }
+    }
+    out
+}

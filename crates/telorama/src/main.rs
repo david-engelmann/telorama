@@ -39,37 +39,14 @@ fn read_file(path: &str) -> Result<String, String> {
 
 /// The combined span set for a command that takes traces and a
 /// session (INV-85): the trace spans first, then the session
-/// spans, with each span entering once and the first occurrence
-/// kept, so an export passed under both flags counts once. The
-/// dedup key is the whole span, so two different spans under
-/// one id are two spans and both enter (INV-89).
+/// spans, passed through the shared whole-span dedup, so an
+/// export passed under both flags counts once and two
+/// different spans under one id both enter (INV-89).
 fn combined_spans(
     spans: &[telorama_scene::Span],
     session_spans: Vec<telorama_scene::Span>,
 ) -> Vec<telorama_scene::Span> {
-    let mut seen: std::collections::BTreeSet<_> = std::collections::BTreeSet::new();
-    let mut out: Vec<telorama_scene::Span> = Vec::new();
-    for span in spans.iter().chain(session_spans.iter()) {
-        let key = (
-            span.trace_id.as_str(),
-            span.span_id.as_str(),
-            span.parent_span_id.as_deref(),
-            span.name.as_str(),
-            span.service.as_str(),
-            span.kind,
-            span.start_unix_nano,
-            span.end_unix_nano,
-            span.is_error,
-            span.attributes
-                .iter()
-                .map(|(k, v)| (k.as_str(), v.as_str()))
-                .collect::<Vec<_>>(),
-        );
-        if seen.insert(key) {
-            out.push(span.clone());
-        }
-    }
-    out
+    telorama_scene::unique_spans(spans.iter().cloned().chain(session_spans).collect())
 }
 
 fn cmd_inspect(path: &str) -> Result<String, String> {

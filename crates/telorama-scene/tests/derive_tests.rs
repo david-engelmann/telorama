@@ -1040,11 +1040,13 @@ fn duplicate_span_ids_each_get_their_own_row() {
 fn service_graph_resolves_a_shared_parent_id_to_the_first_copy() {
     // Round 16 (INV-89): a child naming a shared parent id
     // takes its caller from the first copy in canonical
-    // order, not from whichever copy arrived last.
+    // order, not from whichever copy arrived last. The
+    // svc-b copy arrives first in the input, so an
+    // arrival-order resolution would pick it.
     let spans = vec![
         span("r", None, "web", SpanKind::Server, 0, 100, false),
-        span("x", Some("r"), "svc-a", SpanKind::Client, 10, 40, false),
         span("x", Some("r"), "svc-b", SpanKind::Server, 50, 90, false),
+        span("x", Some("r"), "svc-a", SpanKind::Client, 10, 40, false),
         span("c", Some("x"), "db", SpanKind::Client, 12, 20, false),
     ];
     let graph = service_graph(&spans, 100.0);
@@ -1055,4 +1057,57 @@ fn service_graph_resolves_a_shared_parent_id_to_the_first_copy() {
         .collect();
     assert!(pairs.contains(&("svc-a", "db")), "{pairs:?}");
     assert!(!pairs.contains(&("svc-b", "db")), "{pairs:?}");
+}
+
+#[test]
+fn children_of_a_shared_id_follow_the_reached_copy() {
+    // Round 16 (INV-89): the first copy of a in canonical
+    // order sits inside a parent cycle with b, and the
+    // second copy hangs from the root. The reached copy
+    // adopts the children of a, the cycle breaks at the
+    // adoption seam, and every span in the trace gets a row.
+    let spans = vec![
+        span("r", None, "web", SpanKind::Server, 0, 100, false),
+        span("a", Some("b"), "api", SpanKind::Server, 10, 90, false),
+        span("b", Some("a"), "db", SpanKind::Server, 20, 50, false),
+        span("a", Some("r"), "api", SpanKind::Server, 30, 70, false),
+        span("c", Some("a"), "db", SpanKind::Client, 40, 60, false),
+    ];
+    let rows = waterfall_rows(&spans, "t1");
+    let order: Vec<(&str, usize, usize)> = rows
+        .iter()
+        .map(|r| (r.span_id.as_str(), r.span_index, r.depth))
+        .collect();
+    assert_eq!(
+        order,
+        vec![
+            ("r", 0, 0),
+            ("a", 3, 1),
+            ("b", 2, 2),
+            ("a", 1, 3),
+            ("c", 4, 2),
+        ]
+    );
+    // The cycled copy keeps its whole interval as self
+    // time, because the children of a hang from the
+    // reached copy, not from it.
+    assert_eq!(rows[3].self_time_nanos, ms(80));
+    // The flame tree builds every copy too, and its root
+    // value is the sum of every self time in the trace.
+    let flame = flame_from_spans(&spans, "t1");
+    assert_eq!(flame.value, ms(170) as u64);
+}
+
+#[test]
+fn unique_spans_drops_redeliveries_and_keeps_distinct_copies() {
+    // Round 16 (INV-86 and INV-89): the shared boundary
+    // dedup compares whole span values, so the same span
+    // delivered twice enters once and two different spans
+    // under one id both enter.
+    let one = span("x", Some("r"), "api", SpanKind::Client, 10, 40, false);
+    let two = span("x", Some("r"), "api", SpanKind::Server, 50, 90, false);
+    let out = telorama_scene::unique_spans(vec![one.clone(), one, two]);
+    assert_eq!(out.len(), 2);
+    assert_eq!(out[0].kind, SpanKind::Client);
+    assert_eq!(out[1].kind, SpanKind::Server);
 }

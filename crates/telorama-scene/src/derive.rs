@@ -59,7 +59,7 @@ fn trace_occurrences<'a>(spans: &'a [Span], trace_id: &str) -> Vec<(usize, &'a S
 
 /// Children of each span id in a trace, as positions in the
 /// occurrence list, in canonical order. The children of a
-/// repeated id hang from its first occurrence alone, because
+/// repeated id hang from its adopting copy alone, because
 /// the copies cannot be told apart as parents (INV-89).
 fn occurrence_children(occurrences: &[(usize, &Span)]) -> BTreeMap<String, Vec<usize>> {
     let ids: std::collections::BTreeSet<&str> = occurrences
@@ -77,17 +77,66 @@ fn occurrence_children(occurrences: &[(usize, &Span)]) -> BTreeMap<String, Vec<u
     map
 }
 
-/// Positions in the occurrence list that are the first
-/// occurrence of their span id in canonical order.
-fn first_occurrences(occurrences: &[(usize, &Span)]) -> std::collections::BTreeSet<usize> {
-    let mut seen_ids: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
-    let mut firsts = std::collections::BTreeSet::new();
+/// The adopting copy of each span id in a trace, as a
+/// position in the occurrence list (INV-89). The children of
+/// an id hang from its first occurrence in canonical order,
+/// because the copies cannot be told apart as parents. When
+/// that copy cannot be reached from the trace's roots,
+/// because its own parent chain cycles, the first reached
+/// copy adopts instead, so the children of a shared id are
+/// not lost with an unreachable copy. A copy no walk reaches
+/// adopts nothing and builds nothing, the standing fate of
+/// spans in a parent cycle (INV-82).
+fn adopting_copies(
+    occurrences: &[(usize, &Span)],
+    children: &BTreeMap<String, Vec<usize>>,
+) -> BTreeMap<String, usize> {
+    let ids: std::collections::BTreeSet<&str> =
+        occurrences.iter().map(|(_, s)| s.span_id.as_str()).collect();
+    let mut adopters: BTreeMap<String, usize> = BTreeMap::new();
     for (pos, (_, span)) in occurrences.iter().enumerate() {
-        if seen_ids.insert(span.span_id.as_str()) {
-            firsts.insert(pos);
+        adopters.entry(span.span_id.clone()).or_insert(pos);
+    }
+    loop {
+        // The closure the current adopters reach from the
+        // roots of the trace.
+        let mut reached: std::collections::BTreeSet<usize> = std::collections::BTreeSet::new();
+        let mut stack: Vec<usize> = occurrences
+            .iter()
+            .enumerate()
+            .filter(|(_, (_, s))| match s.parent_span_id.as_deref() {
+                None => true,
+                Some(p) => !ids.contains(p),
+            })
+            .map(|(pos, _)| pos)
+            .collect();
+        while let Some(pos) = stack.pop() {
+            if !reached.insert(pos) {
+                continue;
+            }
+            let span = occurrences[pos].1;
+            if adopters.get(span.span_id.as_str()) == Some(&pos)
+                && let Some(list) = children.get(&span.span_id)
+            {
+                stack.extend(list.iter().copied());
+            }
+        }
+        // Promote the first reached copy of any id whose
+        // adopter went unreached, then close again. An
+        // adopter only ever moves from an unreached copy to
+        // a reached one, so the loop ends.
+        let mut promoted = false;
+        for (pos, (_, span)) in occurrences.iter().enumerate() {
+            let adopter = adopters[span.span_id.as_str()];
+            if !reached.contains(&adopter) && reached.contains(&pos) {
+                adopters.insert(span.span_id.clone(), pos);
+                promoted = true;
+            }
+        }
+        if !promoted {
+            return adopters;
         }
     }
-    firsts
 }
 
 /// Children of each span in a trace, keyed by parent span id, each list in
@@ -144,13 +193,14 @@ fn self_time(span: &Span, children: &[&Span]) -> i64 {
 /// canonical order, roots (spans whose parent is absent or outside the
 /// trace) first in canonical order. Missing parents render as roots
 /// rather than vanishing: a gap in the data stays visible as structure.
-/// Every span occurrence is emitted once, tracked by its position in
-/// the caller's slice, so a repeated id loses no copy (INV-89) and any
-/// cycle the parent links form still terminates (INV-82).
+/// Every reached span occurrence is emitted once, tracked by its
+/// position in the caller's slice, so a repeated id loses no reached
+/// copy (INV-89) and any cycle the parent links form still
+/// terminates (INV-82).
 pub fn waterfall_rows(spans: &[Span], trace_id: &str) -> Vec<WaterfallRow> {
     let owned = trace_occurrences(spans, trace_id);
     let children = occurrence_children(&owned);
-    let firsts = first_occurrences(&owned);
+    let adopters = adopting_copies(&owned, &children);
     let ids: std::collections::BTreeSet<&str> =
         owned.iter().map(|(_, s)| s.span_id.as_str()).collect();
     let roots: Vec<usize> = owned
@@ -172,7 +222,7 @@ pub fn waterfall_rows(spans: &[Span], trace_id: &str) -> Vec<WaterfallRow> {
         if !seen.insert(index) {
             continue;
         }
-        let kids: Vec<&Span> = if firsts.contains(&pos) {
+        let kids: Vec<&Span> = if adopters.get(span.span_id.as_str()) == Some(&pos) {
             children
                 .get(&span.span_id)
                 .map(|list| list.iter().map(|&p| owned[p].1).collect())
@@ -186,7 +236,7 @@ pub fn waterfall_rows(spans: &[Span], trace_id: &str) -> Vec<WaterfallRow> {
             depth,
             self_time_nanos: self_time(span, &kids),
         });
-        if firsts.contains(&pos)
+        if adopters.get(span.span_id.as_str()) == Some(&pos)
             && let Some(list) = children.get(&span.span_id)
         {
             for &kid_pos in list.iter().rev() {
@@ -646,10 +696,10 @@ pub fn dismantle_flame_tree(tree: &mut FlameNode) {
 pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
     // The builder runs on an explicit stack instead of recursion,
     // so a very deep trace cannot overflow the call stack
-    // (INV-86). Every span occurrence builds once, tracked by
-    // its position in the caller's slice, so a cycle through
+    // (INV-86). Every reached span occurrence builds once, tracked
+    // by its position in the caller's slice, so a cycle through
     // repeated ids stops at the first build (INV-82) and a
-    // repeated id loses no copy (INV-89).
+    // repeated id loses no reached copy (INV-89).
     struct Frame<'a> {
         span: &'a Span,
         kids: Vec<usize>,
@@ -660,11 +710,11 @@ pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
         pos: usize,
         owned: &[(usize, &'a Span)],
         children: &BTreeMap<String, Vec<usize>>,
-        firsts: &std::collections::BTreeSet<usize>,
+        adopters: &BTreeMap<String, usize>,
         seen: &mut std::collections::BTreeSet<usize>,
     ) -> Frame<'a> {
         let span = owned[pos].1;
-        let kids: Vec<usize> = if firsts.contains(&pos) {
+        let kids: Vec<usize> = if adopters.get(span.span_id.as_str()) == Some(&pos) {
             children
                 .get(&span.span_id)
                 .cloned()
@@ -686,16 +736,16 @@ pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
         root_pos: usize,
         owned: &[(usize, &Span)],
         children: &BTreeMap<String, Vec<usize>>,
-        firsts: &std::collections::BTreeSet<usize>,
+        adopters: &BTreeMap<String, usize>,
         seen: &mut std::collections::BTreeSet<usize>,
     ) -> FlameNode {
-        let mut stack: Vec<Frame> = vec![frame_for(root_pos, owned, children, firsts, seen)];
+        let mut stack: Vec<Frame> = vec![frame_for(root_pos, owned, children, adopters, seen)];
         loop {
             let top = stack.last_mut().expect("a frame under construction");
             if top.next < top.kids.len() {
                 let kid_pos = top.kids[top.next];
                 top.next += 1;
-                stack.push(frame_for(kid_pos, owned, children, firsts, seen));
+                stack.push(frame_for(kid_pos, owned, children, adopters, seen));
                 continue;
             }
             let frame = stack.pop().expect("a frame under construction");
@@ -719,7 +769,7 @@ pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
     }
     let owned = trace_occurrences(spans, trace_id);
     let children = occurrence_children(&owned);
-    let firsts = first_occurrences(&owned);
+    let adopters = adopting_copies(&owned, &children);
     let ids: std::collections::BTreeSet<&str> =
         owned.iter().map(|(_, s)| s.span_id.as_str()).collect();
     let mut seen: std::collections::BTreeSet<usize> = std::collections::BTreeSet::new();
@@ -734,7 +784,7 @@ pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
             .as_deref()
             .is_none_or(|p| !ids.contains(p));
         if is_root && seen.insert(*index) {
-            let node = build(pos, &owned, &children, &firsts, &mut seen);
+            let node = build(pos, &owned, &children, &adopters, &mut seen);
             root.value = root.value.saturating_add(node.value);
             root.children.push(node);
         }
@@ -796,12 +846,8 @@ pub fn service_graph(spans: &[Span], window_seconds: f64) -> ServiceGraph {
     // child (INV-89), so an edge never takes its caller from
     // a later copy by arrival accident.
     let mut by_key: BTreeMap<(&str, &str), &Span> = BTreeMap::new();
-    let mut trace_ids: Vec<&str> = Vec::new();
-    for span in spans {
-        if !trace_ids.contains(&span.trace_id.as_str()) {
-            trace_ids.push(span.trace_id.as_str());
-        }
-    }
+    let trace_ids: std::collections::BTreeSet<&str> =
+        spans.iter().map(|s| s.trace_id.as_str()).collect();
     for trace_id in trace_ids {
         for span in trace_spans(spans, trace_id) {
             by_key
