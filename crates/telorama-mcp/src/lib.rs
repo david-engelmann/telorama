@@ -304,13 +304,31 @@ fn build_inputs(args: &Value) -> Result<Inputs, String> {
         None => Vec::new(),
     };
     // One count per span on every surface (INV-86): the dedup
-    // the CLI's combined set applies, first occurrence kept, so
-    // the MCP tools report the same counts as the CLI on the
-    // same export.
-    let mut seen: std::collections::BTreeSet<(&str, &str)> = std::collections::BTreeSet::new();
+    // the CLI's combined set applies, so the MCP tools report
+    // the same counts as the CLI on the same export. The dedup
+    // key is the whole span, so an export that delivers one
+    // span twice counts it once, while two different spans
+    // under one id are two spans and both survive (INV-89).
+    let mut seen: std::collections::BTreeSet<_> = std::collections::BTreeSet::new();
     let spans: Vec<Span> = parsed
         .iter()
-        .filter(|s| seen.insert((s.trace_id.as_str(), s.span_id.as_str())))
+        .filter(|s| {
+            seen.insert((
+                s.trace_id.as_str(),
+                s.span_id.as_str(),
+                s.parent_span_id.as_deref(),
+                s.name.as_str(),
+                s.service.as_str(),
+                s.kind,
+                s.start_unix_nano,
+                s.end_unix_nano,
+                s.is_error,
+                s.attributes
+                    .iter()
+                    .map(|(k, v)| (k.as_str(), v.as_str()))
+                    .collect::<Vec<_>>(),
+            ))
+        })
         .cloned()
         .collect();
     let stacks = match arg_str(args, "profile") {
