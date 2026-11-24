@@ -104,9 +104,9 @@ struct Record {
 fn anchor_panel(scene: &telorama_scene::Scene, finding: &telorama_scene::Finding) -> Option<usize> {
     match finding.kind.as_str() {
         "errors" => scene.panels.iter().position(|panel| match panel {
-            telorama_scene::Panel::RedRow { service, .. } => {
-                service.as_deref().is_none_or(|kept| kept == finding.subject)
-            }
+            telorama_scene::Panel::RedRow { service, .. } => service
+                .as_deref()
+                .is_none_or(|kept| kept == finding.subject),
             _ => false,
         }),
         "latency" => scene.panels.iter().position(|panel| match panel {
