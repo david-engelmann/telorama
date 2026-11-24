@@ -593,13 +593,18 @@ fn render_waterfall(
         }
         return Err(fail(format!("no spans found for trace {trace_id}")));
     }
-    let by_id: BTreeMap<&str, &Span> = spans
+    let t0 = spans
         .iter()
         .filter(|s| s.trace_id == trace_id)
-        .map(|s| (s.span_id.as_str(), s))
-        .collect();
-    let t0 = by_id.values().map(|s| s.start_unix_nano).min().unwrap_or(0);
-    let t1 = by_id.values().map(|s| s.end_unix_nano).max().unwrap_or(0);
+        .map(|s| s.start_unix_nano)
+        .min()
+        .unwrap_or(0);
+    let t1 = spans
+        .iter()
+        .filter(|s| s.trace_id == trace_id)
+        .map(|s| s.end_unix_nano)
+        .max()
+        .unwrap_or(0);
     let total = t1.saturating_sub(t0).max(1) as f64;
     let critical: std::collections::BTreeSet<String> =
         critical_path(spans, trace_id).into_iter().collect();
@@ -645,7 +650,7 @@ fn render_waterfall(
     let row_h = 20.0;
     let bar_h = 11.0;
     for row in &rows {
-        let span = by_id[row.span_id.as_str()];
+        let span = &spans[row.span_index];
         let label = truncate_label(&format!("{} · {}", span.service, span.name), 36);
         text(
             prims,

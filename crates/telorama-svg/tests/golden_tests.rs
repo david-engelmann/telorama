@@ -1730,3 +1730,29 @@ fn agent_run_renders_steps_at_time_extremes() {
     .expect("an extreme session must still render");
     assert!(svg.contains("<svg"));
 }
+
+#[test]
+fn waterfall_renders_both_copies_of_a_shared_id() {
+    // Round 16 (INV-89): the client and server copies of
+    // one call share an id, and the waterfall draws a bar
+    // for each, labelled from its own copy.
+    let spans = vec![
+        scale_span("r", None, "web", 0, 100),
+        scale_span("x", Some("r"), "client", 10, 40),
+        scale_span("x", Some("r"), "server", 50, 90),
+    ];
+    let scene = scale_scene("{\"data\":\"trace\",\"type\":\"waterfall\"}");
+    let svg = telorama_svg::render_scene_with_data(
+        &scene,
+        &telorama_svg::SceneData {
+            spans: &spans,
+            stacks: &[],
+            agent_run: None,
+            agent_state: &[],
+            findings: &[],
+        },
+    )
+    .expect("a shared-id trace must render");
+    assert!(svg.contains("client · op-x"), "the client copy is drawn");
+    assert!(svg.contains("server · op-x"), "the server copy is drawn");
+}

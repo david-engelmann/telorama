@@ -129,30 +129,31 @@ fn latency_finding(spans: &[Span]) -> Option<Finding> {
     if spans.is_empty() {
         return None;
     }
-    let by_id: std::collections::BTreeMap<(&str, &str), &Span> = spans
-        .iter()
-        .map(|s| ((s.trace_id.as_str(), s.span_id.as_str()), s))
-        .collect();
     let trace_ids: BTreeSet<&str> = spans.iter().map(|s| s.trace_id.as_str()).collect();
     let mut total_self: i64 = 0;
-    let mut best: Option<(&Span, i64)> = None;
+    let mut best: Option<(&Span, i64, usize)> = None;
     for trace_id in &trace_ids {
         for row in waterfall_rows(spans, trace_id) {
             total_self = total_self.saturating_add(row.self_time_nanos);
-            let span = by_id[&(*trace_id, row.span_id.as_str())];
+            // The row names its own occurrence, so the
+            // finding names the copy its figures came from
+            // even when two spans share an id (INV-89).
+            let span = &spans[row.span_index];
             let better = match best {
                 None => true,
-                Some((best_span, best_self)) => {
+                Some((best_span, best_self, best_index)) => {
                     row.self_time_nanos > best_self
-                        || (row.self_time_nanos == best_self && span.span_id < best_span.span_id)
+                        || (row.self_time_nanos == best_self
+                            && (span.span_id.as_str(), row.span_index)
+                                < (best_span.span_id.as_str(), best_index))
                 }
             };
             if better {
-                best = Some((span, row.self_time_nanos));
+                best = Some((span, row.self_time_nanos, row.span_index));
             }
         }
     }
-    let (span, self_nanos) = best?;
+    let (span, self_nanos, _) = best?;
     if total_self <= 0 || self_nanos <= 0 {
         return None;
     }

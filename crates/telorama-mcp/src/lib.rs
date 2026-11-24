@@ -923,16 +923,19 @@ fn panel_detail(scene: &Scene, inputs: &Inputs, panel: &Panel) -> Value {
             let rows: Vec<Value> = waterfall_rows(&inputs.spans, tid)
                 .iter()
                 .map(|row| {
-                    let span = set.iter().find(|s| s.span_id == row.span_id);
+                    // The row names its own occurrence, so
+                    // the detail reports the copy its figures
+                    // came from (INV-89).
+                    let span = &inputs.spans[row.span_index];
                     json!({
                         "span_id": row.span_id,
-                        "name": span.map(|s| s.name.clone()),
-                        "service": span.map(|s| s.service.clone()),
+                        "name": span.name.clone(),
+                        "service": span.service.clone(),
                         "depth": row.depth,
-                        "start_offset_nanos": span.map(|s| s.start_unix_nano.saturating_sub(origin)),
-                        "duration_nanos": span.map(|s| s.duration_nanos()),
+                        "start_offset_nanos": span.start_unix_nano.saturating_sub(origin),
+                        "duration_nanos": span.duration_nanos(),
                         "self_time_nanos": row.self_time_nanos,
-                        "is_error": span.map(|s| s.is_error)
+                        "is_error": span.is_error
                     })
                 })
                 .collect();

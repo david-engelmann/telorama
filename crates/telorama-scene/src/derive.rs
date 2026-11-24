@@ -11,10 +11,14 @@ use std::collections::BTreeMap;
 /// One row of a trace waterfall, in display order.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WaterfallRow {
-    /// Id of the span drawn on this row. The row carries no
-    /// other span fields, so a renderer joins back to the span
-    /// on this id.
+    /// Id of the span drawn on this row.
     pub span_id: String,
+    /// Position of the span occurrence this row was built
+    /// from in the slice the caller passed. A renderer joins
+    /// back to the span on this index, never on the id alone,
+    /// because one trace can carry two spans under one id
+    /// and each copy gets its own row (INV-89).
+    pub span_index: usize,
     /// Nesting depth in the trace tree, with roots at 0 and
     /// each parent step adding one.
     pub depth: usize,
@@ -32,6 +36,56 @@ fn trace_spans<'a>(spans: &'a [Span], trace_id: &str) -> Vec<&'a Span> {
             .then_with(|| a.span_id.cmp(&b.span_id))
     });
     out
+}
+
+/// Spans of one trace with their positions in the caller's
+/// slice, sorted by the canonical key (start, span id), with
+/// input order breaking full ties. Attribution is by
+/// occurrence, so a repeated span id yields one entry per
+/// copy (INV-89).
+fn trace_occurrences<'a>(spans: &'a [Span], trace_id: &str) -> Vec<(usize, &'a Span)> {
+    let mut out: Vec<(usize, &Span)> = spans
+        .iter()
+        .enumerate()
+        .filter(|(_, s)| s.trace_id == trace_id)
+        .collect();
+    out.sort_by(|a, b| {
+        a.1.start_unix_nano
+            .cmp(&b.1.start_unix_nano)
+            .then_with(|| a.1.span_id.cmp(&b.1.span_id))
+    });
+    out
+}
+
+/// Children of each span id in a trace, as positions in the
+/// occurrence list, in canonical order. The children of a
+/// repeated id hang from its first occurrence alone, because
+/// the copies cannot be told apart as parents (INV-89).
+fn occurrence_children(occurrences: &[(usize, &Span)]) -> BTreeMap<String, Vec<usize>> {
+    let ids: std::collections::BTreeSet<&str> =
+        occurrences.iter().map(|(_, s)| s.span_id.as_str()).collect();
+    let mut map: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+    for (pos, (_, span)) in occurrences.iter().enumerate() {
+        if let Some(parent) = span.parent_span_id.as_deref()
+            && ids.contains(parent)
+        {
+            map.entry(parent.to_string()).or_default().push(pos);
+        }
+    }
+    map
+}
+
+/// Positions in the occurrence list that are the first
+/// occurrence of their span id in canonical order.
+fn first_occurrences(occurrences: &[(usize, &Span)]) -> std::collections::BTreeSet<usize> {
+    let mut seen_ids: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
+    let mut firsts = std::collections::BTreeSet::new();
+    for (pos, (_, span)) in occurrences.iter().enumerate() {
+        if seen_ids.insert(span.span_id.as_str()) {
+            firsts.insert(pos);
+        }
+    }
+    firsts
 }
 
 /// Children of each span in a trace, keyed by parent span id, each list in
@@ -88,38 +142,54 @@ fn self_time(span: &Span, children: &[&Span]) -> i64 {
 /// canonical order, roots (spans whose parent is absent or outside the
 /// trace) first in canonical order. Missing parents render as roots
 /// rather than vanishing: a gap in the data stays visible as structure.
-/// A span id is emitted once, so a repeated id, and any cycle the
-/// parent links form through repeated ids, stops at the first
-/// emission and the walk always terminates (INV-82).
+/// Every span occurrence is emitted once, tracked by its position in
+/// the caller's slice, so a repeated id loses no copy (INV-89) and any
+/// cycle the parent links form still terminates (INV-82).
 pub fn waterfall_rows(spans: &[Span], trace_id: &str) -> Vec<WaterfallRow> {
-    let owned = trace_spans(spans, trace_id);
-    let children = children_map(&owned);
-    let ids: std::collections::BTreeSet<&str> = owned.iter().map(|s| s.span_id.as_str()).collect();
-    let roots: Vec<&Span> = owned
+    let owned = trace_occurrences(spans, trace_id);
+    let children = occurrence_children(&owned);
+    let firsts = first_occurrences(&owned);
+    let ids: std::collections::BTreeSet<&str> =
+        owned.iter().map(|(_, s)| s.span_id.as_str()).collect();
+    let roots: Vec<usize> = owned
         .iter()
-        .copied()
-        .filter(|s| match s.parent_span_id.as_deref() {
+        .enumerate()
+        .filter(|(_, (_, s))| match s.parent_span_id.as_deref() {
             None => true,
             Some(p) => !ids.contains(p),
         })
+        .map(|(pos, _)| pos)
         .collect();
 
     let mut rows = Vec::with_capacity(owned.len());
     // Iterative depth-first walk so deep traces cannot overflow the stack.
-    let mut seen: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
-    let mut stack: Vec<(&Span, usize)> = roots.iter().rev().map(|s| (*s, 0usize)).collect();
-    while let Some((span, depth)) = stack.pop() {
-        if !seen.insert(span.span_id.as_str()) {
+    let mut seen: std::collections::BTreeSet<usize> = std::collections::BTreeSet::new();
+    let mut stack: Vec<(usize, usize)> = roots.iter().rev().map(|&pos| (pos, 0usize)).collect();
+    while let Some((pos, depth)) = stack.pop() {
+        let (index, span) = owned[pos];
+        if !seen.insert(index) {
             continue;
         }
-        let kids: Vec<&Span> = children.get(&span.span_id).cloned().unwrap_or_default();
+        let kids: Vec<&Span> = if firsts.contains(&pos) {
+            children
+                .get(&span.span_id)
+                .map(|list| list.iter().map(|&p| owned[p].1).collect())
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
         rows.push(WaterfallRow {
             span_id: span.span_id.clone(),
+            span_index: index,
             depth,
             self_time_nanos: self_time(span, &kids),
         });
-        for kid in kids.iter().rev() {
-            stack.push((kid, depth + 1));
+        if firsts.contains(&pos) {
+            if let Some(list) = children.get(&span.span_id) {
+                for &kid_pos in list.iter().rev() {
+                    stack.push((kid_pos, depth + 1));
+                }
+            }
         }
     }
     rows
@@ -574,26 +644,35 @@ pub fn dismantle_flame_tree(tree: &mut FlameNode) {
 pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
     // The builder runs on an explicit stack instead of recursion,
     // so a very deep trace cannot overflow the call stack
-    // (INV-86). A span id builds once, so a cycle through
-    // repeated ids stops at the first build (INV-82).
+    // (INV-86). Every span occurrence builds once, tracked by
+    // its position in the caller's slice, so a cycle through
+    // repeated ids stops at the first build (INV-82) and a
+    // repeated id loses no copy (INV-89).
     struct Frame<'a> {
         span: &'a Span,
-        kids: Vec<&'a Span>,
+        kids: Vec<usize>,
         next: usize,
         built: Vec<FlameNode>,
     }
     fn frame_for<'a>(
-        span: &'a Span,
-        children: &BTreeMap<String, Vec<&'a Span>>,
-        seen: &mut std::collections::BTreeSet<String>,
+        pos: usize,
+        owned: &[(usize, &'a Span)],
+        children: &BTreeMap<String, Vec<usize>>,
+        firsts: &std::collections::BTreeSet<usize>,
+        seen: &mut std::collections::BTreeSet<usize>,
     ) -> Frame<'a> {
-        let kids: Vec<&Span> = children
-            .get(&span.span_id)
-            .cloned()
-            .unwrap_or_default()
-            .into_iter()
-            .filter(|kid| seen.insert(kid.span_id.clone()))
-            .collect();
+        let span = owned[pos].1;
+        let kids: Vec<usize> = if firsts.contains(&pos) {
+            children
+                .get(&span.span_id)
+                .cloned()
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|&kid_pos| seen.insert(owned[kid_pos].0))
+                .collect()
+        } else {
+            Vec::new()
+        };
         Frame {
             span,
             kids,
@@ -602,23 +681,26 @@ pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
         }
     }
     fn build<'a>(
-        root: &'a Span,
-        children: &BTreeMap<String, Vec<&'a Span>>,
-        seen: &mut std::collections::BTreeSet<String>,
+        root_pos: usize,
+        owned: &[(usize, &'a Span)],
+        children: &BTreeMap<String, Vec<usize>>,
+        firsts: &std::collections::BTreeSet<usize>,
+        seen: &mut std::collections::BTreeSet<usize>,
     ) -> FlameNode {
-        let mut stack: Vec<Frame> = vec![frame_for(root, children, seen)];
+        let mut stack: Vec<Frame> = vec![frame_for(root_pos, owned, children, firsts, seen)];
         loop {
             let top = stack.last_mut().expect("a frame under construction");
             if top.next < top.kids.len() {
-                let kid = top.kids[top.next];
+                let kid_pos = top.kids[top.next];
                 top.next += 1;
-                stack.push(frame_for(kid, children, seen));
+                stack.push(frame_for(kid_pos, owned, children, firsts, seen));
                 continue;
             }
             let frame = stack.pop().expect("a frame under construction");
             let mut child_nodes = frame.built;
             sort_flame_children(&mut child_nodes);
-            let self_nanos = self_time(frame.span, &frame.kids).max(0) as u64;
+            let kid_spans: Vec<&Span> = frame.kids.iter().map(|&p| owned[p].1).collect();
+            let self_nanos = self_time(frame.span, &kid_spans).max(0) as u64;
             let value = child_nodes
                 .iter()
                 .fold(self_nanos, |acc, c| acc.saturating_add(c.value));
@@ -633,23 +715,25 @@ pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
             }
         }
     }
-    let trace = trace_spans(spans, trace_id);
-    let children = children_map(&trace);
-    let ids: std::collections::BTreeSet<&str> = trace.iter().map(|s| s.span_id.as_str()).collect();
-    let mut seen: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    let owned = trace_occurrences(spans, trace_id);
+    let children = occurrence_children(&owned);
+    let firsts = first_occurrences(&owned);
+    let ids: std::collections::BTreeSet<&str> =
+        owned.iter().map(|(_, s)| s.span_id.as_str()).collect();
+    let mut seen: std::collections::BTreeSet<usize> = std::collections::BTreeSet::new();
     let mut root = FlameNode {
         name: "trace".to_string(),
         value: 0,
         children: Vec::new(),
     };
-    for span in &trace {
+    for (pos, (index, span)) in owned.iter().enumerate() {
         let is_root = span
             .parent_span_id
             .as_deref()
             .is_none_or(|p| !ids.contains(p));
-        if is_root && seen.insert(span.span_id.clone()) {
-            let node = build(span, &children, &mut seen);
-            root.value += node.value;
+        if is_root && seen.insert(*index) {
+            let node = build(pos, &owned, &children, &firsts, &mut seen);
+            root.value = root.value.saturating_add(node.value);
             root.children.push(node);
         }
     }
@@ -705,10 +789,24 @@ pub struct ServiceGraph {
 /// sorted by caller then callee; nodes carry the same RED rollup, on
 /// the same basis, as the red_row panel.
 pub fn service_graph(spans: &[Span], window_seconds: f64) -> ServiceGraph {
-    let by_key: BTreeMap<(&str, &str), &Span> = spans
-        .iter()
-        .map(|s| ((s.trace_id.as_str(), s.span_id.as_str()), s))
-        .collect();
+    // A repeated span id resolves to its first occurrence in
+    // canonical order, the same parent the waterfall gives a
+    // child (INV-89), so an edge never takes its caller from
+    // a later copy by arrival accident.
+    let mut by_key: BTreeMap<(&str, &str), &Span> = BTreeMap::new();
+    let mut trace_ids: Vec<&str> = Vec::new();
+    for span in spans {
+        if !trace_ids.contains(&span.trace_id.as_str()) {
+            trace_ids.push(span.trace_id.as_str());
+        }
+    }
+    for trace_id in trace_ids {
+        for span in trace_spans(spans, trace_id) {
+            by_key
+                .entry((trace_id, span.span_id.as_str()))
+                .or_insert(span);
+        }
+    }
     let mut edge_spans: BTreeMap<(String, String), Vec<&Span>> = BTreeMap::new();
     for span in spans {
         let Some(parent_id) = span.parent_span_id.as_deref() else {

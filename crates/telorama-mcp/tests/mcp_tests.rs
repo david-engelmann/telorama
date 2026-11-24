@@ -459,6 +459,52 @@ fn session_frames_tool_returns_the_frame_stream() {
 }
 
 #[test]
+fn panel_detail_rows_name_their_own_occurrence() {
+    // Round 16 (INV-89): two spans share spanId x, a client
+    // copy and a server copy in different services. Each
+    // detail row reports its own copy's name, service, and
+    // duration.
+    let scene = r#"{"scene":"0.1","title":"Shared id","headline":"Two spans under one id","context":{"range":{"from_unix_ms":0,"to_unix_ms":1000},"provenance":{"generated_by":"test","question":"Which copy is which?"}},"data":[{"id":"trace","sampled":"unknown","source":{"kind":"otlp_file","trace_id":"t1"}}],"panels":[{"type":"waterfall","data":"trace"}]}"#;
+    let traces = r#"{"resourceSpans":[
+        {"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"client"}}]},"scopeSpans":[{"spans":[
+            {"traceId":"t1","spanId":"r","name":"root-op","kind":2,"startTimeUnixNano":"0","endTimeUnixNano":"100000000"},
+            {"traceId":"t1","spanId":"x","parentSpanId":"r","name":"call-client","kind":3,"startTimeUnixNano":"10000000","endTimeUnixNano":"40000000"}
+        ]}]},
+        {"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"server"}}]},"scopeSpans":[{"spans":[
+            {"traceId":"t1","spanId":"x","parentSpanId":"r","name":"call-server","kind":2,"startTimeUnixNano":"50000000","endTimeUnixNano":"90000000"}
+        ]}]}
+    ]}"#;
+    let result = call_tool(
+        41,
+        "scene_panel_detail",
+        json!({"scene": scene, "traces": traces, "panel_index": 0}),
+    );
+    assert_eq!(result["isError"], false, "{result}");
+    let rows = result["structuredContent"]["rows"]
+        .as_array()
+        .expect("rows");
+    assert_eq!(rows.len(), 3);
+    let copies: Vec<(&str, &str, i64)> = rows
+        .iter()
+        .filter(|r| r["span_id"] == "x")
+        .map(|r| {
+            (
+                r["name"].as_str().expect("name"),
+                r["service"].as_str().expect("service"),
+                r["duration_nanos"].as_i64().expect("duration"),
+            )
+        })
+        .collect();
+    assert_eq!(
+        copies,
+        vec![
+            ("call-client", "client", 30_000_000),
+            ("call-server", "server", 40_000_000)
+        ]
+    );
+}
+
+#[test]
 fn panel_detail_offsets_saturate_at_time_extremes() {
     // Round 15 review repair (INV-88): a waterfall whose
     // spans sit at both ends of the i64 time range reports

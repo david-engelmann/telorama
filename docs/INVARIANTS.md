@@ -672,6 +672,16 @@ later milestones are marked as validator-side.
   boundary panics, hangs, or emits unescaped
   caller text. Enforced by the sweep tests in
   the scene, ingest, svg, MCP, and CLI suites.
+- INV-89. Within a trace, spans that share an
+  id are distinct occurrences. Every occurrence
+  renders its own row with its own figures,
+  children attach to the first occurrence of
+  their parent id in canonical order, and any
+  finding or detail that names a span names the
+  occurrence its figures came from. No surface
+  joins a derived row back to a span by id
+  alone. Enforced by the duplicate-id tests in
+  the scene, svg, and MCP suites.
 
 ## Hostile inputs (derive, ingest, pricing)
 

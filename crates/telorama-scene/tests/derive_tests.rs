@@ -981,3 +981,56 @@ fn extreme_timestamps_saturate_instead_of_overflowing() {
         .expect("an incident composes over extreme spans");
     assert!(incident.context.range.to_unix_ms >= incident.context.range.from_unix_ms);
 }
+
+#[test]
+fn duplicate_span_ids_each_get_their_own_row() {
+    // Round 16 (INV-89): two spans share id x under one
+    // root, the client and server copies of one call. Each
+    // copy gets its own row with its own self time, and the
+    // child naming x hangs from the first copy in canonical
+    // order.
+    let root = span("r", None, "web", SpanKind::Server, 0, 100, false);
+    let client = span("x", Some("r"), "client", SpanKind::Client, 10, 40, false);
+    let child = span("c", Some("x"), "db", SpanKind::Client, 12, 20, false);
+    let server = span("x", Some("r"), "server", SpanKind::Server, 50, 90, false);
+    let spans = vec![root, client, child, server];
+    let rows = waterfall_rows(&spans, "t1");
+    assert_eq!(rows.len(), 4);
+    let order: Vec<(&str, usize)> = rows
+        .iter()
+        .map(|r| (r.span_id.as_str(), r.span_index))
+        .collect();
+    assert_eq!(order, vec![("r", 0), ("x", 1), ("c", 2), ("x", 3)]);
+    // The client copy carries the child, so its self time
+    // is its 30 minus the child's 8. The server copy keeps
+    // its whole 40.
+    assert_eq!(rows[1].self_time_nanos, ms(22));
+    assert_eq!(rows[1].depth, 1);
+    assert_eq!(rows[2].depth, 2);
+    assert_eq!(rows[3].self_time_nanos, ms(40));
+    assert_eq!(rows[3].depth, 1);
+    // The flame tree counts both copies too.
+    let flame = flame_from_spans(&spans, "t1");
+    assert_eq!(flame.value, ms(100) as u64);
+}
+
+#[test]
+fn service_graph_resolves_a_shared_parent_id_to_the_first_copy() {
+    // Round 16 (INV-89): a child naming a shared parent id
+    // takes its caller from the first copy in canonical
+    // order, not from whichever copy arrived last.
+    let spans = vec![
+        span("r", None, "web", SpanKind::Server, 0, 100, false),
+        span("x", Some("r"), "svc-a", SpanKind::Client, 10, 40, false),
+        span("x", Some("r"), "svc-b", SpanKind::Server, 50, 90, false),
+        span("c", Some("x"), "db", SpanKind::Client, 12, 20, false),
+    ];
+    let graph = service_graph(&spans, 100.0);
+    let pairs: Vec<(&str, &str)> = graph
+        .edges
+        .iter()
+        .map(|e| (e.from.as_str(), e.to.as_str()))
+        .collect();
+    assert!(pairs.contains(&("svc-a", "db")), "{pairs:?}");
+    assert!(!pairs.contains(&("svc-b", "db")), "{pairs:?}");
+}
