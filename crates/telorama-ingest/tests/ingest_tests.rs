@@ -552,8 +552,7 @@ fn claude_session_parses_ten_thousand_events() {
         records.join(",")
     );
     let started = std::time::Instant::now();
-    let run =
-        telorama_ingest::parse_claude_code_session(&events, &[]).expect("the session parses");
+    let run = telorama_ingest::parse_claude_code_session(&events, &[]).expect("the session parses");
     eprintln!("long claude session parse {:?}", started.elapsed());
     assert_eq!(run.turns.len(), 2_000);
     let input: u64 = run.turns.iter().map(|t| t.input_tokens).sum();
