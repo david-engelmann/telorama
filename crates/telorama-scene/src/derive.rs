@@ -73,15 +73,15 @@ fn self_time(span: &Span, children: &[&Span]) -> i64 {
             None => cur = Some((a, b)),
             Some((ca, cb)) if a <= cb => cur = Some((ca, cb.max(b))),
             Some((ca, cb)) => {
-                covered += cb - ca;
+                covered = covered.saturating_add(cb.saturating_sub(ca));
                 cur = Some((a, b));
             }
         }
     }
     if let Some((ca, cb)) = cur {
-        covered += cb - ca;
+        covered = covered.saturating_add(cb.saturating_sub(ca));
     }
-    (span.duration_nanos() - covered).max(0)
+    span.duration_nanos().saturating_sub(covered).max(0)
 }
 
 /// Build the waterfall rows for one trace: depth-first order, children in

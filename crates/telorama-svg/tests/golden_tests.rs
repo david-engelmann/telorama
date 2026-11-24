@@ -1604,6 +1604,7 @@ fn extreme_range_scene_renders() {
     for panel in [
         "{\"data\":\"trace\",\"type\":\"waterfall\"}",
         "{\"data\":\"trace\",\"type\":\"service_map\"}",
+        "{\"data\":\"trace\",\"type\":\"heatmap\",\"edges_seconds\":[0.001]}",
     ] {
         let mut scene = scale_scene(panel);
         scene.context.range.from_unix_ms = i64::MIN / 2;
@@ -1645,4 +1646,67 @@ fn rootless_cycle_names_itself_in_the_render_error() {
     )
     .expect_err("a rootless cycle cannot render a waterfall");
     assert!(err.to_string().contains("parent chain cycles"), "{err}");
+    let flame_scene = scale_scene(
+        "{\"data\":\"trace\",\"min_samples\":1,\"sample_count\":1,\"sample_type\":\"cpu\",\"type\":\"flame\"}",
+    );
+    let flame_err = telorama_svg::render_scene_with_data(
+        &flame_scene,
+        &telorama_svg::SceneData {
+            spans: &spans,
+            stacks: &[],
+            agent_run: None,
+            agent_state: &[],
+            findings: &[],
+        },
+    )
+    .expect_err("a rootless cycle cannot render a flame graph");
+    assert!(
+        flame_err.to_string().contains("parent chain cycles"),
+        "{flame_err}"
+    );
+}
+
+#[test]
+fn agent_run_renders_steps_at_time_extremes() {
+    // Round 15 review repair (INV-88): a dialect session
+    // whose spans sit at both ends of the i64 time range
+    // renders its agent run, where the step detail's
+    // duration subtraction once overflowed.
+    let mut root = scale_span("r", None, "agent", 0, 1);
+    root.start_unix_nano = i64::MIN;
+    root.end_unix_nano = i64::MAX;
+    root.attributes.insert(
+        "gen_ai.operation.name".to_string(),
+        "invoke_workflow".to_string(),
+    );
+    root.attributes.insert(
+        "gen_ai.conversation.id".to_string(),
+        "conv-extremes".to_string(),
+    );
+    let mut call = scale_span("m", Some("r"), "agent", 0, 1);
+    call.start_unix_nano = i64::MIN;
+    call.end_unix_nano = i64::MAX;
+    call.attributes.insert(
+        "gen_ai.operation.name".to_string(),
+        "chat".to_string(),
+    );
+    call.attributes
+        .insert("gen_ai.request.model".to_string(), "gpt-5.1".to_string());
+    let run = telorama_ingest::parse_genai_session(&[root, call]).expect("the session parses");
+    let scene = telorama_scene::parse_scene(&workspace_file(
+        "tests/fixtures/scenes/agent_run_scene.json",
+    ))
+    .expect("agent run scene must validate");
+    let svg = telorama_svg::render_scene_with_data(
+        &scene,
+        &telorama_svg::SceneData {
+            spans: &[],
+            stacks: &[],
+            agent_run: Some(&run),
+            agent_state: &[],
+            findings: &[],
+        },
+    )
+    .expect("an extreme session must still render");
+    assert!(svg.contains("<svg"));
 }

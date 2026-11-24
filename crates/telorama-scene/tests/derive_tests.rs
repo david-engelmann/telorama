@@ -969,6 +969,14 @@ fn extreme_timestamps_saturate_instead_of_overflowing() {
     assert!(range.seconds().is_finite());
     let grid = heatmap_grid(&[wide.clone(), backwards.clone()], range, &[1.0], 24);
     assert_eq!(grid.rows.len(), 2);
+    // The self-time interval merge over a child clipped to
+    // the parent's full span saturates too.
+    let mut child = span("c", Some("a"), "api", SpanKind::Internal, 0, 1, false);
+    child.start_unix_nano = i64::MIN;
+    child.end_unix_nano = i64::MAX;
+    let rows = waterfall_rows(&[wide.clone(), child], "t1");
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0].self_time_nanos, 0);
     let incident = telorama_scene::incident_scene(&[wide, backwards], None, "sweep test")
         .expect("an incident composes over extreme spans");
     assert!(incident.context.range.to_unix_ms >= incident.context.range.from_unix_ms);

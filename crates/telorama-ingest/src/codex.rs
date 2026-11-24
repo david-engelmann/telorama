@@ -232,7 +232,7 @@ pub fn parse_codex_session(logs_text: &str, spans: &[Span]) -> Result<AgentRun, 
             input_tokens = input_tokens.saturating_add(call.input_tokens);
             output_tokens = output_tokens.saturating_add(call.output_tokens);
             cache_read_tokens = cache_read_tokens.saturating_add(call.cache_read_tokens);
-            cost_usd += call.cost_usd;
+            cost_usd = telorama_scene::add_costs(cost_usd, call.cost_usd);
         }
         let start = builder
             .prompt_time

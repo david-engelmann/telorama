@@ -346,7 +346,7 @@ fn add_step_totals(turn: &mut AgentTurn, step: &AgentStep) {
         turn.cache_creation_tokens = turn
             .cache_creation_tokens
             .saturating_add(call.cache_creation_tokens);
-        turn.cost_usd += call.cost_usd;
+        turn.cost_usd = telorama_scene::add_costs(turn.cost_usd, call.cost_usd);
     }
 }
 

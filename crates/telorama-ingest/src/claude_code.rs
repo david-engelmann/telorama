@@ -161,7 +161,7 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
                 turn.cache_creation_tokens = turn
                     .cache_creation_tokens
                     .saturating_add(call.cache_creation_tokens);
-                turn.cost_usd += call.cost_usd;
+                turn.cost_usd = telorama_scene::add_costs(turn.cost_usd, call.cost_usd);
                 turn.steps.push(AgentStep::ModelCall(call));
             }
             "claude_code.api_error" => {
@@ -260,7 +260,9 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
                     && tool.end_unix_nano <= span.end_unix_nano
                     && let Some(children) = blocked.get(span.span_id.as_str())
                 {
-                    let wait: i64 = children.iter().map(|c| c.duration_nanos()).sum();
+                    let wait: i64 = children
+                        .iter()
+                        .fold(0i64, |acc, c| acc.saturating_add(c.duration_nanos()));
                     if wait > tool.wait_nanos {
                         tool.wait_nanos = wait;
                         for child in children {

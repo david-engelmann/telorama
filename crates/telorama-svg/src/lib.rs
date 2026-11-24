@@ -803,7 +803,7 @@ fn layout_agent_step_row(
     {
         // The permission wait in grey at the head of the bar, the
         // execution in the tool color behind it.
-        let wait_end = x_of(start + tool.wait_nanos).min(x2);
+        let wait_end = x_of(start.saturating_add(tool.wait_nanos)).min(x2);
         prims.push(Prim::Rect {
             x: x1,
             y: *y,
@@ -833,7 +833,7 @@ fn layout_agent_step_row(
             stroke: None,
         });
     }
-    let mut detail = fmt_duration(end - start);
+    let mut detail = fmt_duration(end.saturating_sub(start));
     let mut is_error = false;
     match step {
         AgentStep::ModelCall(call) => {
@@ -1041,10 +1041,10 @@ fn render_agent_run(
     let mut total_cache = 0u64;
     let mut total_cost = 0.0f64;
     for (i, turn) in run.turns.iter().enumerate() {
-        total_in += turn.input_tokens;
-        total_out += turn.output_tokens;
-        total_cache += turn.cache_read_tokens;
-        total_cost += turn.cost_usd;
+        total_in = total_in.saturating_add(turn.input_tokens);
+        total_out = total_out.saturating_add(turn.output_tokens);
+        total_cache = total_cache.saturating_add(turn.cache_read_tokens);
+        total_cost = telorama_scene::add_costs(total_cost, turn.cost_usd);
         text(
             prims,
             MARGIN,
@@ -1846,8 +1846,12 @@ fn render_heatmap(
     let plot_x0 = 200.0;
     let plot_x1 = WIDTH - MARGIN;
     let col_w = (plot_x1 - plot_x0) / grid.columns as f64;
-    let window_nano =
-        (scene.context.range.to_unix_ms - scene.context.range.from_unix_ms) as f64 * 1_000_000.0;
+    let window_nano = scene
+        .context
+        .range
+        .to_unix_ms
+        .saturating_sub(scene.context.range.from_unix_ms) as f64
+        * 1_000_000.0;
 
     // Time axis, the same five ticks the waterfall uses.
     let axis_y = *y + 4.0;

@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
-use crate::agent::{AgentRun, AgentStep, Coverage, Pricing};
+use crate::agent::{AgentRun, AgentStep, Coverage, Pricing, add_costs};
 use crate::investigate::{Finding, investigate};
 use crate::spec::{
     Context, DataRef, NarrativeItem, Panel, Provenance, SCENE_VERSION, Sampling, Scene, Source,
@@ -71,7 +71,10 @@ pub fn session_frames_with_theme(run: &AgentRun, generated_by: &str, theme: Them
             .turns
             .iter()
             .fold(0u64, |acc, t| acc.saturating_add(t.output_tokens));
-        let cost: f64 = prefix.turns.iter().map(|t| t.cost_usd).sum();
+        let cost: f64 = prefix
+            .turns
+            .iter()
+            .fold(0.0f64, |acc, t| add_costs(acc, t.cost_usd));
         let scene = Scene {
             scene: SCENE_VERSION.to_string(),
             title: format!("Session {}", run.session_id),

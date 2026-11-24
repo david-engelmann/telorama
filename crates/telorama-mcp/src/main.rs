@@ -20,7 +20,7 @@ fn main() {
         let line = match std::str::from_utf8(&buf) {
             Ok(s) => s,
             Err(_) => {
-                let response = "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32700,\"message\":\"Parse error: the line is not valid UTF-8\"}}";
+                let response = "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32700,\"message\":\"parse error: the line is not valid UTF-8\"}}";
                 writeln!(stdout, "{response}").expect("stdout must accept responses");
                 stdout.flush().expect("stdout must flush");
                 continue;

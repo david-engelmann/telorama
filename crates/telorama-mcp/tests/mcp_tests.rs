@@ -459,6 +459,30 @@ fn session_frames_tool_returns_the_frame_stream() {
 }
 
 #[test]
+fn panel_detail_offsets_saturate_at_time_extremes() {
+    // Round 15 review repair (INV-88): a waterfall whose
+    // spans sit at both ends of the i64 time range reports
+    // start offsets with saturation, where the offset
+    // subtraction once overflowed.
+    let scene = r#"{"scene":"0.1","title":"Extremes","headline":"Spans at the edges of time","context":{"range":{"from_unix_ms":0,"to_unix_ms":1000},"provenance":{"generated_by":"test","question":"What happens at the edges?"}},"data":[{"id":"trace","sampled":"unknown","source":{"kind":"otlp_file","trace_id":"t1"}}],"panels":[{"type":"waterfall","data":"trace"}]}"#;
+    let traces = r#"{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"web"}}]},"scopeSpans":[{"spans":[
+        {"traceId":"t1","spanId":"a","name":"first","kind":2,"startTimeUnixNano":"-9223372036854775808","endTimeUnixNano":"-9223372036854775800"},
+        {"traceId":"t1","spanId":"b","name":"last","kind":2,"startTimeUnixNano":"9223372036854775800","endTimeUnixNano":"9223372036854775807"}
+    ]}]}]}"#;
+    let result = call_tool(
+        40,
+        "scene_panel_detail",
+        json!({"scene": scene, "traces": traces, "panel_index": 0}),
+    );
+    assert_eq!(result["isError"], false, "{result}");
+    let rows = result["structuredContent"]["rows"]
+        .as_array()
+        .expect("rows");
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[1]["start_offset_nanos"], i64::MAX);
+}
+
+#[test]
 fn the_stdio_server_answers_a_non_utf8_line_and_keeps_serving() {
     // Round 15 (INV-88): a line that is not valid UTF-8
     // earns a parse error, and the server answers the next

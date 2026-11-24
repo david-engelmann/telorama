@@ -605,7 +605,11 @@ fn tool_frames(args: &Value) -> Value {
             .turns
             .iter()
             .fold(0u64, |acc, t| acc.saturating_add(t.output_tokens));
-        let cost: f64 = frame.run.turns.iter().map(|t| t.cost_usd).sum();
+        let cost: f64 = frame
+            .run
+            .turns
+            .iter()
+            .fold(0.0f64, |acc, t| telorama_scene::add_costs(acc, t.cost_usd));
         lines.push(format!(
             "Frame {} of {}: {} {}, {} in, {} out, {}.",
             frame.index + 1,
@@ -650,7 +654,10 @@ fn tool_session(args: &Value) -> Value {
         .turns
         .iter()
         .fold(0u64, |acc, t| acc.saturating_add(t.output_tokens));
-    let cost: f64 = run.turns.iter().map(|t| t.cost_usd).sum();
+    let cost: f64 = run
+        .turns
+        .iter()
+        .fold(0.0f64, |acc, t| telorama_scene::add_costs(acc, t.cost_usd));
     let mut text = format!(
         "Session {} ({}): {} turns, {} in, {} out, {} total.",
         run.session_id,
@@ -922,7 +929,7 @@ fn panel_detail(scene: &Scene, inputs: &Inputs, panel: &Panel) -> Value {
                         "name": span.map(|s| s.name.clone()),
                         "service": span.map(|s| s.service.clone()),
                         "depth": row.depth,
-                        "start_offset_nanos": span.map(|s| s.start_unix_nano - origin),
+                        "start_offset_nanos": span.map(|s| s.start_unix_nano.saturating_sub(origin)),
                         "duration_nanos": span.map(|s| s.duration_nanos()),
                         "self_time_nanos": row.self_time_nanos,
                         "is_error": span.map(|s| s.is_error)
