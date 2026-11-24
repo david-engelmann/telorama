@@ -91,8 +91,10 @@ fn adopting_copies(
     occurrences: &[(usize, &Span)],
     children: &BTreeMap<String, Vec<usize>>,
 ) -> BTreeMap<String, usize> {
-    let ids: std::collections::BTreeSet<&str> =
-        occurrences.iter().map(|(_, s)| s.span_id.as_str()).collect();
+    let ids: std::collections::BTreeSet<&str> = occurrences
+        .iter()
+        .map(|(_, s)| s.span_id.as_str())
+        .collect();
     let mut adopters: BTreeMap<String, usize> = BTreeMap::new();
     for (pos, (_, span)) in occurrences.iter().enumerate() {
         adopters.entry(span.span_id.clone()).or_insert(pos);
