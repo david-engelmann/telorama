@@ -678,7 +678,8 @@ later milestones are marked as validator-side.
   figures, children attach to the first
   occurrence of their parent id in canonical
   order, or to the first reached copy when that
-  occurrence cannot be reached, and any
+  occurrence is unreachable when adoption
+  settles, and any
   finding or detail that names a span names the
   occurrence its figures came from. No surface
   joins a derived row back to a span by id
