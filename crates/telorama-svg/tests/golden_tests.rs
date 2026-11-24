@@ -1017,7 +1017,7 @@ fn frame_stream_totals_hold_at_five_hundred_turns() {
 fn frame_stream_at_five_thousand_turns() {
     // Round 14: the Round 4 session recipe at ten times the
     // turns. The stream's construction and its final frame are
-    // what this test proves; the aggregate byte total of a
+    // what this test proves. The aggregate byte total of a
     // full render is recorded in DECISIONS from the
     // measurement run, because it grows with the square of
     // the turn count by construction (INV-71).
@@ -1096,6 +1096,24 @@ fn frame_stream_at_five_thousand_turns() {
     eprintln!("long session final frame hash {hash}");
     eprintln!("long session final frame bytes {}", svg.len());
     assert_eq!(hash, "c5ed954ad4390b9f");
+    // A mid-stream spot render, so the proof is not only
+    // about the stream's two ends.
+    let mid = &frames[2_499];
+    let mid_svg = telorama_svg::render_scene_with_data(
+        &mid.scene,
+        &telorama_svg::SceneData {
+            spans: &[],
+            stacks: &[],
+            agent_run: Some(&mid.run),
+            agent_state: &[],
+            findings: &mid.findings,
+        },
+    )
+    .expect("the mid-stream frame must render");
+    assert_eq!(
+        telorama_scene::content_hash(mid_svg.as_bytes()),
+        "MEASURE"
+    );
     // The first hosted measurement built the stream in
     // 13.06 seconds. The ceiling is ten times that,
     // rounded up, per INV-70.

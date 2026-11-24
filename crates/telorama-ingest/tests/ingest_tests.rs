@@ -425,8 +425,8 @@ fn genai_session_refuses_nesting_past_the_budget() {
 fn genai_session_parses_ten_thousand_spans() {
     // Round 14: a generated session of one thousand turns,
     // ten spans each, through the GenAI adapter. Turn counts
-    // and token totals are the assertions; the elapsed time
-    // prints for the record.
+    // and token totals are the assertions. The elapsed time
+    // prints for the record and stands under a ceiling.
     use std::collections::BTreeMap;
     use telorama_scene::Span;
     let mut spans: Vec<Span> = Vec::with_capacity(10_000);
@@ -483,13 +483,27 @@ fn genai_session_parses_ten_thousand_spans() {
     assert_eq!(spans.len(), 10_000);
     let started = std::time::Instant::now();
     let run = telorama_ingest::parse_genai_session(&spans).expect("the session parses");
-    eprintln!("long genai session parse {:?}", started.elapsed());
+    let elapsed = started.elapsed();
+    eprintln!("long genai session parse {:?}", elapsed);
+    // The first hosted measurement parsed in 47
+    // milliseconds. The ceiling is ten times that,
+    // per INV-70.
+    assert!(
+        elapsed < std::time::Duration::from_millis(470),
+        "the ten thousand span parse took {:?}",
+        elapsed
+    );
     assert_eq!(run.turns.len(), 1_000);
     let input: u64 = run.turns.iter().map(|t| t.input_tokens).sum();
     let output: u64 = run.turns.iter().map(|t| t.output_tokens).sum();
     assert_eq!(input, 2_000_000);
     assert_eq!(output, 200_000);
-    assert_eq!(run.coverage.spans_seen, 10_000);
+    // The honest emission count is the sum of the
+    // per-turn coverage, which counts the spans the
+    // walk actually reached. The run-level figure is
+    // copied from the input length and proves nothing.
+    let seen: u64 = run.turns.iter().map(|t| t.coverage.spans_seen).sum();
+    assert_eq!(seen, 10_000);
 }
 
 #[test]
@@ -553,8 +567,18 @@ fn claude_session_parses_ten_thousand_events() {
     );
     let started = std::time::Instant::now();
     let run = telorama_ingest::parse_claude_code_session(&events, &[]).expect("the session parses");
-    eprintln!("long claude session parse {:?}", started.elapsed());
+    let elapsed = started.elapsed();
+    eprintln!("long claude session parse {:?}", elapsed);
+    // The first hosted measurement parsed in 176
+    // milliseconds. The ceiling is ten times that,
+    // per INV-70.
+    assert!(
+        elapsed < std::time::Duration::from_millis(1_760),
+        "the ten thousand event parse took {:?}",
+        elapsed
+    );
     assert_eq!(run.turns.len(), 2_000);
+    assert_eq!(run.coverage.log_events, 10_000);
     let input: u64 = run.turns.iter().map(|t| t.input_tokens).sum();
     let output: u64 = run.turns.iter().map(|t| t.output_tokens).sum();
     assert_eq!(input, 4_000_000);
