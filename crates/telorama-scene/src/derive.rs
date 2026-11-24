@@ -186,11 +186,11 @@ pub fn waterfall_rows(spans: &[Span], trace_id: &str) -> Vec<WaterfallRow> {
             depth,
             self_time_nanos: self_time(span, &kids),
         });
-        if firsts.contains(&pos) {
-            if let Some(list) = children.get(&span.span_id) {
-                for &kid_pos in list.iter().rev() {
-                    stack.push((kid_pos, depth + 1));
-                }
+        if firsts.contains(&pos)
+            && let Some(list) = children.get(&span.span_id)
+        {
+            for &kid_pos in list.iter().rev() {
+                stack.push((kid_pos, depth + 1));
             }
         }
     }
@@ -682,9 +682,9 @@ pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
             built: Vec::new(),
         }
     }
-    fn build<'a>(
+    fn build(
         root_pos: usize,
-        owned: &[(usize, &'a Span)],
+        owned: &[(usize, &Span)],
         children: &BTreeMap<String, Vec<usize>>,
         firsts: &std::collections::BTreeSet<usize>,
         seen: &mut std::collections::BTreeSet<usize>,
