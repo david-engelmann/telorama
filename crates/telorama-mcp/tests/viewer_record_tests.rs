@@ -343,9 +343,10 @@ fn viewer_record_covers_every_finding_kind_and_the_quiet_panel() {
     assert_eq!(codex.frames.len(), 2);
     for frame in &codex.frames {
         let kinds: Vec<&str> = frame.findings.iter().map(|f| f.kind.as_str()).collect();
-        assert!(
-            !kinds.is_empty(),
-            "each Codex frame carries at least one finding"
+        assert_eq!(
+            kinds,
+            ["cost"],
+            "the Codex adapter merges no wait data, so a Codex frame's only session finding is cost"
         );
     }
     for session in &record.sessions {
