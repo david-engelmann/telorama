@@ -967,7 +967,7 @@ fn extreme_timestamps_saturate_instead_of_overflowing() {
         to_unix_ms: i64::MAX,
     };
     assert!(range.seconds().is_finite());
-    let grid = heatmap_grid(&[wide.clone(), backwards], range, &[1.0], 24);
+    let grid = heatmap_grid(&[wide.clone(), backwards.clone()], range, &[1.0], 24);
     assert_eq!(grid.rows.len(), 2);
     let incident = telorama_scene::incident_scene(&[wide, backwards], None, "sweep test")
         .expect("an incident composes over extreme spans");
