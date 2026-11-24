@@ -199,7 +199,7 @@ fn derivations_do_not_depend_on_input_order() {
     // so it is the one field that follows the input order.
     let shape = |rows: &[telorama_scene::WaterfallRow]| {
         rows.iter()
-            .map(|r| (r.span_id.as_str(), r.depth, r.self_time_nanos))
+            .map(|r| (r.span_id.clone(), r.depth, r.self_time_nanos))
             .collect::<Vec<_>>()
     };
     assert_eq!(shape(&rows_a), shape(&rows_b));
