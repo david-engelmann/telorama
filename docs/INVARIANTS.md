@@ -693,6 +693,16 @@ later milestones are marked as validator-side.
   decision, and a decision no result consumes
   labels nothing. Enforced by the decision
   pairing tests in the ingest suite.
+- INV-91. The verdict viewer renders one
+  recorded run from the committed record under
+  web/data and computes nothing at view time.
+  It displays only the delivered SVG and the
+  recorded findings, stepping replaces whole
+  frames, and payload data never animates. The
+  record is assembled from the committed
+  fixtures through the tool paths and
+  freshness-gated byte for byte. Enforced by
+  the viewer record tests in the MCP suite.
 
 ## Hostile inputs (derive, ingest, pricing)
 
