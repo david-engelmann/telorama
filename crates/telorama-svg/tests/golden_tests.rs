@@ -1110,10 +1110,7 @@ fn frame_stream_at_five_thousand_turns() {
         },
     )
     .expect("the mid-stream frame must render");
-    assert_eq!(
-        telorama_scene::content_hash(mid_svg.as_bytes()),
-        "MEASURE"
-    );
+    assert_eq!(telorama_scene::content_hash(mid_svg.as_bytes()), "MEASURE");
     // The first hosted measurement built the stream in
     // 13.06 seconds. The ceiling is ten times that,
     // rounded up, per INV-70.
