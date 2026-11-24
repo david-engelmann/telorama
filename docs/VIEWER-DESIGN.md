@@ -107,3 +107,21 @@ the web app, the committed record, the generator, the freshness
 gate, and INV-91. Hosting the static export is out of scope, as it
 is for crosscheck. A money-shot video of the viewer belongs to the
 showcase pass after the build, under the Stageshow standard.
+
+## Amendment from the build (2026-11-23)
+
+Two phrases in this record met the code during the build and were
+settled as follows. The investigation layer has no severity. Its
+classes are the four finding kinds, errors, latency, wait, and
+cost, ordered by rank, and the page's summary counts and colors
+key on kinds. The record also carries one derivation the text
+above did not name. Findings carry no panel field and the
+delivered SVG carries no anchors, so the generator derives each
+finding's panel from its kind and the scene's panel list, and the
+record carries the anchors as data. The page marks a finding by
+that panel reference in the inspector and the list. It does not
+highlight inside the SVG, because the SVG has no anchors to
+highlight and this round's fence forbids renderer changes. Under
+that derivation the incident heatmap is anchored by no finding,
+which is the quiet panel the corpus section requires, and the
+freshness gate asserts it.
