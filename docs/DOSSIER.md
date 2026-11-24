@@ -1,8 +1,6 @@
 # New flagship: OTel-native embed-first visualization engine — concept dossier
 
-Synthesized 2026-11-16 from a six-front deep dive. Research files in this directory:
-otel-diagrams.md, agent-telemetry.md, embed-surfaces.md, prior-art.md,
-grafana-bar.md, rendering-tech.md. Claims marked UNVERIFIED in the fronts stay
+Synthesized 2026-11-16 from a six-front deep dive. The six research fronts behind it, covering OTel diagrams, agent telemetry, embed surfaces, prior art, the Grafana bar, and rendering technology, are kept outside this repository. Claims marked UNVERIFIED in the fronts stay
 unverified here.
 
 ## Thesis

@@ -1501,3 +1501,11 @@ It does not today. telorama-mcp fronts no upstream system, nothing happens insid
 Every checkable claim in the README was audited against the repository, forty-seven claims in all, each verified against the code, the tests, the manifests, or the crates.io record. Forty-five held exactly as written. Two were stale, both in the closing summary, and both are corrected in this round. The roadmap count said thirteen rounds and now says twenty-six, the count of the rounds recorded in this file before this pass. The published version said 0.3.0 and now says 0.4.0, matching the crate manifests and the crates.io record for all five crates.
 
 Nothing else in the README changed. The corpus counts, the scale proofs, the dialect list, the panel list, and the nesting budget all verified as written, so the pass corrected only what the audit proved stale and left the rest of the file untouched.
+
+## Round 28: the docs surface accuracy sweep (2026-11-24)
+
+The accuracy treatment of Round 27 was extended to every remaining public document, the four example walkthroughs and their index, the plugin README and skill, the web README, the DOSSIER, the framing of the invariants file, and the five crate manifest descriptions. Three claims proved stale and are corrected here, each with the smallest change that makes it true.
+
+The agent session walkthrough said scenes named for each dialect sit in the scenes fixture directory. Three do, for Claude Code, Codex, and GenAI, and no scene named for OpenInference exists there, so the sentence now names the three. The DOSSIER pointed readers at six research files in its own directory, and none of the six is in the repository, so the pointer now says the fronts are kept outside the repository and names their subjects instead of their files. The invariants framing said its sections run in invariant number order, and they do not, because the closing hostile-input section carries INV-82 through INV-84 after the documented surface section ends at INV-91, so the sentence now describes the grouping as it stands.
+
+Everything else verified as written, including every command and fixture path in the walkthroughs, the plugin's count of seven tools, and the invariants file's one to one tracing of its ninety-one entries to their enforcements. No code changed in this round.

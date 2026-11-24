@@ -65,7 +65,7 @@ excluded, never folded in as zero.
 ## Putting a run in a scene
 
 A session becomes a picture through an agent_run panel. The
-scenes in `tests/fixtures/scenes/` named for each dialect render
+scenes in `tests/fixtures/scenes/` named for the Claude Code, Codex, and GenAI dialects render
 through the same `render` command as any other scene, with the
 session export passed alongside the scene.
 

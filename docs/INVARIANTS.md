@@ -2,7 +2,7 @@
 
 The invariants telorama holds, each traced one to one to the test or
 record that enforces it. An invariant without a named enforcement is a
-wish, and wishes do not ship. Sections run in invariant number order.
+wish, and wishes do not ship. Sections group the invariants by the part of the system they govern, and the closing section gathers the hostile-input invariants.
 Rules the validator already enforces for panels whose renderers land in
 later milestones are marked as validator-side.
 
