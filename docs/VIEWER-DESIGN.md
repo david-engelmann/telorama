@@ -137,3 +137,10 @@ exemplars as well as its kind. The heatmap's quietness is an
 anchor fact. The panel still draws every span in the window,
 bucketed by duration, with the findings' spans anonymized inside
 the aggregate.
+Round 21 closed that exposure. The derivation now reads the
+finding as well as its kind. The latency anchor requires the
+waterfall's data entry to carry the finding's exemplar trace,
+and the errors anchor requires the error rate row to be
+unfiltered or filtered to the finding's service, with synthetic
+divergence pins on both. A panel that draws something else earns
+the finding no anchor rather than a false one.

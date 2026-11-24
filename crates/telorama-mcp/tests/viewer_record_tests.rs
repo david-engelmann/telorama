@@ -92,33 +92,48 @@ struct Record {
     session: SessionRecord,
 }
 
-/// The panel a finding kind is about, by the panel that draws its
-/// subject. Errors are read off the error rate row, latency off the
-/// waterfall that carries the exemplar trace, and the session kinds
-/// off the agent run panel. A kind with no matching panel in the
-/// scene gets no anchor.
-fn anchor_panel(scene: &telorama_scene::Scene, kind: &str) -> Option<usize> {
-    let wanted = match kind {
-        "errors" => "red",
-        "latency" => "waterfall",
-        "wait" | "cost" => "agent",
-        _ => return None,
-    };
-    scene.panels.iter().position(|panel| {
-        matches!(
-            (wanted, panel),
-            ("red", telorama_scene::Panel::RedRow { .. })
-                | ("waterfall", telorama_scene::Panel::Waterfall { .. })
-                | ("agent", telorama_scene::Panel::AgentRun { .. })
-        )
-    })
+/// The panel a finding is about, derived from the finding and the
+/// scene's panel list. Errors anchor to the error rate row when the
+/// row is unfiltered or filtered to the finding's service, and to
+/// nothing when the row keeps a different service. Latency anchors
+/// to the waterfall when the trace the waterfall's data entry
+/// carries is the finding's exemplar trace, and to nothing when
+/// the waterfall draws a different trace. The session kinds anchor
+/// to the agent run panel, which draws the run they derive from. A
+/// finding with no panel that draws its subject gets no anchor.
+fn anchor_panel(scene: &telorama_scene::Scene, finding: &telorama_scene::Finding) -> Option<usize> {
+    match finding.kind.as_str() {
+        "errors" => scene.panels.iter().position(|panel| match panel {
+            telorama_scene::Panel::RedRow { service, .. } => {
+                service.as_deref().is_none_or(|kept| kept == finding.subject)
+            }
+            _ => false,
+        }),
+        "latency" => scene.panels.iter().position(|panel| match panel {
+            telorama_scene::Panel::Waterfall { data, .. } => {
+                let exemplar_trace = finding.exemplars.get(1);
+                scene
+                    .data
+                    .iter()
+                    .find(|entry| &entry.id == data)
+                    .and_then(|entry| entry.source.trace_id.as_ref())
+                    .is_some_and(|trace| Some(trace) == exemplar_trace)
+            }
+            _ => false,
+        }),
+        "wait" | "cost" => scene
+            .panels
+            .iter()
+            .position(|panel| matches!(panel, telorama_scene::Panel::AgentRun { .. })),
+        _ => None,
+    }
 }
 
 fn anchors_for(scene: &telorama_scene::Scene, findings: &[telorama_scene::Finding]) -> Vec<Anchor> {
     findings
         .iter()
         .filter_map(|finding| {
-            anchor_panel(scene, &finding.kind).map(|panel| Anchor {
+            anchor_panel(scene, finding).map(|panel| Anchor {
                 rank: finding.rank,
                 panel,
             })
@@ -301,13 +316,10 @@ fn viewer_record_covers_every_finding_kind_and_the_quiet_panel() {
     assert_eq!(record.session.frames.len(), 2);
     for frame in &record.session.frames {
         let kinds: Vec<&str> = frame.findings.iter().map(|f| f.kind.as_str()).collect();
-        assert!(
-            kinds.contains(&"wait"),
-            "every frame carries the wait finding"
-        );
-        assert!(
-            kinds.contains(&"cost"),
-            "every frame carries the cost finding"
+        assert_eq!(
+            kinds,
+            ["wait", "cost"],
+            "a frame investigates its run alone, so its findings are exactly the session kinds"
         );
         assert_eq!(
             frame.anchors.len(),
@@ -324,4 +336,60 @@ fn viewer_record_covers_every_finding_kind_and_the_quiet_panel() {
             "each frame hash must be the hash of its svg"
         );
     }
+}
+
+#[test]
+fn viewer_record_anchors_withhold_when_the_panel_draws_something_else() {
+    let spans = telorama_ingest::parse_otlp_traces(&workspace_file(
+        "tests/fixtures/otel-demo-checkout.json",
+    ))
+    .expect("the checkout fixture must parse");
+    let scene = telorama_scene::incident_scene(&spans, None, GENERATED_BY)
+        .expect("the incident scene must compose");
+    let window = scene.context.range.seconds();
+    let findings = telorama_scene::investigate(&spans, None, window);
+    let errors = findings
+        .iter()
+        .find(|finding| finding.kind == "errors")
+        .expect("the incident carries an errors finding");
+    let latency = findings
+        .iter()
+        .find(|finding| finding.kind == "latency")
+        .expect("the incident carries a latency finding");
+    assert_eq!(anchor_panel(&scene, errors), Some(1));
+    assert_eq!(anchor_panel(&scene, latency), Some(2));
+
+    // A waterfall whose data entry carries a different trace does
+    // not draw the latency finding's exemplar, so the finding gets
+    // no anchor rather than a false one.
+    let mut diverged = scene.clone();
+    for entry in &mut diverged.data {
+        if entry.id == "exemplar" {
+            entry.source.trace_id = Some("0000000000000000000000000000ffff".to_string());
+        }
+    }
+    assert_eq!(anchor_panel(&diverged, latency), None);
+
+    // A waterfall whose data entry carries no trace at all cannot
+    // be shown to draw the exemplar either.
+    let mut untraced = scene.clone();
+    for entry in &mut untraced.data {
+        if entry.id == "exemplar" {
+            entry.source.trace_id = None;
+        }
+    }
+    assert_eq!(anchor_panel(&untraced, latency), None);
+
+    // An error rate row filtered to a different service does not
+    // draw the errors finding's subject. Filtered to the subject
+    // itself, it does.
+    let mut filtered = scene.clone();
+    if let telorama_scene::Panel::RedRow { service, .. } = &mut filtered.panels[1] {
+        *service = Some("billing".to_string());
+    }
+    assert_eq!(anchor_panel(&filtered, errors), None);
+    if let telorama_scene::Panel::RedRow { service, .. } = &mut filtered.panels[1] {
+        *service = Some("email".to_string());
+    }
+    assert_eq!(anchor_panel(&filtered, errors), Some(1));
 }
