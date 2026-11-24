@@ -422,6 +422,170 @@ fn genai_session_refuses_nesting_past_the_budget() {
 }
 
 #[test]
+fn genai_session_parses_ten_thousand_spans() {
+    // Round 14: a generated session of one thousand turns,
+    // ten spans each, through the GenAI adapter. Turn counts
+    // and token totals are the assertions. The elapsed time
+    // prints for the record and stands under a ceiling.
+    use std::collections::BTreeMap;
+    use telorama_scene::Span;
+    let mut spans: Vec<Span> = Vec::with_capacity(10_000);
+    let mk = |id: String, parent: Option<String>, op: &str, attrs: Vec<(&str, &str)>| -> Span {
+        let mut attributes: BTreeMap<String, String> = attrs
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
+        attributes.insert("gen_ai.operation.name".to_string(), op.to_string());
+        Span {
+            trace_id: "t-long".to_string(),
+            span_id: id,
+            parent_span_id: parent,
+            name: op.to_string(),
+            kind: SpanKind::Internal,
+            start_unix_nano: 0,
+            end_unix_nano: 10_000,
+            is_error: false,
+            service: "svc".to_string(),
+            attributes,
+        }
+    };
+    for t in 0..1_000 {
+        let root = format!("r{t}");
+        spans.push(mk(root.clone(), None, "invoke_workflow", vec![]));
+        let agent = format!("a{t}");
+        spans.push(mk(
+            agent.clone(),
+            Some(root.clone()),
+            "invoke_agent",
+            vec![],
+        ));
+        for c in 0..4 {
+            spans.push(mk(
+                format!("c{t}-{c}"),
+                Some(agent.clone()),
+                "chat",
+                vec![
+                    ("gen_ai.request.model", "gpt-5.1"),
+                    ("gen_ai.usage.input_tokens", "500"),
+                    ("gen_ai.usage.output_tokens", "50"),
+                ],
+            ));
+        }
+        for x in 0..4 {
+            spans.push(mk(
+                format!("x{t}-{x}"),
+                Some(root.clone()),
+                "execute_tool",
+                vec![("gen_ai.tool.name", "search")],
+            ));
+        }
+    }
+    assert_eq!(spans.len(), 10_000);
+    let started = std::time::Instant::now();
+    let run = telorama_ingest::parse_genai_session(&spans).expect("the session parses");
+    let elapsed = started.elapsed();
+    eprintln!("long genai session parse {:?}", elapsed);
+    // The first hosted measurement parsed in 47
+    // milliseconds. The ceiling is ten times that,
+    // per INV-70.
+    assert!(
+        elapsed < std::time::Duration::from_millis(470),
+        "the ten thousand span parse took {:?}",
+        elapsed
+    );
+    assert_eq!(run.turns.len(), 1_000);
+    let input: u64 = run.turns.iter().map(|t| t.input_tokens).sum();
+    let output: u64 = run.turns.iter().map(|t| t.output_tokens).sum();
+    assert_eq!(input, 2_000_000);
+    assert_eq!(output, 200_000);
+    // The honest emission count is the sum of the
+    // per-turn coverage, which counts the spans the
+    // walk actually reached. The run-level figure is
+    // copied from the input length and proves nothing.
+    let seen: u64 = run.turns.iter().map(|t| t.coverage.spans_seen).sum();
+    assert_eq!(seen, 10_000);
+}
+
+#[test]
+fn claude_session_parses_ten_thousand_events() {
+    // Round 14: a generated Claude Code log of two thousand
+    // prompts, five events each, in one OTLP document.
+    use serde_json::json;
+    fn record(at: i64, name: &str, prompt: &str, extra: &[(&str, serde_json::Value)]) -> String {
+        let mut attributes = vec![
+            json!({"key": "event.name", "value": {"stringValue": name}}),
+            json!({"key": "session.id", "value": {"stringValue": "sess-long"}}),
+            json!({"key": "prompt.id", "value": {"stringValue": prompt}}),
+        ];
+        for (key, value) in extra {
+            attributes.push(json!({"key": key, "value": value}));
+        }
+        json!({
+            "timeUnixNano": at.to_string(),
+            "body": {"stringValue": name},
+            "attributes": attributes,
+        })
+        .to_string()
+    }
+    let mut records: Vec<String> = Vec::with_capacity(10_000);
+    for p in 0..2_000 {
+        let base = 1_794_841_200_000_000_000i64 + (p as i64) * 10_000_000_000;
+        let prompt = format!("p-{p}");
+        records.push(record(base, "claude_code.user_prompt", &prompt, &[]));
+        for e in 0..2 {
+            let at = base + 1_000_000_000 + (e as i64) * 1_000_000_000;
+            records.push(record(
+                at,
+                "claude_code.api_request",
+                &prompt,
+                &[
+                    ("model", json!({"stringValue": "claude-sonnet-4-5"})),
+                    ("input_tokens", json!({"intValue": "1000"})),
+                    ("output_tokens", json!({"intValue": "100"})),
+                    ("cost_usd", json!({"doubleValue": 0.01})),
+                    ("duration_ms", json!({"intValue": "900"})),
+                ],
+            ));
+        }
+        records.push(record(
+            base + 4_000_000_000,
+            "claude_code.tool_decision",
+            &prompt,
+            &[],
+        ));
+        records.push(record(
+            base + 5_000_000_000,
+            "claude_code.tool_result",
+            &prompt,
+            &[],
+        ));
+    }
+    assert_eq!(records.len(), 10_000);
+    let events = format!(
+        "{{\"resourceLogs\":[{{\"scopeLogs\":[{{\"logRecords\":[{}]}}]}}]}}",
+        records.join(",")
+    );
+    let started = std::time::Instant::now();
+    let run = telorama_ingest::parse_claude_code_session(&events, &[]).expect("the session parses");
+    let elapsed = started.elapsed();
+    eprintln!("long claude session parse {:?}", elapsed);
+    // The first hosted measurement parsed in 176
+    // milliseconds. The ceiling is ten times that,
+    // per INV-70.
+    assert!(
+        elapsed < std::time::Duration::from_millis(1_760),
+        "the ten thousand event parse took {:?}",
+        elapsed
+    );
+    assert_eq!(run.turns.len(), 2_000);
+    assert_eq!(run.coverage.log_events, 10_000);
+    let input: u64 = run.turns.iter().map(|t| t.input_tokens).sum();
+    let output: u64 = run.turns.iter().map(|t| t.output_tokens).sum();
+    assert_eq!(input, 4_000_000);
+    assert_eq!(output, 400_000);
+}
+
+#[test]
 fn claude_session_refuses_nesting_past_the_budget() {
     // INV-87: the Claude adapter enforces the same budget
     // at its wrap. Generated agent spans nest their windows

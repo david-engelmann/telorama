@@ -59,3 +59,21 @@ conventions against the pinned commit and the
 MCP Apps spec against the stable text, the
 charges pass of 2026-11-23 being the previous
 reading.
+
+## Amendments, 2026-11-23
+
+The build does not materialize the five
+thousand turn stream's aggregate rendered
+bytes in the gate. That total grows with the
+square of the turn count, and at five hundred
+turns it already measured 104,428,401 bytes,
+so the five thousand turn aggregate stands on
+the order of ten gigabytes. The gate pins the
+stream's construction under its wall clock
+ceiling and the final and mid-stream frames by
+content hash instead, and the round's decision
+record carries the aggregate as an estimate
+from the measured points. The design's byte
+ceiling sentence is read as served by those
+pins, which are stricter for the frames they
+cover.
