@@ -68,5 +68,5 @@ pub use spec::{
     Context, DataRef, NarrativeItem, Panel, Provenance, SCENE_VERSION, Sampling, Scene, Source,
     StatKind, Theme, TimeRange, Unit,
 };
-pub use trace::{Span, SpanKind};
+pub use trace::{Span, SpanKind, unique_spans};
 pub use validate::{ValidationError, parse_scene, validate_scene_json};

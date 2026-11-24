@@ -268,3 +268,31 @@ fn investigate_tolerates_a_non_finite_cost() {
     let findings = investigate(&[], Some(&run), 100.0);
     assert!(findings.iter().all(|f| f.kind != "cost"));
 }
+
+#[test]
+fn investigate_latency_names_the_occurrence_that_owns_the_self_time() {
+    // Round 16 (INV-89): two spans share id x. The copy in
+    // service slow holds the largest self time, and the
+    // copy in service fast stands last in input order,
+    // where a join by id alone would name it instead.
+    let spans = vec![
+        span("t1", "r", None, "web", 0, 100, false),
+        span("t1", "x", Some("r"), "slow", 10, 90, false),
+        span("t1", "x", Some("r"), "fast", 92, 96, false),
+    ];
+    let findings = investigate(&spans, None, 1.0);
+    let latency = findings
+        .iter()
+        .find(|f| f.kind == "latency")
+        .expect("a latency finding");
+    assert!(
+        latency.statement.contains("in slow holds"),
+        "{}",
+        latency.statement
+    );
+    assert!(
+        !latency.statement.contains("in fast holds"),
+        "{}",
+        latency.statement
+    );
+}

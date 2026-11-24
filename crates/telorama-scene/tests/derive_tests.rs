@@ -184,8 +184,25 @@ fn derivations_do_not_depend_on_input_order() {
     let mut spans = checkout_spans();
     let rows_a = waterfall_rows(&spans, "t1");
     let path_a = critical_path(&spans, "t1");
+    // Each row's index resolves to its own span in the
+    // input it was derived from (INV-89).
+    for row in &rows_a {
+        assert_eq!(spans[row.span_index].span_id, row.span_id);
+    }
     spans.reverse();
-    assert_eq!(rows_a, waterfall_rows(&spans, "t1"));
+    let rows_b = waterfall_rows(&spans, "t1");
+    for row in &rows_b {
+        assert_eq!(spans[row.span_index].span_id, row.span_id);
+    }
+    // The derivation itself is the same run of rows either
+    // way. The index is a join key into the caller's slice,
+    // so it is the one field that follows the input order.
+    let shape = |rows: &[telorama_scene::WaterfallRow]| {
+        rows.iter()
+            .map(|r| (r.span_id.clone(), r.depth, r.self_time_nanos))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(shape(&rows_a), shape(&rows_b));
     assert_eq!(path_a, critical_path(&spans, "t1"));
 }
 
@@ -807,14 +824,15 @@ fn cyclic_spans() -> Vec<Span> {
 
 #[test]
 fn waterfall_rows_terminate_on_a_cyclic_trace() {
-    // INV-82: each span id is emitted once, so the second b is
-    // not emitted and the walk stops instead of following the
-    // b-c cycle forever.
+    // INV-82 and INV-89: every occurrence is emitted once
+    // and the children of b hang from its first occurrence,
+    // so the second b carries no children and the walk stops
+    // instead of following the b-c cycle forever.
     let rows = waterfall_rows(&cyclic_spans(), "t1");
     let ids: Vec<&str> = rows.iter().map(|r| r.span_id.as_str()).collect();
-    assert_eq!(ids, ["a", "b", "c"]);
+    assert_eq!(ids, ["a", "b", "c", "b"]);
     let depths: Vec<usize> = rows.iter().map(|r| r.depth).collect();
-    assert_eq!(depths, [0, 1, 2]);
+    assert_eq!(depths, [0, 1, 2, 3]);
 }
 
 #[test]
@@ -827,9 +845,11 @@ fn critical_path_stops_at_the_first_repeated_span() {
 
 #[test]
 fn flame_from_spans_terminates_on_a_cyclic_trace() {
-    // INV-82: the recursive builder used to recurse forever on
-    // this shape. Each span id builds once, so the tree is the
-    // a-b-c chain and the repeated b never builds.
+    // INV-82 and INV-89: the recursive builder used to
+    // recurse forever on this shape. Every occurrence builds
+    // once and the children of b hang from its first
+    // occurrence, so the tree is the a-b-c-b chain and the
+    // repeated b builds as a leaf.
     let tree = flame_from_spans(&cyclic_spans(), "t1");
     assert_eq!(tree.children.len(), 1);
     let a = &tree.children[0];
@@ -837,7 +857,9 @@ fn flame_from_spans_terminates_on_a_cyclic_trace() {
     let b = &a.children[0];
     assert_eq!(b.children.len(), 1);
     let c = &b.children[0];
-    assert!(c.children.is_empty());
+    assert_eq!(c.children.len(), 1);
+    let repeated_b = &c.children[0];
+    assert!(repeated_b.children.is_empty());
 }
 
 #[test]
@@ -980,4 +1002,112 @@ fn extreme_timestamps_saturate_instead_of_overflowing() {
     let incident = telorama_scene::incident_scene(&[wide, backwards], None, "sweep test")
         .expect("an incident composes over extreme spans");
     assert!(incident.context.range.to_unix_ms >= incident.context.range.from_unix_ms);
+}
+
+#[test]
+fn duplicate_span_ids_each_get_their_own_row() {
+    // Round 16 (INV-89): two spans share id x under one
+    // root, the client and server copies of one call. Each
+    // copy gets its own row with its own self time, and the
+    // child naming x hangs from the first copy in canonical
+    // order.
+    let root = span("r", None, "web", SpanKind::Server, 0, 100, false);
+    let client = span("x", Some("r"), "client", SpanKind::Client, 10, 40, false);
+    let child = span("c", Some("x"), "db", SpanKind::Client, 12, 20, false);
+    let server = span("x", Some("r"), "server", SpanKind::Server, 50, 90, false);
+    let spans = vec![root, client, child, server];
+    let rows = waterfall_rows(&spans, "t1");
+    assert_eq!(rows.len(), 4);
+    let order: Vec<(&str, usize)> = rows
+        .iter()
+        .map(|r| (r.span_id.as_str(), r.span_index))
+        .collect();
+    assert_eq!(order, vec![("r", 0), ("x", 1), ("c", 2), ("x", 3)]);
+    // The client copy carries the child, so its self time
+    // is its 30 minus the child's 8. The server copy keeps
+    // its whole 40.
+    assert_eq!(rows[1].self_time_nanos, ms(22));
+    assert_eq!(rows[1].depth, 1);
+    assert_eq!(rows[2].depth, 2);
+    assert_eq!(rows[3].self_time_nanos, ms(40));
+    assert_eq!(rows[3].depth, 1);
+    // The flame tree counts both copies too.
+    let flame = flame_from_spans(&spans, "t1");
+    assert_eq!(flame.value, ms(100) as u64);
+}
+
+#[test]
+fn service_graph_resolves_a_shared_parent_id_to_the_first_copy() {
+    // Round 16 (INV-89): a child naming a shared parent id
+    // takes its caller from the first copy in canonical
+    // order, not from whichever copy arrived last. The
+    // svc-b copy arrives first in the input, so an
+    // arrival-order resolution would pick it.
+    let spans = vec![
+        span("r", None, "web", SpanKind::Server, 0, 100, false),
+        span("x", Some("r"), "svc-b", SpanKind::Server, 50, 90, false),
+        span("x", Some("r"), "svc-a", SpanKind::Client, 10, 40, false),
+        span("c", Some("x"), "db", SpanKind::Client, 12, 20, false),
+    ];
+    let graph = service_graph(&spans, 100.0);
+    let pairs: Vec<(&str, &str)> = graph
+        .edges
+        .iter()
+        .map(|e| (e.from.as_str(), e.to.as_str()))
+        .collect();
+    assert!(pairs.contains(&("svc-a", "db")), "{pairs:?}");
+    assert!(!pairs.contains(&("svc-b", "db")), "{pairs:?}");
+}
+
+#[test]
+fn children_of_a_shared_id_follow_the_reached_copy() {
+    // Round 16 (INV-89): the first copy of a in canonical
+    // order sits inside a parent cycle with b, and the
+    // second copy hangs from the root. The reached copy
+    // adopts the children of a, the cycle breaks at the
+    // adoption seam, and every span in the trace gets a row.
+    let spans = vec![
+        span("r", None, "web", SpanKind::Server, 0, 100, false),
+        span("a", Some("b"), "api", SpanKind::Server, 10, 90, false),
+        span("b", Some("a"), "db", SpanKind::Server, 20, 50, false),
+        span("a", Some("r"), "api", SpanKind::Server, 30, 70, false),
+        span("c", Some("a"), "db", SpanKind::Client, 40, 60, false),
+    ];
+    let rows = waterfall_rows(&spans, "t1");
+    let order: Vec<(&str, usize, usize)> = rows
+        .iter()
+        .map(|r| (r.span_id.as_str(), r.span_index, r.depth))
+        .collect();
+    assert_eq!(
+        order,
+        vec![
+            ("r", 0, 0),
+            ("a", 3, 1),
+            ("b", 2, 2),
+            ("a", 1, 3),
+            ("c", 4, 2),
+        ]
+    );
+    // The cycled copy keeps its whole interval as self
+    // time, because the children of a hang from the
+    // reached copy, not from it.
+    assert_eq!(rows[3].self_time_nanos, ms(80));
+    // The flame tree builds every copy too, and its root
+    // value is the sum of every self time in the trace.
+    let flame = flame_from_spans(&spans, "t1");
+    assert_eq!(flame.value, ms(170) as u64);
+}
+
+#[test]
+fn unique_spans_drops_redeliveries_and_keeps_distinct_copies() {
+    // Round 16 (INV-86 and INV-89): the shared boundary
+    // dedup compares whole span values, so the same span
+    // delivered twice enters once and two different spans
+    // under one id both enter.
+    let one = span("x", Some("r"), "api", SpanKind::Client, 10, 40, false);
+    let two = span("x", Some("r"), "api", SpanKind::Server, 50, 90, false);
+    let out = telorama_scene::unique_spans(vec![one.clone(), one, two]);
+    assert_eq!(out.len(), 2);
+    assert_eq!(out[0].kind, SpanKind::Client);
+    assert_eq!(out[1].kind, SpanKind::Server);
 }

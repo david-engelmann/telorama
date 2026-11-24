@@ -39,21 +39,14 @@ fn read_file(path: &str) -> Result<String, String> {
 
 /// The combined span set for a command that takes traces and a
 /// session (INV-85): the trace spans first, then the session
-/// spans, with each trace id and span id entering once and the
-/// first occurrence kept, so an export passed under both flags
-/// counts once.
+/// spans, passed through the shared whole-span dedup, so an
+/// export passed under both flags counts once and two
+/// different spans under one id both enter (INV-89).
 fn combined_spans(
     spans: &[telorama_scene::Span],
     session_spans: Vec<telorama_scene::Span>,
 ) -> Vec<telorama_scene::Span> {
-    let mut seen: std::collections::BTreeSet<(&str, &str)> = std::collections::BTreeSet::new();
-    let mut out: Vec<telorama_scene::Span> = Vec::new();
-    for span in spans.iter().chain(session_spans.iter()) {
-        if seen.insert((span.trace_id.as_str(), span.span_id.as_str())) {
-            out.push(span.clone());
-        }
-    }
-    out
+    telorama_scene::unique_spans(spans.iter().cloned().chain(session_spans).collect())
 }
 
 fn cmd_inspect(path: &str) -> Result<String, String> {

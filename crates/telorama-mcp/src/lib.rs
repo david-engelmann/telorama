@@ -303,16 +303,13 @@ fn build_inputs(args: &Value) -> Result<Inputs, String> {
         Some(text) => telorama_ingest::parse_otlp_traces(text).map_err(|e| e.to_string())?,
         None => Vec::new(),
     };
-    // One count per span on every surface (INV-86): the dedup
-    // the CLI's combined set applies, first occurrence kept, so
-    // the MCP tools report the same counts as the CLI on the
-    // same export.
-    let mut seen: std::collections::BTreeSet<(&str, &str)> = std::collections::BTreeSet::new();
-    let spans: Vec<Span> = parsed
-        .iter()
-        .filter(|s| seen.insert((s.trace_id.as_str(), s.span_id.as_str())))
-        .cloned()
-        .collect();
+    // One count per span on every surface (INV-86): the
+    // shared whole-span dedup the CLI's combined set applies,
+    // so the MCP tools report the same counts as the CLI on
+    // the same export. A span delivered twice counts once,
+    // and two different spans under one id both count
+    // (INV-89).
+    let spans: Vec<Span> = telorama_scene::unique_spans(parsed);
     let stacks = match arg_str(args, "profile") {
         Some(text) => telorama_ingest::parse_folded_stacks(text).map_err(|e| e.to_string())?,
         None => Vec::new(),
@@ -923,16 +920,19 @@ fn panel_detail(scene: &Scene, inputs: &Inputs, panel: &Panel) -> Value {
             let rows: Vec<Value> = waterfall_rows(&inputs.spans, tid)
                 .iter()
                 .map(|row| {
-                    let span = set.iter().find(|s| s.span_id == row.span_id);
+                    // The row names its own occurrence, so
+                    // the detail reports the copy its figures
+                    // came from (INV-89).
+                    let span = &inputs.spans[row.span_index];
                     json!({
                         "span_id": row.span_id,
-                        "name": span.map(|s| s.name.clone()),
-                        "service": span.map(|s| s.service.clone()),
+                        "name": span.name.clone(),
+                        "service": span.service.clone(),
                         "depth": row.depth,
-                        "start_offset_nanos": span.map(|s| s.start_unix_nano.saturating_sub(origin)),
-                        "duration_nanos": span.map(|s| s.duration_nanos()),
+                        "start_offset_nanos": span.start_unix_nano.saturating_sub(origin),
+                        "duration_nanos": span.duration_nanos(),
                         "self_time_nanos": row.self_time_nanos,
-                        "is_error": span.map(|s| s.is_error)
+                        "is_error": span.is_error
                     })
                 })
                 .collect();
