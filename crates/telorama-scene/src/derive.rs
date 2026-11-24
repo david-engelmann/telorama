@@ -62,8 +62,10 @@ fn trace_occurrences<'a>(spans: &'a [Span], trace_id: &str) -> Vec<(usize, &'a S
 /// repeated id hang from its first occurrence alone, because
 /// the copies cannot be told apart as parents (INV-89).
 fn occurrence_children(occurrences: &[(usize, &Span)]) -> BTreeMap<String, Vec<usize>> {
-    let ids: std::collections::BTreeSet<&str> =
-        occurrences.iter().map(|(_, s)| s.span_id.as_str()).collect();
+    let ids: std::collections::BTreeSet<&str> = occurrences
+        .iter()
+        .map(|(_, s)| s.span_id.as_str())
+        .collect();
     let mut map: BTreeMap<String, Vec<usize>> = BTreeMap::new();
     for (pos, (_, span)) in occurrences.iter().enumerate() {
         if let Some(parent) = span.parent_span_id.as_deref()
