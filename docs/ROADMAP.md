@@ -150,6 +150,17 @@ the frame stream's quadratic cost convicts
 itself. Design record
 docs/LONG-SESSION-DESIGN.md.
 
+## Round 15: the second sweep
+
+Rounds 8 through 12 hardened the derivations
+walk by walk. Round 15 aims the same
+adversarial sweep at the boundaries no round
+has audited as a set, the text, parse,
+numeric, remaining-walk, and protocol
+boundaries, and fixes what the audit
+convicts. Design record
+docs/SWEEP-DESIGN.md.
+
 ## Standing lanes between rounds
 
 - The A2UI watch in docs/A2UI-SPIKE.md stays a watch item,
