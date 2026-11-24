@@ -18,8 +18,7 @@ fn workspace_file(rel: &str) -> String {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .join(rel);
-    std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()))
+    std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()))
 }
 
 fn repo_path(rel: &str) -> PathBuf {
@@ -115,10 +114,7 @@ fn anchor_panel(scene: &telorama_scene::Scene, kind: &str) -> Option<usize> {
     })
 }
 
-fn anchors_for(
-    scene: &telorama_scene::Scene,
-    findings: &[telorama_scene::Finding],
-) -> Vec<Anchor> {
+fn anchors_for(scene: &telorama_scene::Scene, findings: &[telorama_scene::Finding]) -> Vec<Anchor> {
     findings
         .iter()
         .filter_map(|finding| {
@@ -277,14 +273,22 @@ fn viewer_record_covers_every_finding_kind_and_the_quiet_panel() {
             .find(|anchor| anchor.rank == rank)
             .map(|anchor| anchor.panel)
     };
-    assert_eq!(anchor_of(1), Some(1), "the errors finding anchors to the red row");
+    assert_eq!(
+        anchor_of(1),
+        Some(1),
+        "the errors finding anchors to the red row"
+    );
     assert_eq!(
         anchor_of(2),
         Some(2),
         "the latency finding anchors to the waterfall"
     );
     assert!(
-        record.incident.anchors.iter().all(|anchor| anchor.panel != 3),
+        record
+            .incident
+            .anchors
+            .iter()
+            .all(|anchor| anchor.panel != 3),
         "the heatmap panel carries no finding and stays the quiet panel"
     );
     assert_eq!(
@@ -297,8 +301,14 @@ fn viewer_record_covers_every_finding_kind_and_the_quiet_panel() {
     assert_eq!(record.session.frames.len(), 2);
     for frame in &record.session.frames {
         let kinds: Vec<&str> = frame.findings.iter().map(|f| f.kind.as_str()).collect();
-        assert!(kinds.contains(&"wait"), "every frame carries the wait finding");
-        assert!(kinds.contains(&"cost"), "every frame carries the cost finding");
+        assert!(
+            kinds.contains(&"wait"),
+            "every frame carries the wait finding"
+        );
+        assert!(
+            kinds.contains(&"cost"),
+            "every frame carries the cost finding"
+        );
         assert_eq!(
             frame.anchors.len(),
             frame.findings.len(),
