@@ -1623,10 +1623,9 @@ fn extreme_range_scene_renders() {
     }
     // The heatmap window carries the same subtraction in
     // the renderer, exercised through the committed scene.
-    let mut heat = telorama_scene::parse_scene(&workspace_file(
-        "tests/fixtures/scenes/heatmap_scene.json",
-    ))
-    .expect("heatmap scene must validate");
+    let mut heat =
+        telorama_scene::parse_scene(&workspace_file("tests/fixtures/scenes/heatmap_scene.json"))
+            .expect("heatmap scene must validate");
     heat.context.range.from_unix_ms = i64::MIN;
     heat.context.range.to_unix_ms = i64::MAX;
     let checkout = telorama_ingest::parse_otlp_traces(&workspace_file(
