@@ -1386,7 +1386,8 @@ fn claude_code_decisions_pair_to_results_by_occurrence() {
       {"timeUnixNano":"1794841210000000000","attributes":[{"key":"event.name","value":{"stringValue":"claude_code.tool_result"}},{"key":"session.id","value":{"stringValue":"sess-pair"}},{"key":"prompt.id","value":{"stringValue":"p-1"}},{"key":"tool_name","value":{"stringValue":"Bash"}},{"key":"success","value":{"boolValue":true}},{"key":"duration_ms","value":{"intValue":"5000"}}]},
       {"timeUnixNano":"1794841220000000000","attributes":[{"key":"event.name","value":{"stringValue":"claude_code.tool_result"}},{"key":"session.id","value":{"stringValue":"sess-pair"}},{"key":"prompt.id","value":{"stringValue":"p-1"}},{"key":"tool_name","value":{"stringValue":"Bash"}},{"key":"success","value":{"boolValue":true}},{"key":"duration_ms","value":{"intValue":"5000"}}]}
     ]}]}]}"#;
-    let run = telorama_ingest::parse_claude_code_session(logs, &[]).expect("the session must adapt");
+    let run =
+        telorama_ingest::parse_claude_code_session(logs, &[]).expect("the session must adapt");
     assert_eq!(run.turns.len(), 1);
     let turn = &run.turns[0];
     assert_eq!(turn.steps.len(), 2);
