@@ -47,6 +47,12 @@ export interface FrameData {
   svg_fnv1a64: string;
 }
 
+export interface SessionData {
+  session_id: string;
+  dialect: string;
+  frames: FrameData[];
+}
+
 export interface RecordData {
   record: {
     generator: string;
@@ -55,11 +61,7 @@ export interface RecordData {
     fixtures: string[];
   };
   incident: IncidentData;
-  session: {
-    session_id: string;
-    dialect: string;
-    frames: FrameData[];
-  };
+  sessions: SessionData[];
 }
 
 const KIND_LABELS: Record<string, string> = {
@@ -186,18 +188,69 @@ function SceneSvg({ svg, label }: { svg: string; label: string }) {
   );
 }
 
-export default function Viewer({ data }: { data: RecordData }) {
-  const { incident, session } = data;
+function SessionSection({ session }: { session: SessionData }) {
   const [frameIdx, setFrameIdx] = useState<number>(session.frames.length - 1);
   const frame = session.frames[frameIdx];
+  return (
+    <section className="record-section">
+      <h2>Session {session.session_id}</h2>
+      <p className="section-question">
+        A recorded {session.dialect} session export, one frame per
+        turn prefix. Stepping replaces the whole frame. The data
+        never animates.
+      </p>
+      <nav
+        className="stepper"
+        aria-label={`Frame stepper for session ${session.session_id}`}
+      >
+        <button
+          type="button"
+          disabled={frameIdx === 0}
+          onClick={() => setFrameIdx(frameIdx - 1)}
+        >
+          Previous
+        </button>
+        <span className="stepper-label">
+          Frame {frame.frame} of {session.frames.length} · after turn{" "}
+          {frame.turns}
+        </span>
+        <button
+          type="button"
+          disabled={frameIdx === session.frames.length - 1}
+          onClick={() => setFrameIdx(frameIdx + 1)}
+        >
+          Next
+        </button>
+      </nav>
+      <div className="section-grid">
+        <SceneSvg
+          svg={frame.svg}
+          label={`Session frame ${frame.frame}`}
+        />
+        <FindingsPane
+          key={frame.frame}
+          findings={frame.findings}
+          anchors={frame.anchors}
+          panels={frame.panels}
+        />
+      </div>
+      <p className="scene-hash mono">svg fnv1a64 {frame.svg_fnv1a64}</p>
+    </section>
+  );
+}
+
+export default function Viewer({ data }: { data: RecordData }) {
+  const { incident, sessions } = data;
   const kindCounts = new Map<string, number>();
   for (const finding of incident.investigation) {
     kindCounts.set(finding.kind, (kindCounts.get(finding.kind) ?? 0) + 1);
   }
-  const finalFrame = session.frames[session.frames.length - 1];
-  if (finalFrame) {
-    for (const finding of finalFrame.findings) {
-      kindCounts.set(finding.kind, (kindCounts.get(finding.kind) ?? 0) + 1);
+  for (const session of sessions) {
+    const finalFrame = session.frames[session.frames.length - 1];
+    if (finalFrame) {
+      for (const finding of finalFrame.findings) {
+        kindCounts.set(finding.kind, (kindCounts.get(finding.kind) ?? 0) + 1);
+      }
     }
   }
   const canonical = ["errors", "latency", "wait", "cost"];
@@ -239,7 +292,7 @@ export default function Viewer({ data }: { data: RecordData }) {
             </div>
           ))}
           <span className="summary-scope">
-            Incident and the session's final frame
+            Incident and each session's final frame
           </span>
         </div>
       </section>
@@ -260,47 +313,9 @@ export default function Viewer({ data }: { data: RecordData }) {
         </p>
       </section>
 
-      <section className="record-section">
-        <h2>Session {session.session_id}</h2>
-        <p className="section-question">
-          A recorded {session.dialect} session export, one frame per
-          turn prefix. Stepping replaces the whole frame. The data
-          never animates.
-        </p>
-        <nav className="stepper" aria-label="Frame stepper">
-          <button
-            type="button"
-            disabled={frameIdx === 0}
-            onClick={() => setFrameIdx(frameIdx - 1)}
-          >
-            Previous
-          </button>
-          <span className="stepper-label">
-            Frame {frame.frame} of {session.frames.length} · after turn{" "}
-            {frame.turns}
-          </span>
-          <button
-            type="button"
-            disabled={frameIdx === session.frames.length - 1}
-            onClick={() => setFrameIdx(frameIdx + 1)}
-          >
-            Next
-          </button>
-        </nav>
-        <div className="section-grid">
-          <SceneSvg
-            svg={frame.svg}
-            label={`Session frame ${frame.frame}`}
-          />
-          <FindingsPane
-            key={frame.frame}
-            findings={frame.findings}
-            anchors={frame.anchors}
-            panels={frame.panels}
-          />
-        </div>
-        <p className="scene-hash mono">svg fnv1a64 {frame.svg_fnv1a64}</p>
-      </section>
+      {sessions.map((session) => (
+        <SessionSection key={session.session_id} session={session} />
+      ))}
 
       <footer className="footer">
         <p>
@@ -311,8 +326,8 @@ export default function Viewer({ data }: { data: RecordData }) {
           and the page recomputes no finding, figure, or hash.
         </p>
         <p>
-          The corpus is the OpenTelemetry demo checkout trace and a
-          recorded Claude Code session export, both committed as test
+          The corpus is the OpenTelemetry demo checkout trace and
+          the recorded session exports, all committed as test
           fixtures. Between them they exercise every finding kind the
           investigation layer emits. The incident scene's heatmap
           panel carries no finding, so the quiet case is on the page
