@@ -1498,6 +1498,6 @@ It does not today. telorama-mcp fronts no upstream system, nothing happens insid
 
 ## Round 27: the README accuracy pass (2026-11-24)
 
-Every checkable claim in the README was audited against the repository, forty-seven claims in all, each verified against the code, the tests, the manifests, or the crates.io record. Forty-five held exactly as written. Two were stale, both in the closing summary, and both are corrected in this round. The roadmap count said thirteen rounds and now says twenty-six, matching the headed entries in this file. The published version said 0.3.0 and now says 0.4.0, matching the crate manifests and the crates.io record for all five crates.
+Every checkable claim in the README was audited against the repository, forty-seven claims in all, each verified against the code, the tests, the manifests, or the crates.io record. Forty-five held exactly as written. Two were stale, both in the closing summary, and both are corrected in this round. The roadmap count said thirteen rounds and now says twenty-six, the count of the rounds recorded in this file before this pass. The published version said 0.3.0 and now says 0.4.0, matching the crate manifests and the crates.io record for all five crates.
 
 Nothing else in the README changed. The corpus counts, the scale proofs, the dialect list, the panel list, and the nesting budget all verified as written, so the pass corrected only what the audit proved stale and left the rest of the file untouched.
