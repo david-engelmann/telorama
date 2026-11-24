@@ -58,3 +58,17 @@ fixtures. The record re-pins once through the hosted generation
 workflow in the established mold. The owed capture of the viewer
 page and the owed local export verification are untouched by
 this round and stay owed.
+
+## Amendment from the build (2026-11-24)
+
+The measurements the record reserved are taken. The GenAI
+session carries one frame whose only finding kind is cost, a
+turn at $0.0231 on gpt-5.1, and the OpenInference session
+carries one frame whose only finding kind is cost, a turn at
+$0.0094 on the same model. Neither span dialect merges wait
+data, so no wait finding arises from either, and the coverage
+pins say exactly that with the reason stated, in the Codex
+form. The summary bar's true totals on the completed record
+are one errors, one latency, one wait, and four cost. The
+incident half and the two existing sessions regenerated
+byte-identical, as the fences required.

@@ -239,7 +239,24 @@ fn assemble_record() -> Record {
     let codex_logs = workspace_file("tests/fixtures/agents/codex-session-logs.json");
     let codex_run = telorama_ingest::parse_codex_session(&codex_logs, &[])
         .expect("the Codex session fixture must adapt");
-    let sessions = vec![session_record(&claude_run), session_record(&codex_run)];
+    let genai_spans = telorama_ingest::parse_otlp_traces(&workspace_file(
+        "tests/fixtures/agents/genai-session-spans.json",
+    ))
+    .expect("the GenAI session fixture must parse");
+    let genai_run = telorama_ingest::parse_genai_session(&genai_spans)
+        .expect("the GenAI session fixture must adapt");
+    let openinference_spans = telorama_ingest::parse_otlp_traces(&workspace_file(
+        "tests/fixtures/agents/openinference-session-spans.json",
+    ))
+    .expect("the OpenInference session fixture must parse");
+    let openinference_run = telorama_ingest::parse_openinference_session(&openinference_spans)
+        .expect("the OpenInference session fixture must adapt");
+    let sessions = vec![
+        session_record(&claude_run),
+        session_record(&codex_run),
+        session_record(&genai_run),
+        session_record(&openinference_run),
+    ];
 
     Record {
         record: RecordMeta {
@@ -251,6 +268,8 @@ fn assemble_record() -> Record {
                 "tests/fixtures/agents/claude-code-session-logs.json".to_string(),
                 "tests/fixtures/agents/claude-code-session-spans.json".to_string(),
                 "tests/fixtures/agents/codex-session-logs.json".to_string(),
+                "tests/fixtures/agents/genai-session-spans.json".to_string(),
+                "tests/fixtures/agents/openinference-session-spans.json".to_string(),
             ],
         },
         incident,
@@ -325,7 +344,7 @@ fn viewer_record_covers_every_finding_kind_and_the_quiet_panel() {
         "the incident hash must be the hash of the incident svg"
     );
 
-    assert_eq!(record.sessions.len(), 2);
+    assert_eq!(record.sessions.len(), 4);
     let claude = &record.sessions[0];
     assert_eq!(claude.session_id, "sess-2026-1116-demo");
     assert_eq!(claude.dialect, "claude_code");
@@ -348,6 +367,30 @@ fn viewer_record_covers_every_finding_kind_and_the_quiet_panel() {
             kinds,
             ["cost"],
             "the Codex adapter merges no wait data, so a Codex frame's only session finding is cost"
+        );
+    }
+    let genai = &record.sessions[2];
+    assert_eq!(genai.session_id, "conv-genai-demo");
+    assert_eq!(genai.dialect, "genai");
+    assert_eq!(genai.frames.len(), 1);
+    for frame in &genai.frames {
+        let kinds: Vec<&str> = frame.findings.iter().map(|f| f.kind.as_str()).collect();
+        assert_eq!(
+            kinds,
+            ["cost"],
+            "the GenAI adapter merges no wait data, so a GenAI frame's only session finding is cost"
+        );
+    }
+    let openinference = &record.sessions[3];
+    assert_eq!(openinference.session_id, "sess-oi-demo");
+    assert_eq!(openinference.dialect, "openinference");
+    assert_eq!(openinference.frames.len(), 1);
+    for frame in &openinference.frames {
+        let kinds: Vec<&str> = frame.findings.iter().map(|f| f.kind.as_str()).collect();
+        assert_eq!(
+            kinds,
+            ["cost"],
+            "the OpenInference adapter merges no wait data, so an OpenInference frame's only session finding is cost"
         );
     }
     for session in &record.sessions {
