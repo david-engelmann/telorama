@@ -157,6 +157,26 @@ fn sections() -> Vec<Section> {
             &spans,
         ));
     }
+    {
+        let scene = telorama_scene::parse_scene(&workspace_file(
+            "tests/fixtures/scenes/agent_run_openinference_scene.json",
+        ))
+        .expect("openinference scene must validate");
+        let spans = telorama_ingest::parse_otlp_traces(&workspace_file(
+            "tests/fixtures/agents/openinference-session-spans.json",
+        ))
+        .expect("openinference fixture must parse");
+        let run = telorama_ingest::parse_openinference_session(&spans).expect("spans must adapt");
+        out.push(tool_render(
+            "Agent runs",
+            scene,
+            &spans,
+            &[],
+            Some(&run),
+            &[],
+            &spans,
+        ));
+    }
     // Agent state.
     {
         let scene = telorama_scene::parse_scene(&workspace_file(
