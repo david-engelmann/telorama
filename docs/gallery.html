@@ -306,6 +306,53 @@
 
 </div>
 </section>
+<section class="card">
+<h3>OpenInference session run</h3>
+<p class="question">What did the agent do in this session, and what did it cost?</p>
+<div class="scene">
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="365" viewBox="0 0 960 365" role="img">
+<title>OpenInference session run</title>
+<desc>One agent and a tool call, mapped from spans alone</desc>
+<rect x="0" y="0" width="960" height="365" fill="#FFFFFF"/>
+<text x="24" y="30" font-family="system-ui, sans-serif" font-size="20" fill="#1A1A1A" text-anchor="start" font-weight="700">One agent and a tool call, mapped from spans alone</text>
+<text x="24" y="50" font-family="system-ui, sans-serif" font-size="12" fill="#5A5A5A" text-anchor="start">OpenInference session run</text>
+<text x="24" y="72" font-family="system-ui, sans-serif" font-size="12" fill="#1A1A1A" text-anchor="start" font-weight="700">Look here first</text>
+<text x="24" y="88" font-family="system-ui, sans-serif" font-size="12" fill="#1A1A1A" text-anchor="start">1 · llm call in agent-app-oi holds the largest self time at 3 s (33.3% of the window self time), on the critical path of its trace</text>
+<text x="24" y="103" font-family="system-ui, sans-serif" font-size="12" fill="#1A1A1A" text-anchor="start">2 · The most expensive turn cost $0.0094 (100.0% of the session priced cost $0.0094) on gpt-5.1</text>
+<text x="24" y="133" font-family="system-ui, sans-serif" font-size="14" fill="#1A1A1A" text-anchor="start" font-weight="700">Agent run</text>
+<line x1="200" y1="145" x2="936" y2="145" stroke="#CCCCCC" stroke-width="1"/>
+<line x1="200" y1="145" x2="200" y2="149" stroke="#CCCCCC" stroke-width="1"/>
+<text x="200" y="141" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">0 ns</text>
+<line x1="384" y1="145" x2="384" y2="149" stroke="#CCCCCC" stroke-width="1"/>
+<text x="384" y="141" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">3 s</text>
+<line x1="568" y1="145" x2="568" y2="149" stroke="#CCCCCC" stroke-width="1"/>
+<text x="568" y="141" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">6 s</text>
+<line x1="752" y1="145" x2="752" y2="149" stroke="#CCCCCC" stroke-width="1"/>
+<text x="752" y="141" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">9 s</text>
+<line x1="936" y1="145" x2="936" y2="149" stroke="#CCCCCC" stroke-width="1"/>
+<text x="936" y="141" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">12 s</text>
+<text x="24" y="175" font-family="system-ui, sans-serif" font-size="12" fill="#1A1A1A" text-anchor="start" font-weight="700">Turn 1 · 2900 in · 570 out · 600 cache read · $0.0094</text>
+<text x="24" y="194" font-family="system-ui, sans-serif" font-size="11" fill="#1A1A1A" text-anchor="start">model gpt-5.1</text>
+<rect x="212.27" y="183" width="171.73" height="12" fill="#0072B2"/>
+<text x="390" y="194" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">2.8 s</text>
+<text x="24" y="212" font-family="system-ui, sans-serif" font-size="11" fill="#1A1A1A" text-anchor="start">tool calculator</text>
+<rect x="396.27" y="201" width="49.07" height="12" fill="#009E73"/>
+<text x="451.33" y="212" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">800 ms</text>
+<text x="24" y="230" font-family="system-ui, sans-serif" font-size="11" fill="#1A1A1A" text-anchor="start">model gpt-5.1</text>
+<rect x="506.67" y="219" width="184" height="12" fill="#0072B2"/>
+<text x="696.67" y="230" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">3 s</text>
+<text x="24" y="255" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Session sess-oi-demo · 1 turn · 2900 in · 570 out · 600 cache read · $0.0094</text>
+<text x="24" y="270" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Coverage · 0 log events · 5 spans read · 5 spans merged · tokens and structure come from span attributes in this dialect</text>
+<text x="24" y="285" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Cost is an estimate priced by telorama from tokens at the price table dated 2026-11-23</text>
+<line x1="24" y1="305" x2="936" y2="305" stroke="#CCCCCC" stroke-width="1"/>
+<text x="24" y="321" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Window 2026-11-16T19:00:00Z to 2026-11-16T19:00:12Z</text>
+<text x="24" y="336" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Data session · openinference_session · query openinference session sess-oi-demo otlp traces export · unsampled</text>
+<text x="24" y="351" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Generated by agent · Question: What did the agent do in this session, and what did it cost?</text>
+</svg>
+
+</div>
+</section>
 <h2 class="family">Agent state</h2>
 <section class="card">
 <h3>Agent state</h3>

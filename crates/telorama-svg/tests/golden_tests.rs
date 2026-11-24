@@ -459,6 +459,31 @@ fn golden_agent_run_genai_scene() {
 }
 
 #[test]
+fn golden_agent_run_openinference_scene() {
+    let scene = telorama_scene::parse_scene(&workspace_file(
+        "tests/fixtures/scenes/agent_run_openinference_scene.json",
+    ))
+    .expect("openinference scene must validate");
+    let spans = telorama_ingest::parse_otlp_traces(&workspace_file(
+        "tests/fixtures/agents/openinference-session-spans.json",
+    ))
+    .expect("openinference fixture must parse");
+    let run = telorama_ingest::parse_openinference_session(&spans).expect("spans must adapt");
+    let svg = telorama_svg::render_scene_with_data(
+        &scene,
+        &telorama_svg::SceneData {
+            spans: &spans,
+            stacks: &[],
+            agent_run: Some(&run),
+            agent_state: &[],
+            findings: &[],
+        },
+    )
+    .expect("openinference scene must render");
+    assert_golden("agent_run_openinference_scene.svg", &svg);
+}
+
+#[test]
 fn golden_incident_checkout_scene() {
     let spans = telorama_ingest::parse_otlp_traces(&workspace_file(
         "tests/fixtures/otel-demo-checkout.json",
