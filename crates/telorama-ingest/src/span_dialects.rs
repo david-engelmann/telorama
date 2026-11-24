@@ -227,44 +227,59 @@ fn build_run(spans: &[Span], dialect: &Dialect) -> Result<AgentRun, IngestError>
             }
         }
     };
-    let mut by_trace: BTreeMap<&str, Vec<&Span>> = BTreeMap::new();
-    for span in spans {
+    let mut by_trace: BTreeMap<&str, Vec<usize>> = BTreeMap::new();
+    for (index, span) in spans.iter().enumerate() {
         by_trace
             .entry(span.trace_id.as_str())
             .or_default()
-            .push(span);
+            .push(index);
     }
     let mut priced: BTreeSet<String> = BTreeSet::new();
     let mut unpriced: BTreeSet<String> = BTreeSet::new();
     let mut turns = Vec::new();
-    for trace_spans in by_trace.values() {
-        let in_trace: BTreeSet<&str> = trace_spans.iter().map(|s| s.span_id.as_str()).collect();
-        let mut children: BTreeMap<&str, Vec<&Span>> = BTreeMap::new();
-        let mut roots: Vec<&Span> = Vec::new();
-        for span in trace_spans {
-            match span.parent_span_id.as_deref() {
+    for (trace_id, trace_indices) in &by_trace {
+        let in_trace: BTreeSet<&str> = trace_indices
+            .iter()
+            .map(|&i| spans[i].span_id.as_str())
+            .collect();
+        // Attribution is by occurrence (INV-89): the children
+        // of a repeated id are consumed by its adopting copy
+        // alone, under the same rule the trace walks use, and
+        // the visited set keys on the span's position in the
+        // caller's slice and spans the whole trace, so every
+        // copy emits once and no subtree walks twice.
+        let adopters = telorama_scene::adopting_copy_indices(spans, trace_id);
+        let mut children: BTreeMap<&str, Vec<usize>> = BTreeMap::new();
+        let mut roots: Vec<usize> = Vec::new();
+        for &index in trace_indices {
+            match spans[index].parent_span_id.as_deref() {
                 Some(parent) if in_trace.contains(parent) => {
-                    children.entry(parent).or_default().push(span);
+                    children.entry(parent).or_default().push(index);
                 }
-                _ => roots.push(span),
+                _ => roots.push(index),
             }
         }
-        let by_start = |a: &&Span, b: &&Span| {
-            a.start_unix_nano
-                .cmp(&b.start_unix_nano)
-                .then_with(|| a.span_id.cmp(&b.span_id))
+        let by_start = |a: &usize, b: &usize| {
+            spans[*a]
+                .start_unix_nano
+                .cmp(&spans[*b].start_unix_nano)
+                .then_with(|| spans[*a].span_id.cmp(&spans[*b].span_id))
         };
         for list in children.values_mut() {
             list.sort_by(by_start);
         }
         roots.sort_by(by_start);
+        let mut seen: BTreeSet<usize> = BTreeSet::new();
         for root in roots {
             turns.push(build_turn(
                 root,
+                spans,
                 &children,
+                &adopters,
                 dialect,
                 &mut priced,
                 &mut unpriced,
+                &mut seen,
             )?);
         }
     }
@@ -286,35 +301,40 @@ fn build_run(spans: &[Span], dialect: &Dialect) -> Result<AgentRun, IngestError>
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_turn(
-    root: &Span,
-    children: &BTreeMap<&str, Vec<&Span>>,
+    root: usize,
+    spans: &[Span],
+    children: &BTreeMap<&str, Vec<usize>>,
+    adopters: &BTreeMap<String, usize>,
     dialect: &Dialect,
     priced: &mut BTreeSet<String>,
     unpriced: &mut BTreeSet<String>,
+    seen: &mut BTreeSet<usize>,
 ) -> Result<AgentTurn, IngestError> {
+    let root_span = &spans[root];
     let mut steps = Vec::new();
-    let mut seen: BTreeSet<String> = BTreeSet::new();
-    match (dialect.classify)(root) {
+    match (dialect.classify)(root_span) {
         Role::Agent | Role::Container => {
-            // The root itself never emits as a step, so seed the
-            // set with its id and a cycle back to it stops too.
-            seen.insert(root.span_id.clone());
-            for child in children_of(children, root) {
+            // The root itself never emits as a step, so seed
+            // the set with its position and a cycle back to
+            // it stops too.
+            seen.insert(root);
+            for &child in children_of(children, adopters, root, root_span) {
                 emit(
-                    child, children, dialect, priced, unpriced, &mut seen, &mut steps,
+                    child, spans, children, adopters, dialect, priced, unpriced, seen, &mut steps,
                 )?;
             }
         }
         _ => emit(
-            root, children, dialect, priced, unpriced, &mut seen, &mut steps,
+            root, spans, children, adopters, dialect, priced, unpriced, seen, &mut steps,
         )?,
     }
-    let span_count = subtree_len(root, children);
+    let span_count = subtree_len(root, spans, children, adopters);
     let mut turn = AgentTurn {
-        prompt_id: root.span_id.clone(),
-        start_unix_nano: root.start_unix_nano,
-        end_unix_nano: root.end_unix_nano,
+        prompt_id: root_span.span_id.clone(),
+        start_unix_nano: root_span.start_unix_nano,
+        end_unix_nano: root_span.end_unix_nano,
         steps,
         input_tokens: 0,
         output_tokens: 0,
@@ -350,40 +370,66 @@ fn add_step_totals(turn: &mut AgentTurn, step: &AgentStep) {
     }
 }
 
-fn children_of<'a>(children: &'a BTreeMap<&str, Vec<&'a Span>>, span: &Span) -> &'a [&'a Span] {
-    children
-        .get(span.span_id.as_str())
-        .map(Vec::as_slice)
-        .unwrap_or(&[])
+/// The children of one span occurrence, as positions in the
+/// caller's slice. Only the adopting copy of a repeated id
+/// carries the id's children (INV-89). Every other copy
+/// carries none.
+fn children_of<'a>(
+    children: &'a BTreeMap<&str, Vec<usize>>,
+    adopters: &BTreeMap<String, usize>,
+    index: usize,
+    span: &Span,
+) -> &'a [usize] {
+    if adopters.get(span.span_id.as_str()) == Some(&index) {
+        children
+            .get(span.span_id.as_str())
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    } else {
+        &[]
+    }
 }
 
 /// How many spans a root's subtree carries, the root included. The
 /// span dialects read and merge every span in the trace, so a turn's
-/// coverage is its subtree size. Each span id counts once, so a
-/// cycle through repeated ids terminates (INV-82).
-fn subtree_len(root: &Span, children: &BTreeMap<&str, Vec<&Span>>) -> u64 {
+/// coverage is its subtree size. Each span occurrence counts once,
+/// so a cycle through repeated ids terminates (INV-82), and the
+/// children of a repeated id count under its adopting copy alone
+/// (INV-89), which makes the count the number of occurrences the
+/// turn's walk reaches.
+fn subtree_len(
+    root: usize,
+    spans: &[Span],
+    children: &BTreeMap<&str, Vec<usize>>,
+    adopters: &BTreeMap<String, usize>,
+) -> u64 {
     let mut count = 0u64;
-    let mut seen: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
-    let mut stack: Vec<&Span> = vec![root];
-    while let Some(span) = stack.pop() {
-        if !seen.insert(span.span_id.as_str()) {
+    let mut seen: BTreeSet<usize> = BTreeSet::new();
+    let mut stack: Vec<usize> = vec![root];
+    while let Some(index) = stack.pop() {
+        if !seen.insert(index) {
             continue;
         }
         count += 1;
-        if let Some(kids) = children.get(span.span_id.as_str()) {
-            stack.extend(kids.iter());
-        }
+        stack.extend(
+            children_of(children, adopters, index, &spans[index])
+                .iter()
+                .copied(),
+        );
     }
     count
 }
 
+#[allow(clippy::too_many_arguments)]
 fn emit(
-    span: &Span,
-    children: &BTreeMap<&str, Vec<&Span>>,
+    span: usize,
+    spans: &[Span],
+    children: &BTreeMap<&str, Vec<usize>>,
+    adopters: &BTreeMap<String, usize>,
     dialect: &Dialect,
     priced: &mut BTreeSet<String>,
     unpriced: &mut BTreeSet<String>,
-    seen: &mut BTreeSet<String>,
+    seen: &mut BTreeSet<usize>,
     sink: &mut Vec<AgentStep>,
 ) -> Result<(), IngestError> {
     // The walk runs on an explicit stack (INV-87). Each frame
@@ -394,57 +440,61 @@ fn emit(
     // points the recursive walk tested it.
     struct Frame<'a> {
         span: &'a Span,
-        kids: &'a [&'a Span],
+        kids: &'a [usize],
         next: usize,
         agent_depth: usize,
         steps: Vec<AgentStep>,
     }
 
     fn open<'a>(
-        span: &'a Span,
-        children: &'a BTreeMap<&str, Vec<&'a Span>>,
+        index: usize,
+        spans: &'a [Span],
+        children: &'a BTreeMap<&str, Vec<usize>>,
+        adopters: &BTreeMap<String, usize>,
         agent_depth: usize,
-        seen: &mut BTreeSet<String>,
+        seen: &mut BTreeSet<usize>,
     ) -> Option<Frame<'a>> {
-        // Each span id emits once per turn, so a cycle through
-        // repeated ids stops instead of walking forever (INV-82).
-        if !seen.insert(span.span_id.clone()) {
+        // Each span occurrence emits once per run, so a cycle
+        // through repeated ids stops instead of walking
+        // forever (INV-82) and no copy is suppressed (INV-89).
+        if !seen.insert(index) {
             return None;
         }
         Some(Frame {
-            span,
-            kids: children_of(children, span),
+            span: &spans[index],
+            kids: children_of(children, adopters, index, &spans[index]),
             next: 0,
             agent_depth,
             steps: Vec::new(),
         })
     }
 
+    let span_ref = &spans[span];
     let mut stack: Vec<Frame> = Vec::new();
-    match (dialect.classify)(span) {
+    match (dialect.classify)(span_ref) {
         Role::Model => {
-            if seen.insert(span.span_id.clone()) {
+            if seen.insert(span) {
                 sink.push(AgentStep::ModelCall(model_call(
-                    span, dialect, priced, unpriced,
+                    span_ref, dialect, priced, unpriced,
                 )));
             }
             return Ok(());
         }
         Role::Tool => {
-            if seen.insert(span.span_id.clone()) {
+            if seen.insert(span) {
                 sink.push(AgentStep::ToolCall(ToolCall {
-                    name: (dialect.tool_name)(span),
-                    start_unix_nano: span.start_unix_nano,
-                    end_unix_nano: span.end_unix_nano,
+                    name: (dialect.tool_name)(span_ref),
+                    start_unix_nano: span_ref.start_unix_nano,
+                    end_unix_nano: span_ref.end_unix_nano,
                     wait_nanos: 0,
-                    is_error: span.is_error,
+                    is_error: span_ref.is_error,
                     decision: None,
                 }));
             }
             return Ok(());
         }
         Role::Container | Role::Agent => {
-            if let Some(frame) = open(span, children, 0, seen) {
+            if let Some(frame) = open(span, spans, children, adopters, 0, seen) {
                 stack.push(frame);
             }
         }
@@ -463,10 +513,10 @@ fn emit(
             }
         };
         match child {
-            Some(child) => match (dialect.classify)(child) {
+            Some(child) => match (dialect.classify)(&spans[child]) {
                 Role::Model => {
-                    if seen.insert(child.span_id.clone()) {
-                        let call = model_call(child, dialect, priced, unpriced);
+                    if seen.insert(child) {
+                        let call = model_call(&spans[child], dialect, priced, unpriced);
                         stack
                             .last_mut()
                             .expect("frames under construction")
@@ -475,13 +525,13 @@ fn emit(
                     }
                 }
                 Role::Tool => {
-                    if seen.insert(child.span_id.clone()) {
+                    if seen.insert(child) {
                         let step = AgentStep::ToolCall(ToolCall {
-                            name: (dialect.tool_name)(child),
-                            start_unix_nano: child.start_unix_nano,
-                            end_unix_nano: child.end_unix_nano,
+                            name: (dialect.tool_name)(&spans[child]),
+                            start_unix_nano: spans[child].start_unix_nano,
+                            end_unix_nano: spans[child].end_unix_nano,
                             wait_nanos: 0,
-                            is_error: child.is_error,
+                            is_error: spans[child].is_error,
                             decision: None,
                         });
                         stack
@@ -492,15 +542,15 @@ fn emit(
                     }
                 }
                 Role::Container | Role::Agent => {
-                    if matches!((dialect.classify)(child), Role::Agent)
-                        && !seen.contains(child.span_id.as_str())
+                    if matches!((dialect.classify)(&spans[child]), Role::Agent)
+                        && !seen.contains(&child)
                         && child_depth + 1 > MAX_AGENT_NESTING
                     {
                         return Err(fail(format!(
                             "session nests agents deeper than the {MAX_AGENT_NESTING} level budget"
                         )));
                     }
-                    if let Some(frame) = open(child, children, child_depth, seen) {
+                    if let Some(frame) = open(child, spans, children, adopters, child_depth, seen) {
                         stack.push(frame);
                     }
                 }

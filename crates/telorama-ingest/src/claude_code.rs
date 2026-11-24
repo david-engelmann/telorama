@@ -54,7 +54,7 @@ struct TurnBuilder {
     cache_creation_tokens: u64,
     cost_usd: f64,
     events: u64,
-    merged_ids: BTreeSet<String>,
+    merged_ids: BTreeSet<usize>,
 }
 
 impl TurnBuilder {
@@ -237,36 +237,55 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
     // Fusion. Spans contribute what logs cannot prove.
     // Permission waits: a tool span containing a tool step, with
     // blocked_on_user children, sets the step's wait to the sum of
-    // those children's durations.
-    let mut blocked: BTreeMap<&str, Vec<&Span>> = BTreeMap::new();
-    for span in spans {
-        if span.name == "claude_code.tool.blocked_on_user"
-            && let Some(parent) = span.parent_span_id.as_deref()
-        {
-            blocked.entry(parent).or_default().push(span);
+    // those children's durations. Attribution is by occurrence
+    // (INV-89): each blocked child resolves to the tool span
+    // occurrence whose window contains it, the smallest such
+    // window, so two tool spans under one id never pool their
+    // children, and a child no occurrence contains stays
+    // unattributed.
+    let tool_spans: Vec<(usize, &Span)> = spans
+        .iter()
+        .enumerate()
+        .filter(|(_, s)| s.name == "claude_code.tool")
+        .collect();
+    let mut blocked: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
+    for (index, span) in spans.iter().enumerate() {
+        if span.name != "claude_code.tool.blocked_on_user" {
+            continue;
+        }
+        let Some(parent) = span.parent_span_id.as_deref() else {
+            continue;
+        };
+        let owner = tool_spans
+            .iter()
+            .filter(|(_, tool)| {
+                tool.span_id == parent
+                    && tool.start_unix_nano <= span.start_unix_nano
+                    && span.end_unix_nano <= tool.end_unix_nano
+            })
+            .min_by_key(|(_, tool)| (tool.duration_nanos(), tool.start_unix_nano))
+            .map(|(tool_index, _)| *tool_index);
+        if let Some(owner) = owner {
+            blocked.entry(owner).or_default().push(index);
         }
     }
-    let tool_spans: Vec<&Span> = spans
-        .iter()
-        .filter(|s| s.name == "claude_code.tool")
-        .collect();
     for turn in builders.values_mut() {
         for step in turn.steps.iter_mut() {
             let AgentStep::ToolCall(tool) = step else {
                 continue;
             };
-            for span in &tool_spans {
+            for (span_index, span) in &tool_spans {
                 if span.start_unix_nano <= tool.start_unix_nano
                     && tool.end_unix_nano <= span.end_unix_nano
-                    && let Some(children) = blocked.get(span.span_id.as_str())
+                    && let Some(children) = blocked.get(span_index)
                 {
-                    let wait: i64 = children
-                        .iter()
-                        .fold(0i64, |acc, c| acc.saturating_add(c.duration_nanos()));
+                    let wait: i64 = children.iter().fold(0i64, |acc, &child| {
+                        acc.saturating_add(spans[child].duration_nanos())
+                    });
                     if wait > tool.wait_nanos {
                         tool.wait_nanos = wait;
-                        for child in children {
-                            turn.merged_ids.insert(child.span_id.clone());
+                        for &child in children {
+                            turn.merged_ids.insert(child);
                         }
                     }
                 }
@@ -278,12 +297,14 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
     // windows first, so nested subagents compose. A window that
     // captures no steps still leaves its run, placed by start time,
     // when it overlaps the turn.
-    let mut agent_spans: Vec<&Span> = spans
+    let mut agent_spans: Vec<(usize, &Span)> = spans
         .iter()
-        .filter(|s| s.attributes.contains_key("agent_id"))
+        .enumerate()
+        .filter(|(_, s)| s.attributes.contains_key("agent_id"))
         .collect();
-    agent_spans.sort_by_key(|s| (s.duration_nanos(), s.start_unix_nano));
-    for span in &agent_spans {
+    agent_spans.sort_by_key(|(_, s)| (s.duration_nanos(), s.start_unix_nano));
+    for (span_index, span) in &agent_spans {
+        let span = *span;
         let agent_id = span.attributes["agent_id"].clone();
         for turn in builders.values_mut() {
             let mut taken: Vec<AgentStep> = Vec::new();
@@ -314,7 +335,7 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
                     steps: taken,
                 };
                 kept.insert(insert_at.unwrap_or(kept.len()), AgentStep::Subagent(run));
-                turn.merged_ids.insert(span.span_id.clone());
+                turn.merged_ids.insert(*span_index);
             } else {
                 // No steps captured: place an empty run by start time
                 // when the window overlaps this turn's steps.
@@ -336,7 +357,7 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
                             steps: Vec::new(),
                         }),
                     );
-                    turn.merged_ids.insert(span.span_id.clone());
+                    turn.merged_ids.insert(*span_index);
                 }
             }
             turn.steps = kept;
@@ -358,7 +379,7 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
     }
     let mut turns = Vec::new();
     let mut carry = 0u64;
-    let mut kept_merged: BTreeSet<String> = BTreeSet::new();
+    let mut kept_merged: BTreeSet<usize> = BTreeSet::new();
     for prompt_id in order {
         let builder = builders.remove(&prompt_id).expect("builder exists");
         if builder.steps.is_empty() && builder.prompt_time.is_none() {
@@ -378,7 +399,7 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
             .map(|s| s.end_unix_nano())
             .max()
             .unwrap_or(start);
-        kept_merged.extend(builder.merged_ids.iter().cloned());
+        kept_merged.extend(builder.merged_ids.iter().copied());
         turns.push(AgentTurn {
             prompt_id,
             start_unix_nano: start,

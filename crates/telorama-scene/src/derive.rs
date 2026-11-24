@@ -141,6 +141,20 @@ fn adopting_copies(
     }
 }
 
+/// The adopting copy of each span id in one trace, as the
+/// span's position in the caller's slice (INV-89). The
+/// session derivations in the ingest crate resolve parents
+/// under the same rule as the trace walks, so this is the
+/// shared entry point over the occurrence machinery above.
+pub fn adopting_copy_indices(spans: &[Span], trace_id: &str) -> BTreeMap<String, usize> {
+    let owned = trace_occurrences(spans, trace_id);
+    let children = occurrence_children(&owned);
+    adopting_copies(&owned, &children)
+        .into_iter()
+        .map(|(id, pos)| (id, owned[pos].0))
+        .collect()
+}
+
 /// Children of each span in a trace, keyed by parent span id, each list in
 /// canonical order.
 fn children_map<'a>(spans: &[&'a Span]) -> BTreeMap<String, Vec<&'a Span>> {

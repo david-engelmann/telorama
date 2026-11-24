@@ -684,7 +684,7 @@ later milestones are marked as validator-side.
   occurrence its figures came from. No surface
   joins a derived row back to a span by id
   alone. Enforced by the duplicate-id tests in
-  the scene, svg, and MCP suites.
+  the scene, ingest, svg, and MCP suites.
 
 ## Hostile inputs (derive, ingest, pricing)
 
