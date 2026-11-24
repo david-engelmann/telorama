@@ -1087,7 +1087,7 @@ fn claude_session_reads_hostile_figures_as_defined_defaults() {
         })
         .to_string()
     }
-    let records = vec![
+    let records = [
         record(1_794_841_200_000_000_000, "claude_code.user_prompt", &[]),
         record(
             1_794_841_201_000_000_000,
