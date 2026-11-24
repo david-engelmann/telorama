@@ -29,8 +29,10 @@ fixture field for field with the OpenInference facts in place
 of the GenAI ones. One agent_run panel over one data entry
 whose source kind is openinference_session. The context range
 covers the session fixture's own window, which runs from
-1794855600000 to 1794855609000 in unix milliseconds, padded the
-same way the GenAI scene pads its fixture window. The headline
+1794855600000 to 1794855609000 in unix milliseconds, with the
+start exact at the window's first span and the end padded by
+3000 milliseconds, to 1794855612000, the same pad the GenAI
+scene applies to its fixture window. The headline
 and narrative are written for what the render will actually
 show, one turn priced as telorama's estimate, and are checked
 against the generated golden before the build is called done,
@@ -70,13 +72,18 @@ stops and reports rather than pinning a surprise.
 
 No production code changes. The adapter, the renderer, and the
 scene spec already handle this dialect, and the round proves
-it by rendering, not by modifying. The new golden does not
-join the gallery page, which shows one render per scene
-family, and the agent run family is already represented. Two
+it by rendering, not by modifying. The new scene does join the
+gallery page, because it has to. The gallery coverage gate,
+INV-63, asserts that every scene fixture has a gallery section,
+so adding the fixture without a section would fail the hosted
+gate. The build therefore adds an OpenInference section to the
+section list in crates/telorama-svg/tests/gallery_tests.rs and
+regenerates docs/gallery.html on the hosted route through the
+UPDATE_GALLERY mechanism, in the same change. Two
 counts elsewhere move and the build moves them in the same
 change. The README's golden corpus count goes from thirteen
 scenes to fourteen, and the DECISIONS entry for the build
 round records the corpus at fourteen light scenes with the
 five dark pins unchanged. No invariant is added, because the
-round adds a pin inside INV-62's existing golden discipline
+round adds a pin inside INV-18's existing golden discipline
 rather than a new rule.
