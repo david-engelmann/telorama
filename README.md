@@ -6,6 +6,8 @@ telorama is a visualization engine for OpenTelemetry data. An AI agent describes
 
 The [gallery](docs/gallery.html) shows every scene family rendered from the test fixtures, each carrying the findings the investigation layer reports for its data.
 
+The verdict viewer in the web directory renders one recorded investigation end to end. Its [scene reel](docs/media/viewer-reel.mp4) shows that record's incident scene and session frames exactly as the tools rendered them.
+
 ## What it does
 
 - It turns a trace into a waterfall diagram that shows where one request spent its time and which part of the work sits on the critical path.
