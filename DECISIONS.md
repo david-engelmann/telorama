@@ -1329,3 +1329,69 @@ crates serve 0.3.0, and the worked example
 stands on the scene front page. The packaging
 ran on a CI runner through the vendored staging
 route, and the packaging branch is deleted.
+
+## Round 14: the long session (2026-11-23)
+
+The design record is docs/LONG-SESSION-DESIGN.md.
+Three generated fixtures in the Round 4 style
+prove the session side past the Round 4 point.
+A five thousand turn run through the frame
+stream builds in 13.06 seconds on the first
+hosted measurement, under a ceiling of ten
+times that, and its final frame renders at
+4,150,019 bytes under a pinned content hash.
+A ten thousand span GenAI session parses in 47
+milliseconds and a ten thousand event Claude
+Code log in 176 milliseconds, both asserting
+turn counts and token totals. The adapters are
+linear at this scale and need no ceiling
+beyond the suite's own runtime.
+
+The stream's aggregate byte total is the one
+figure the gate does not materialize. At five
+hundred turns the full render measured
+104,428,401 bytes, and each frame grows by one
+turn's rows, so the aggregate at five thousand
+turns stands on the order of ten gigabytes by
+that measured growth. The gate therefore pins
+the stream's construction and its final frame,
+and this record carries the aggregate as a
+measured estimate rather than a pin. The
+design's conviction branch does not fire. The
+quadratic construction costs thirteen seconds
+at five thousand turns, which is practical,
+and the frames are built to be consumed one at
+a time, as the view and the frames command
+consume them.
+
+The Claude fixture's first form put the event
+name in the record body, where the parser does
+not read it, and built zero turns. The parser
+reads the event.name attribute, the shape the
+real dialect carries, and the fixture now
+builds its records with serde_json so the
+shape cannot drift by a string template again.
+
+The checkpoint reviews repaired the proof in
+three places. The GenAI test's first coverage
+assertion read the run-level figure, which the
+builder copies from the input length, so it
+proved nothing about emission. The test now
+sums the per-turn coverage, the count of spans
+the walk actually reached, and the Claude test
+likewise asserts its event count. Both adapter
+tests gained wall clock ceilings on the ten
+times rule, as INV-70 asks of every scale test.
+The frame test gained a mid-stream render pin,
+so its proof is not only about the stream's
+two ends. The design record carries a dated
+amendment for the aggregate handling above.
+
+The standing lanes stand as the design left
+them. The A2UI watch was reviewed and stays a
+watch item. The convention check rests on the
+charges pass of this same day, which read the
+GenAI conventions against the pinned commit
+and the MCP Apps surface against the stable
+text, and nothing in either text has moved
+since that reading.

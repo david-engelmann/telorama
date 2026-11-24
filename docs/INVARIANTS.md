@@ -497,7 +497,9 @@ later milestones are marked as validator-side.
 - INV-69. The scale fixtures stand at ten thousand spans
   in one trace, a wide trace of ten thousand spans at
   depth two, ten thousand spans across one thousand
-  traces, five hundred session turns, and one hundred
+  traces, five hundred session turns, five thousand
+  session turns, ten thousand session spans, ten
+  thousand session log events, and one hundred
   thousand stack samples, each generated in its test from
   a fixed recipe. Every fixture pins its renders by
   FNV-1a hash and its headline counts by assertion, so a
@@ -525,7 +527,12 @@ later milestones are marked as validator-side.
   session_frames_hold_at_five_hundred_turns and
   golden_tests frame_stream_totals_hold_at_five_hundred_turns,
   which holds the rendered stream's total bytes against
-  the ceiling recorded in that test.
+  the ceiling recorded in that test. At five thousand
+  turns the aggregate is not materialized in the gate.
+  golden_tests frame_stream_at_five_thousand_turns
+  pins the construction and the final and mid-stream
+  frames there instead, and the Round 14 record
+  carries the aggregate from the measured points.
 - INV-72. At large volumes a sankey ribbon may fall
   below one pixel in height. The diagram stays exact
   regardless, with every span's flow drawn at its
