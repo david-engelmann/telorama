@@ -184,8 +184,25 @@ fn derivations_do_not_depend_on_input_order() {
     let mut spans = checkout_spans();
     let rows_a = waterfall_rows(&spans, "t1");
     let path_a = critical_path(&spans, "t1");
+    // Each row's index resolves to its own span in the
+    // input it was derived from (INV-89).
+    for row in &rows_a {
+        assert_eq!(spans[row.span_index].span_id, row.span_id);
+    }
     spans.reverse();
-    assert_eq!(rows_a, waterfall_rows(&spans, "t1"));
+    let rows_b = waterfall_rows(&spans, "t1");
+    for row in &rows_b {
+        assert_eq!(spans[row.span_index].span_id, row.span_id);
+    }
+    // The derivation itself is the same run of rows either
+    // way. The index is a join key into the caller's slice,
+    // so it is the one field that follows the input order.
+    let shape = |rows: &[telorama_scene::WaterfallRow]| {
+        rows.iter()
+            .map(|r| (r.span_id.as_str(), r.depth, r.self_time_nanos))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(shape(&rows_a), shape(&rows_b));
     assert_eq!(path_a, critical_path(&spans, "t1"));
 }
 
@@ -807,14 +824,15 @@ fn cyclic_spans() -> Vec<Span> {
 
 #[test]
 fn waterfall_rows_terminate_on_a_cyclic_trace() {
-    // INV-82: each span id is emitted once, so the second b is
-    // not emitted and the walk stops instead of following the
-    // b-c cycle forever.
+    // INV-82 and INV-89: every occurrence is emitted once
+    // and the children of b hang from its first occurrence,
+    // so the second b carries no children and the walk stops
+    // instead of following the b-c cycle forever.
     let rows = waterfall_rows(&cyclic_spans(), "t1");
     let ids: Vec<&str> = rows.iter().map(|r| r.span_id.as_str()).collect();
-    assert_eq!(ids, ["a", "b", "c"]);
+    assert_eq!(ids, ["a", "b", "c", "b"]);
     let depths: Vec<usize> = rows.iter().map(|r| r.depth).collect();
-    assert_eq!(depths, [0, 1, 2]);
+    assert_eq!(depths, [0, 1, 2, 3]);
 }
 
 #[test]
@@ -827,9 +845,11 @@ fn critical_path_stops_at_the_first_repeated_span() {
 
 #[test]
 fn flame_from_spans_terminates_on_a_cyclic_trace() {
-    // INV-82: the recursive builder used to recurse forever on
-    // this shape. Each span id builds once, so the tree is the
-    // a-b-c chain and the repeated b never builds.
+    // INV-82 and INV-89: the recursive builder used to
+    // recurse forever on this shape. Every occurrence builds
+    // once and the children of b hang from its first
+    // occurrence, so the tree is the a-b-c-b chain and the
+    // repeated b builds as a leaf.
     let tree = flame_from_spans(&cyclic_spans(), "t1");
     assert_eq!(tree.children.len(), 1);
     let a = &tree.children[0];
@@ -837,7 +857,9 @@ fn flame_from_spans_terminates_on_a_cyclic_trace() {
     let b = &a.children[0];
     assert_eq!(b.children.len(), 1);
     let c = &b.children[0];
-    assert!(c.children.is_empty());
+    assert_eq!(c.children.len(), 1);
+    let repeated_b = &c.children[0];
+    assert!(repeated_b.children.is_empty());
 }
 
 #[test]
