@@ -34,7 +34,7 @@ nobody is asking, the examples the SEP itself gives being a
 Slack message, a GitHub push, and a PagerDuty incident. The
 client support picture, read on 2026-11-22 from the official
 support matrix and reported in the MCP Bits newsletter of
-2026-11-24, is two clients with any Events entry at all, one
+2026-11-23, is two clients with any Events entry at all, one
 full and one partial and webhook-only. Support in the official
 SDKs is still to come, and the extension schema and
 conformance tests remain open work.
