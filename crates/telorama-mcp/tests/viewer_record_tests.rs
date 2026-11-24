@@ -29,9 +29,9 @@ fn repo_path(rel: &str) -> PathBuf {
 
 /// One finding's anchor in its scene, the panel the finding is
 /// about. Findings carry no panel field, so the generator derives
-/// the anchor from the finding kind and the scene's panel list and
-/// the record carries it as data. The page marks by this reference
-/// and derives nothing itself.
+/// the anchor from the finding itself and the scene's panel list
+/// and the record carries it as data. The page marks by this
+/// reference and derives nothing itself.
 #[derive(Serialize)]
 struct Anchor {
     rank: usize,
