@@ -289,10 +289,7 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
             let mut insert_at: Option<usize> = None;
             for step in turn.steps.drain(..) {
                 let mid = step.start_unix_nano()
-                    + step
-                        .end_unix_nano()
-                        .saturating_sub(step.start_unix_nano())
-                        / 2;
+                    + step.end_unix_nano().saturating_sub(step.start_unix_nano()) / 2;
                 if span.start_unix_nano <= mid && mid < span.end_unix_nano {
                     if insert_at.is_none() {
                         insert_at = Some(kept.len());

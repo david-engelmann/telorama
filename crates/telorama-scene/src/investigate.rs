@@ -196,9 +196,7 @@ fn tool_calls(run: &AgentRun) -> Vec<(String, String, i64)> {
 
 fn wait_finding(run: &AgentRun) -> Option<Finding> {
     let calls = tool_calls(run);
-    let total_wait: i64 = calls
-        .iter()
-        .fold(0i64, |acc, c| acc.saturating_add(c.2));
+    let total_wait: i64 = calls.iter().fold(0i64, |acc, c| acc.saturating_add(c.2));
     if total_wait <= 0 || run.turns.is_empty() {
         return None;
     }

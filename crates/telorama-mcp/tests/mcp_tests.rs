@@ -473,9 +473,7 @@ fn the_stdio_server_answers_a_non_utf8_line_and_keeps_serving() {
         let mut stdin = child.stdin.take().expect("stdin");
         stdin.write_all(&[0xff, 0xfe, b'\n']).expect("write");
         stdin
-            .write_all(
-                b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}\n",
-            )
+            .write_all(b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}\n")
             .expect("write");
     }
     let out = child.wait_with_output().expect("the server exits");
@@ -486,8 +484,10 @@ fn the_stdio_server_answers_a_non_utf8_line_and_keeps_serving() {
     assert_eq!(first["error"]["code"], -32700);
     let second: serde_json::Value = serde_json::from_str(lines[1]).expect("reply parses");
     assert_eq!(second["id"], 1);
-    assert!(second["result"]["serverInfo"]["name"]
-        .as_str()
-        .expect("server info")
-        .contains("telorama"));
+    assert!(
+        second["result"]["serverInfo"]["name"]
+            .as_str()
+            .expect("server info")
+            .contains("telorama")
+    );
 }

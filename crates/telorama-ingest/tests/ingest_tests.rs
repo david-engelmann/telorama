@@ -1105,8 +1105,7 @@ fn claude_session_reads_hostile_figures_as_defined_defaults() {
         "{{\"resourceLogs\":[{{\"scopeLogs\":[{{\"logRecords\":[{}]}}]}}]}}",
         records.join(",")
     );
-    let run = telorama_ingest::parse_claude_code_session(&events, &[])
-        .expect("the session parses");
+    let run = telorama_ingest::parse_claude_code_session(&events, &[]).expect("the session parses");
     assert_eq!(run.turns.len(), 1);
     assert_eq!(run.turns[0].input_tokens, 0);
     assert_eq!(run.turns[0].output_tokens, 100);
@@ -1121,12 +1120,8 @@ fn otlp_spans_without_ids_are_refused() {
     // Round 15 (INV-88): a span carrying no spanId is
     // refused by name, not aliased to an empty id.
     let doc = r#"{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"web"}}]},"scopeSpans":[{"spans":[{"traceId":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","name":"op","kind":2,"startTimeUnixNano":"1000","endTimeUnixNano":"2000"}]}]}]}"#;
-    let err =
-        telorama_ingest::parse_otlp_traces(doc).expect_err("an id-less span must be refused");
-    assert!(
-        err.to_string().contains("traceId or spanId"),
-        "{err}"
-    );
+    let err = telorama_ingest::parse_otlp_traces(doc).expect_err("an id-less span must be refused");
+    assert!(err.to_string().contains("traceId or spanId"), "{err}");
 }
 
 #[test]
