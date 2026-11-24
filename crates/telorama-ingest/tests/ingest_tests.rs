@@ -278,8 +278,11 @@ fn codex_session_needs_exactly_one_conversation() {
 fn genai_session_terminates_on_a_cyclic_span_tree() {
     // INV-82 in the dialect builder: the fixture's fourth span
     // repeats the second span's id under the third, so the
-    // children map cycles. The turn builds with each span id
-    // emitted and counted once.
+    // children map cycles. The walk terminates because each
+    // occurrence is visited once and the children of the
+    // repeated id hang from its first copy alone (INV-89), so
+    // the repeated span emits its own subagent step carrying
+    // no children, and the turn counts all four occurrences.
     use telorama_scene::AgentStep;
     let spans = telorama_ingest::parse_otlp_traces(&fixture_text(
         "tests/fixtures/agents/genai-session-cyclic-spans.json",
@@ -289,7 +292,7 @@ fn genai_session_terminates_on_a_cyclic_span_tree() {
     let run = telorama_ingest::parse_genai_session(&spans).expect("spans must adapt");
     assert_eq!(run.turns.len(), 1);
     let turn = &run.turns[0];
-    assert_eq!(turn.coverage.spans_seen, 3);
+    assert_eq!(turn.coverage.spans_seen, 4);
     assert_eq!(turn.steps.len(), 1);
     let AgentStep::Subagent(stage) = &turn.steps[0] else {
         panic!("the turn's one step must be the stage subagent");
@@ -298,7 +301,11 @@ fn genai_session_terminates_on_a_cyclic_span_tree() {
     let AgentStep::Subagent(step) = &stage.steps[0] else {
         panic!("the stage's one step must be the step subagent");
     };
-    assert!(step.steps.is_empty());
+    assert_eq!(step.steps.len(), 1);
+    let AgentStep::Subagent(repeated) = &step.steps[0] else {
+        panic!("the step's one step must be the repeated span's subagent");
+    };
+    assert!(repeated.steps.is_empty());
 }
 
 #[test]
@@ -1263,4 +1270,99 @@ fn unmodelled_attribute_shapes_are_skipped() {
     assert_eq!(spans.len(), 1);
     assert!(!spans[0].attributes.contains_key("tags"));
     assert_eq!(spans[0].attributes["http.route"], "/pay");
+}
+
+#[test]
+fn genai_session_gives_each_copy_of_a_shared_id_its_own_step() {
+    // Round 17 (INV-89): two copies of one span id under one
+    // root, each with children naming the shared id. Both
+    // copies emit their own subagent step, the children walk
+    // under the adopting copy alone, and the turn totals and
+    // coverage count every occurrence once.
+    use telorama_scene::AgentStep;
+    let doc = r#"{"resourceSpans":[{"scopeSpans":[{"spans":[
+      {"traceId":"aa11bb22cc33dd44ee55ff6677889900","spanId":"00000000000000a1","name":"invoke_agent planner","startTimeUnixNano":"1794852000000000000","endTimeUnixNano":"1794852100000000000","attributes":[{"key":"gen_ai.operation.name","value":{"stringValue":"invoke_agent"}},{"key":"gen_ai.agent.id","value":{"stringValue":"agent-root"}},{"key":"gen_ai.conversation.id","value":{"stringValue":"conv-dup"}}]},
+      {"traceId":"aa11bb22cc33dd44ee55ff6677889900","spanId":"00000000000000b1","parentSpanId":"00000000000000a1","name":"invoke_agent worker-a","startTimeUnixNano":"1794852010000000000","endTimeUnixNano":"1794852040000000000","attributes":[{"key":"gen_ai.operation.name","value":{"stringValue":"invoke_agent"}},{"key":"gen_ai.agent.id","value":{"stringValue":"agent-a"}},{"key":"gen_ai.conversation.id","value":{"stringValue":"conv-dup"}}]},
+      {"traceId":"aa11bb22cc33dd44ee55ff6677889900","spanId":"00000000000000c1","parentSpanId":"00000000000000b1","name":"chat gpt-5.1","startTimeUnixNano":"1794852012000000000","endTimeUnixNano":"1794852020000000000","attributes":[{"key":"gen_ai.operation.name","value":{"stringValue":"chat"}},{"key":"gen_ai.request.model","value":{"stringValue":"gpt-5.1"}},{"key":"gen_ai.usage.input_tokens","value":{"intValue":"1000"}},{"key":"gen_ai.usage.output_tokens","value":{"intValue":"100"}}]},
+      {"traceId":"aa11bb22cc33dd44ee55ff6677889900","spanId":"00000000000000b1","parentSpanId":"00000000000000a1","name":"invoke_agent worker-b","startTimeUnixNano":"1794852050000000000","endTimeUnixNano":"1794852090000000000","attributes":[{"key":"gen_ai.operation.name","value":{"stringValue":"invoke_agent"}},{"key":"gen_ai.agent.id","value":{"stringValue":"agent-b"}},{"key":"gen_ai.conversation.id","value":{"stringValue":"conv-dup"}}]},
+      {"traceId":"aa11bb22cc33dd44ee55ff6677889900","spanId":"00000000000000c2","parentSpanId":"00000000000000b1","name":"chat gpt-5.1","startTimeUnixNano":"1794852055000000000","endTimeUnixNano":"1794852060000000000","attributes":[{"key":"gen_ai.operation.name","value":{"stringValue":"chat"}},{"key":"gen_ai.request.model","value":{"stringValue":"gpt-5.1"}},{"key":"gen_ai.usage.input_tokens","value":{"intValue":"2000"}},{"key":"gen_ai.usage.output_tokens","value":{"intValue":"200"}}]}
+    ]}]}]}"#;
+    let spans = telorama_ingest::parse_otlp_traces(doc).expect("the export parses");
+    assert_eq!(spans.len(), 5);
+    let run = telorama_ingest::parse_genai_session(&spans).expect("spans must adapt");
+    assert_eq!(run.turns.len(), 1);
+    let turn = &run.turns[0];
+    assert_eq!(turn.steps.len(), 2);
+    let AgentStep::Subagent(first) = &turn.steps[0] else {
+        panic!("the first step must be the first copy's subagent");
+    };
+    assert_eq!(first.agent_id, "agent-a");
+    assert_eq!(first.steps.len(), 2, "both children walk under the adopting copy");
+    let AgentStep::Subagent(second) = &turn.steps[1] else {
+        panic!("the second step must be the second copy's subagent");
+    };
+    assert_eq!(second.agent_id, "agent-b");
+    assert!(second.steps.is_empty());
+    // Each model call counts once, under the adopting copy.
+    assert_eq!(turn.input_tokens, 3000);
+    assert_eq!(turn.output_tokens, 300);
+    assert_eq!(turn.coverage.spans_seen, 5);
+    assert_eq!(turn.coverage.spans_merged, 5);
+}
+
+#[test]
+fn genai_session_two_root_copies_do_not_double_the_shared_subtree() {
+    // Round 17 (INV-89): both copies of one span id are roots.
+    // Each builds its own turn, and the child naming the
+    // shared id walks in the adopting copy's turn alone, so
+    // the session totals count it once.
+    let doc = r#"{"resourceSpans":[{"scopeSpans":[{"spans":[
+      {"traceId":"aa11bb22cc33dd44ee55ff6677889900","spanId":"00000000000000b1","name":"invoke_agent worker-a","startTimeUnixNano":"1794852010000000000","endTimeUnixNano":"1794852040000000000","attributes":[{"key":"gen_ai.operation.name","value":{"stringValue":"invoke_agent"}},{"key":"gen_ai.agent.id","value":{"stringValue":"agent-a"}},{"key":"gen_ai.conversation.id","value":{"stringValue":"conv-dup2"}}]},
+      {"traceId":"aa11bb22cc33dd44ee55ff6677889900","spanId":"00000000000000b1","name":"invoke_agent worker-b","startTimeUnixNano":"1794852050000000000","endTimeUnixNano":"1794852090000000000","attributes":[{"key":"gen_ai.operation.name","value":{"stringValue":"invoke_agent"}},{"key":"gen_ai.agent.id","value":{"stringValue":"agent-b"}},{"key":"gen_ai.conversation.id","value":{"stringValue":"conv-dup2"}}]},
+      {"traceId":"aa11bb22cc33dd44ee55ff6677889900","spanId":"00000000000000c1","parentSpanId":"00000000000000b1","name":"chat gpt-5.1","startTimeUnixNano":"1794852012000000000","endTimeUnixNano":"1794852020000000000","attributes":[{"key":"gen_ai.operation.name","value":{"stringValue":"chat"}},{"key":"gen_ai.request.model","value":{"stringValue":"gpt-5.1"}},{"key":"gen_ai.usage.input_tokens","value":{"intValue":"1000"}},{"key":"gen_ai.usage.output_tokens","value":{"intValue":"100"}}]}
+    ]}]}]}"#;
+    let spans = telorama_ingest::parse_otlp_traces(doc).expect("the export parses");
+    let run = telorama_ingest::parse_genai_session(&spans).expect("spans must adapt");
+    assert_eq!(run.turns.len(), 2);
+    assert_eq!(run.turns[0].input_tokens, 1000);
+    assert_eq!(run.turns[0].steps.len(), 1);
+    assert_eq!(run.turns[0].coverage.spans_seen, 2);
+    assert_eq!(run.turns[1].input_tokens, 0);
+    assert!(run.turns[1].steps.is_empty());
+    assert_eq!(run.turns[1].coverage.spans_seen, 1);
+}
+
+#[test]
+fn claude_code_blocked_wait_stays_with_its_own_tool_occurrence() {
+    // Round 17 (INV-89): two claude_code.tool spans share one
+    // id with disjoint windows, each with a blocked_on_user
+    // child of its own. Each step's wait is its own
+    // occurrence's sum, never the pooled sum of both.
+    use telorama_scene::AgentStep;
+    let logs = r#"{"resourceLogs":[{"scopeLogs":[{"logRecords":[
+      {"timeUnixNano":"1794841200000000000","attributes":[{"key":"event.name","value":{"stringValue":"claude_code.user_prompt"}},{"key":"session.id","value":{"stringValue":"sess-dup"}},{"key":"prompt.id","value":{"stringValue":"p-1"}}]},
+      {"timeUnixNano":"1794841300000000000","attributes":[{"key":"event.name","value":{"stringValue":"claude_code.tool_result"}},{"key":"session.id","value":{"stringValue":"sess-dup"}},{"key":"prompt.id","value":{"stringValue":"p-1"}},{"key":"tool_name","value":{"stringValue":"Bash"}},{"key":"success","value":{"boolValue":true}},{"key":"duration_ms","value":{"intValue":"100000"}}]},
+      {"timeUnixNano":"1794841500000000000","attributes":[{"key":"event.name","value":{"stringValue":"claude_code.tool_result"}},{"key":"session.id","value":{"stringValue":"sess-dup"}},{"key":"prompt.id","value":{"stringValue":"p-1"}},{"key":"tool_name","value":{"stringValue":"Edit"}},{"key":"success","value":{"boolValue":true}},{"key":"duration_ms","value":{"intValue":"100000"}}]}
+    ]}]}]}"#;
+    let span_doc = r#"{"resourceSpans":[{"scopeSpans":[{"spans":[
+      {"traceId":"aa11bb22cc33dd44ee55ff6677889900","spanId":"00000000000000e1","name":"claude_code.tool","startTimeUnixNano":"1794841200000000000","endTimeUnixNano":"1794841300000000000"},
+      {"traceId":"aa11bb22cc33dd44ee55ff6677889900","spanId":"00000000000000f1","parentSpanId":"00000000000000e1","name":"claude_code.tool.blocked_on_user","startTimeUnixNano":"1794841210000000000","endTimeUnixNano":"1794841260000000000"},
+      {"traceId":"aa11bb22cc33dd44ee55ff6677889900","spanId":"00000000000000e1","name":"claude_code.tool","startTimeUnixNano":"1794841400000000000","endTimeUnixNano":"1794841500000000000"},
+      {"traceId":"aa11bb22cc33dd44ee55ff6677889900","spanId":"00000000000000f2","parentSpanId":"00000000000000e1","name":"claude_code.tool.blocked_on_user","startTimeUnixNano":"1794841410000000000","endTimeUnixNano":"1794841420000000000"}
+    ]}]}]}"#;
+    let spans = telorama_ingest::parse_otlp_traces(span_doc).expect("the spans parse");
+    let run = telorama_ingest::parse_claude_code_session(logs, &spans)
+        .expect("the session must adapt");
+    assert_eq!(run.turns.len(), 1);
+    let turn = &run.turns[0];
+    assert_eq!(turn.steps.len(), 2);
+    let AgentStep::ToolCall(bash) = &turn.steps[0] else {
+        panic!("the first step must be the Bash call");
+    };
+    assert_eq!(bash.wait_nanos, 50_000_000_000);
+    let AgentStep::ToolCall(edit) = &turn.steps[1] else {
+        panic!("the second step must be the Edit call");
+    };
+    assert_eq!(edit.wait_nanos, 10_000_000_000);
+    assert_eq!(run.coverage.spans_merged, 2);
 }

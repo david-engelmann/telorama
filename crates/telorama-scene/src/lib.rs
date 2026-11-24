@@ -52,9 +52,9 @@ pub use agent::{
 pub use compose::{incident_scene, incident_scene_with_theme};
 pub use derive::{
     Exemplar, FlameNode, HeatmapGrid, HeatmapRow, MapEdge, RedStats, SankeyFlow, SankeyLink,
-    SankeyNode, ServiceGraph, WaterfallRow, content_hash, critical_path, dismantle_flame_tree,
-    flame_from_spans, flame_tree, heatmap_grid, percentile_nanos, red_by_service, sankey_flow,
-    service_graph, service_layers, waterfall_rows,
+    SankeyNode, ServiceGraph, WaterfallRow, adopting_copy_indices, content_hash, critical_path,
+    dismantle_flame_tree, flame_from_spans, flame_tree, heatmap_grid, percentile_nanos,
+    red_by_service, sankey_flow, service_graph, service_layers, waterfall_rows,
 };
 pub use field::{
     ThresholdStep, Thresholds, format_bytes, format_duration_nanos, format_number, format_ratio,
