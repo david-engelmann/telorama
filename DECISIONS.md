@@ -1495,3 +1495,9 @@ The reel remains a scene reel, not a capture of the viewer page. It does not sho
 The MCP Events watch was re-checked firsthand and its disposition is recorded in docs/EVENTS-WATCH.md. SEP-3415 stands at Final in the Extensions Track, merged on 2026-11-19, with the extension published at Beta for protocol revision 2026-07-28 and later. The watch therefore changes basis. It is no longer a draft that might never land, and the open question is whether telorama ever has anything for it to carry.
 
 It does not today. telorama-mcp fronts no upstream system, nothing happens inside telorama between calls, and no source exists that an events/list response could honestly name. The watch continues with two named triggers that would reopen it as a design question, telorama gaining an upstream source of its own, or the extension leaving Beta with SDK support paired with a designed watcher mode. The re-check cadence is the next MCP protocol revision or the extension leaving Beta. No code changed in this round.
+
+## Round 27: the README accuracy pass (2026-11-24)
+
+Every checkable claim in the README was audited against the repository, forty-seven claims in all, each verified against the code, the tests, the manifests, or the crates.io record. Forty-five held exactly as written. Two were stale, both in the closing summary, and both are corrected in this round. The roadmap count said thirteen rounds and now says twenty-six, matching the headed entries in this file. The published version said 0.3.0 and now says 0.4.0, matching the crate manifests and the crates.io record for all five crates.
+
+Nothing else in the README changed. The corpus counts, the scale proofs, the dialect list, the panel list, and the nesting budget all verified as written, so the pass corrected only what the audit proved stale and left the rest of the file untouched.
