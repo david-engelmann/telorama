@@ -1604,7 +1604,6 @@ fn extreme_range_scene_renders() {
     for panel in [
         "{\"data\":\"trace\",\"type\":\"waterfall\"}",
         "{\"data\":\"trace\",\"type\":\"service_map\"}",
-        "{\"data\":\"trace\",\"type\":\"heatmap\",\"edges_seconds\":[0.001]}",
     ] {
         let mut scene = scale_scene(panel);
         scene.context.range.from_unix_ms = i64::MIN / 2;
@@ -1622,6 +1621,30 @@ fn extreme_range_scene_renders() {
         .expect("an extreme range must still render");
         assert!(svg.contains("Scale trace"));
     }
+    // The heatmap window carries the same subtraction in
+    // the renderer, exercised through the committed scene.
+    let mut heat = telorama_scene::parse_scene(&workspace_file(
+        "tests/fixtures/scenes/heatmap_scene.json",
+    ))
+    .expect("heatmap scene must validate");
+    heat.context.range.from_unix_ms = i64::MIN;
+    heat.context.range.to_unix_ms = i64::MAX;
+    let checkout = telorama_ingest::parse_otlp_traces(&workspace_file(
+        "tests/fixtures/otel-demo-checkout.json",
+    ))
+    .expect("checkout fixture must parse");
+    let svg = telorama_svg::render_scene_with_data(
+        &heat,
+        &telorama_svg::SceneData {
+            spans: &checkout,
+            stacks: &[],
+            agent_run: None,
+            agent_state: &[],
+            findings: &[],
+        },
+    )
+    .expect("an extreme range must still render a heatmap");
+    assert!(svg.contains("Checkout latency heatmap"));
 }
 
 #[test]
