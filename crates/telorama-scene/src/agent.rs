@@ -161,6 +161,23 @@ pub enum AgentStep {
 /// serialization included.
 pub const MAX_AGENT_NESTING: usize = 512;
 
+/// Add a cost to a running total, keeping the total
+/// finite (INV-88). Two finite costs can sum past the
+/// f64 range, and a headline must never print an
+/// infinity, so an overflowing sum saturates at the
+/// largest finite value of its sign, and the undefined
+/// sum of opposite infinities reads as zero.
+pub fn add_costs(total: f64, delta: f64) -> f64 {
+    let sum = total + delta;
+    if sum.is_finite() {
+        sum
+    } else if sum.is_nan() {
+        0.0
+    } else {
+        sum.signum() * f64::MAX
+    }
+}
+
 impl AgentStep {
     /// Visit every step in a list, descending into subagent runs.
     /// The one traversal of the step tree: totals, model censuses,

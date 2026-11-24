@@ -92,7 +92,7 @@ pub struct TimeRange {
 impl TimeRange {
     /// Window length in seconds, for rate calculations.
     pub fn seconds(&self) -> f64 {
-        (self.to_unix_ms - self.from_unix_ms) as f64 / 1000.0
+        self.to_unix_ms.saturating_sub(self.from_unix_ms) as f64 / 1000.0
     }
 }
 

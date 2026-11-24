@@ -131,17 +131,17 @@ pub fn parse_codex_session(logs_text: &str, spans: &[Span]) -> Result<AgentRun, 
         match event.name.as_str() {
             "codex.turn_ttft" => {
                 turn.ttfts
-                    .push_back(event.i64_attr("duration_ms") * 1_000_000);
+                    .push_back(event.duration_nanos_attr("duration_ms"));
             }
             "codex.api_request" => {
-                let duration = event.i64_attr("duration_ms") * 1_000_000;
+                let duration = event.duration_nanos_attr("duration_ms");
                 let status = event.str_attr("status");
                 turn.steps.push(AgentStep::ModelCall(ModelCall {
                     model: event
                         .str_attr("model")
                         .unwrap_or("unknown model")
                         .to_string(),
-                    start_unix_nano: event.time_nano - duration,
+                    start_unix_nano: event.time_nano.saturating_sub(duration),
                     end_unix_nano: event.time_nano,
                     ttft_nanos: turn.ttfts.pop_front(),
                     attempts: event.i64_attr("attempt").max(1) as u32,
@@ -167,17 +167,17 @@ pub fn parse_codex_session(logs_text: &str, spans: &[Span]) -> Result<AgentRun, 
                         "codex token counts arrived in turn {turn_id} before any model call"
                     )));
                 };
-                let reported_input = event.i64_attr("input_tokens") as u64;
-                let mut cache = event.i64_attr("cached_tokens") as u64;
+                let reported_input = event.token_attr("input_tokens");
+                let mut cache = event.token_attr("cached_tokens");
                 if cache == 0 {
-                    cache = event.i64_attr("cache_read_tokens") as u64;
+                    cache = event.token_attr("cache_read_tokens");
                 }
                 call.cache_read_tokens = cache;
                 call.input_tokens = reported_input.saturating_sub(cache);
-                call.output_tokens = event.i64_attr("output_tokens") as u64;
+                call.output_tokens = event.token_attr("output_tokens");
             }
             "codex.tool_result" => {
-                let duration = event.i64_attr("duration_ms") * 1_000_000;
+                let duration = event.duration_nanos_attr("duration_ms");
                 let name = event
                     .str_attr("tool_name")
                     .unwrap_or("unknown tool")
@@ -190,7 +190,7 @@ pub fn parse_codex_session(logs_text: &str, spans: &[Span]) -> Result<AgentRun, 
                 let decision = decisions.get(&(turn_id.clone(), name.clone())).cloned();
                 turn.steps.push(AgentStep::ToolCall(ToolCall {
                     name,
-                    start_unix_nano: event.time_nano - duration,
+                    start_unix_nano: event.time_nano.saturating_sub(duration),
                     end_unix_nano: event.time_nano,
                     wait_nanos: 0,
                     is_error: !success,
@@ -229,10 +229,10 @@ pub fn parse_codex_session(logs_text: &str, spans: &[Span]) -> Result<AgentRun, 
                     unpriced_models.insert(call.model.clone());
                 }
             }
-            input_tokens += call.input_tokens;
-            output_tokens += call.output_tokens;
-            cache_read_tokens += call.cache_read_tokens;
-            cost_usd += call.cost_usd;
+            input_tokens = input_tokens.saturating_add(call.input_tokens);
+            output_tokens = output_tokens.saturating_add(call.output_tokens);
+            cache_read_tokens = cache_read_tokens.saturating_add(call.cache_read_tokens);
+            cost_usd = telorama_scene::add_costs(cost_usd, call.cost_usd);
         }
         let start = builder
             .prompt_time
@@ -273,7 +273,7 @@ pub fn parse_codex_session(logs_text: &str, spans: &[Span]) -> Result<AgentRun, 
     // on this axis too.
     if !turns.is_empty() {
         for span in spans {
-            let mid = span.start_unix_nano + (span.end_unix_nano - span.start_unix_nano) / 2;
+            let mid = span.start_unix_nano + span.duration_nanos() / 2;
             let idx = turns
                 .iter()
                 .position(|t| mid >= t.start_unix_nano && mid <= t.end_unix_nano)

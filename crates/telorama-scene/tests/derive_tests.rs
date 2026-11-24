@@ -949,3 +949,35 @@ fn flame_tree_folds_a_very_deep_stack() {
     assert_eq!(levels, depth);
     dismantle_flame_tree(&mut root);
 }
+
+#[test]
+fn extreme_timestamps_saturate_instead_of_overflowing() {
+    // Round 15 (INV-88): spans and ranges at the edges of
+    // i64 produce defined figures, never an overflow.
+    let mut wide = span("a", None, "web", SpanKind::Server, 0, 1, false);
+    wide.start_unix_nano = i64::MIN;
+    wide.end_unix_nano = i64::MAX;
+    assert_eq!(wide.duration_nanos(), i64::MAX);
+    let mut backwards = span("b", None, "web", SpanKind::Server, 0, 1, false);
+    backwards.start_unix_nano = i64::MAX;
+    backwards.end_unix_nano = i64::MIN;
+    assert_eq!(backwards.duration_nanos(), 0);
+    let range = TimeRange {
+        from_unix_ms: i64::MIN,
+        to_unix_ms: i64::MAX,
+    };
+    assert!(range.seconds().is_finite());
+    let grid = heatmap_grid(&[wide.clone(), backwards.clone()], range, &[1.0], 24);
+    assert_eq!(grid.rows.len(), 2);
+    // The self-time interval merge over a child clipped to
+    // the parent's full span saturates too.
+    let mut child = span("c", Some("a"), "api", SpanKind::Internal, 0, 1, false);
+    child.start_unix_nano = i64::MIN;
+    child.end_unix_nano = i64::MAX;
+    let rows = waterfall_rows(&[wide.clone(), child], "t1");
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0].self_time_nanos, 0);
+    let incident = telorama_scene::incident_scene(&[wide, backwards], None, "sweep test")
+        .expect("an incident composes over extreme spans");
+    assert!(incident.context.range.to_unix_ms >= incident.context.range.from_unix_ms);
+}

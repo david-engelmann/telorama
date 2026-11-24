@@ -61,7 +61,7 @@ pub fn incident_scene_with_theme(
         .expect("spans")
         / 1_000_000;
     let max_end = spans.iter().map(|s| s.end_unix_nano).max().expect("spans");
-    let to_ms = ((max_end + 999_999) / 1_000_000).max(from_ms + 1);
+    let to_ms = ((max_end.saturating_add(999_999)) / 1_000_000).max(from_ms + 1);
     let range = TimeRange {
         from_unix_ms: from_ms,
         to_unix_ms: to_ms,

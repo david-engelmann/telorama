@@ -138,7 +138,7 @@ fn latency_finding(spans: &[Span]) -> Option<Finding> {
     let mut best: Option<(&Span, i64)> = None;
     for trace_id in &trace_ids {
         for row in waterfall_rows(spans, trace_id) {
-            total_self += row.self_time_nanos;
+            total_self = total_self.saturating_add(row.self_time_nanos);
             let span = by_id[&(*trace_id, row.span_id.as_str())];
             let better = match best {
                 None => true,
@@ -196,17 +196,23 @@ fn tool_calls(run: &AgentRun) -> Vec<(String, String, i64)> {
 
 fn wait_finding(run: &AgentRun) -> Option<Finding> {
     let calls = tool_calls(run);
-    let total_wait: i64 = calls.iter().map(|c| c.2).sum();
+    let total_wait: i64 = calls.iter().fold(0i64, |acc, c| acc.saturating_add(c.2));
     if total_wait <= 0 || run.turns.is_empty() {
         return None;
     }
-    let wall = run.turns.iter().map(|t| t.end_unix_nano).max().unwrap_or(0)
-        - run
-            .turns
-            .iter()
-            .map(|t| t.start_unix_nano)
-            .min()
-            .unwrap_or(0);
+    let wall = run
+        .turns
+        .iter()
+        .map(|t| t.end_unix_nano)
+        .max()
+        .unwrap_or(0)
+        .saturating_sub(
+            run.turns
+                .iter()
+                .map(|t| t.start_unix_nano)
+                .min()
+                .unwrap_or(0),
+        );
     if wall <= 0 {
         return None;
     }
@@ -241,6 +247,9 @@ fn cost_finding(run: &AgentRun) -> Option<Finding> {
         return None;
     }
     let total: f64 = run.turns.iter().map(|t| t.cost_usd).sum();
+    if !total.is_finite() {
+        return None;
+    }
     let unpriced: &[String] = run
         .pricing
         .as_ref()
@@ -267,8 +276,7 @@ fn cost_finding(run: &AgentRun) -> Option<Finding> {
         .iter()
         .max_by(|a, b| {
             a.cost_usd
-                .partial_cmp(&b.cost_usd)
-                .unwrap()
+                .total_cmp(&b.cost_usd)
                 .then_with(|| b.prompt_id.cmp(&a.prompt_id))
         })
         .expect("a non-empty run has a costliest turn");

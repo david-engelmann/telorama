@@ -13,6 +13,26 @@ fn usage() -> &'static str {
     "usage:\n  telorama inspect <traces.json>\n  telorama validate <scene.json>\n  telorama render --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] [--state <state.json>] --out <scene.svg>\n  telorama render-html --scene <scene.json> [--traces <traces.json>] [--profile <stacks.txt>] [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] [--state <state.json>] --out <scene.html>\n  telorama session [--logs <logs.json>] [--spans <spans.json>] [--dialect <dialect>]\n  telorama frames [--logs <logs.json>] [--spans <spans.json>] [--dialect <dialect>] --out <frames.jsonl> [--html <framebook.html>]\n  telorama incident --traces <traces.json> [--session-logs <logs.json>] [--session-spans <spans.json>] [--dialect <dialect>] [--out <scene.json>] [--render <scene.svg>]\n  telorama schema"
 }
 
+/// Escape a string for HTML element content and attribute
+/// values. The framebook is the one document the CLI builds
+/// by hand, and the session id it prints is telemetry text,
+/// so it is escaped like every other markup boundary in the
+/// workspace (INV-88).
+fn escape_html(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for c in text.chars() {
+        match c {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&#39;"),
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
 fn read_file(path: &str) -> Result<String, String> {
     std::fs::read_to_string(path).map_err(|e| format!("cannot read {path}: {e}"))
 }
@@ -380,8 +400,8 @@ fn cmd_frames(args: &[String]) -> Result<String, String> {
     if let Some(html_path) = flag(args, "--html")? {
         let doc = format!(
             "<!DOCTYPE html>\n<html lang=\"en\">\n<head><meta charset=\"utf-8\"><title>Session {} frames</title></head>\n<body>\n<h1>Session {} · {} frames</h1>\n{}</body>\n</html>\n",
-            run.session_id,
-            run.session_id,
+            escape_html(&run.session_id),
+            escape_html(&run.session_id),
             frames.len(),
             book
         );
