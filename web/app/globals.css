@@ -98,6 +98,12 @@ main {
 .summary-counts {
   display: flex;
   gap: 22px;
+  align-items: baseline;
+}
+
+.summary-scope {
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 .count {

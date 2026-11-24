@@ -251,7 +251,7 @@ fn viewer_record_matches_the_committed_record() {
         .unwrap_or_else(|e| panic!("cannot read {}: {e}", record_path.display()));
     assert_eq!(
         assembled, committed,
-        "the viewer record differs from the current tool output; rerun with UPDATE_RECORD=1 and review the diff"
+        "the viewer record differs from the current tool output. Rerun with UPDATE_RECORD=1 and review the diff"
     );
 }
 

@@ -7,6 +7,19 @@ export default async function Page() {
     path.join(process.cwd(), "data", "record.json"),
     "utf-8"
   );
-  const data: RecordData = JSON.parse(raw);
+  const parsed = JSON.parse(raw);
+  const data: RecordData = {
+    ...parsed,
+    session: {
+      ...parsed.session,
+      frames: parsed.session.frames.map((frame: Record<string, unknown>) => ({
+        ...frame,
+        panels: (
+          (frame.scene as { panels?: { type?: string }[] } | undefined)
+            ?.panels ?? []
+        ).map((panel) => String(panel.type ?? "unknown")),
+      })),
+    },
+  };
   return <Viewer data={data} />;
 }
