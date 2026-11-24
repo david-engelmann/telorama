@@ -1181,8 +1181,16 @@ fn claude_session_cost_sum_stays_finite() {
     };
     let records = [
         record(1_794_841_200_000_000_000, "claude_code.user_prompt", None),
-        record(1_794_841_201_000_000_000, "claude_code.api_request", Some(1e308)),
-        record(1_794_841_202_000_000_000, "claude_code.api_request", Some(1e308)),
+        record(
+            1_794_841_201_000_000_000,
+            "claude_code.api_request",
+            Some(1e308),
+        ),
+        record(
+            1_794_841_202_000_000_000,
+            "claude_code.api_request",
+            Some(1e308),
+        ),
     ];
     let events = format!(
         "{{\"resourceLogs\":[{{\"scopeLogs\":[{{\"logRecords\":[{}]}}]}}]}}",
@@ -1213,8 +1221,20 @@ fn claude_session_wait_sum_saturates() {
     };
     let spans = vec![
         span("tool", None, "claude_code.tool", 0, i64::MAX),
-        span("w1", Some("tool"), "claude_code.tool.blocked_on_user", 0, i64::MAX),
-        span("w2", Some("tool"), "claude_code.tool.blocked_on_user", 0, i64::MAX),
+        span(
+            "w1",
+            Some("tool"),
+            "claude_code.tool.blocked_on_user",
+            0,
+            i64::MAX,
+        ),
+        span(
+            "w2",
+            Some("tool"),
+            "claude_code.tool.blocked_on_user",
+            0,
+            i64::MAX,
+        ),
     ];
     let logs = r#"{"resourceLogs":[{"scopeLogs":[{"logRecords":[
         {"timeUnixNano":"1794841200000000000","body":{"stringValue":"claude_code.user_prompt"},"attributes":[{"key":"event.name","value":{"stringValue":"claude_code.user_prompt"}},{"key":"session.id","value":{"stringValue":"sess-wait"}},{"key":"prompt.id","value":{"stringValue":"p-1"}}]},

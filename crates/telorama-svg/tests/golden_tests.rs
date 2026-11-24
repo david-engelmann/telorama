@@ -1686,10 +1686,8 @@ fn agent_run_renders_steps_at_time_extremes() {
     let mut call = scale_span("m", Some("r"), "agent", 0, 1);
     call.start_unix_nano = i64::MIN;
     call.end_unix_nano = i64::MAX;
-    call.attributes.insert(
-        "gen_ai.operation.name".to_string(),
-        "chat".to_string(),
-    );
+    call.attributes
+        .insert("gen_ai.operation.name".to_string(), "chat".to_string());
     call.attributes
         .insert("gen_ai.request.model".to_string(), "gpt-5.1".to_string());
     let run = telorama_ingest::parse_genai_session(&[root, call]).expect("the session parses");
