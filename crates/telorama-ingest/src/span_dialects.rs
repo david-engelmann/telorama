@@ -320,7 +320,7 @@ fn build_turn(
             // the set with its position and a cycle back to
             // it stops too.
             seen.insert(root);
-            for child in children_of(children, adopters, root, root_span) {
+            for &child in children_of(children, adopters, root, root_span) {
                 emit(
                     child, spans, children, adopters, dialect, priced, unpriced, seen, &mut steps,
                 )?;
