@@ -199,7 +199,10 @@ function SessionSection({ session }: { session: SessionData }) {
         turn prefix. Stepping replaces the whole frame. The data
         never animates.
       </p>
-      <nav className="stepper" aria-label="Frame stepper">
+      <nav
+        className="stepper"
+        aria-label={`Frame stepper for session ${session.session_id}`}
+      >
         <button
           type="button"
           disabled={frameIdx === 0}

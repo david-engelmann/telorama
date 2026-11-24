@@ -154,8 +154,9 @@ fn panel_type_names(scene: &telorama_scene::Scene) -> Vec<String> {
         .collect()
 }
 
-/// One recorded session, assembled from an adapted run exactly as
-/// the CLI frames path assembles it. The frames render through the
+/// One recorded session, assembled from an adapted run by the
+/// same path the CLI frames command uses, under the record's own
+/// provenance string. The frames render through the
 /// scene renderer with the run as their data, and each frame's
 /// findings anchor against its own scene.
 fn session_record(run: &telorama_scene::AgentRun) -> SessionRecord {
