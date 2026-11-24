@@ -33,3 +33,7 @@ No model shape changes, no new event kinds parsed, and no surface changes. Both 
 ## The pins
 
 One decision pin per adapter builds the batched interleaving, decision accept, decision reject, result, result for one tool name in one turn, and asserts the steps read accept then reject in result order. The tie-break pin builds the nested shape above and asserts the two waits and the merged count. The standing decision assertions and the decision-only-prompt test stand unchanged.
+
+## Amendment from the build (2026-11-23)
+
+The neutrality sentence above says the queue returns exactly what the map returns wherever each turn and tool name carries at most one decision. The build's red team found one sub-shape inside that wording where it does not hold. With one decision followed by two results for the same name in one turn, the old map's read did not consume, so both results carried the decision. The queue labels the first result and the second carries none, which is exactly what INV-90 defines. The fence therefore holds for count-matched streams, for strictly interleaved streams, and for the whole committed corpus, and the one-decision-two-results shape stands as a deliberate difference, recorded here the way Round 17 recorded its deviation. A single permission decision labeling two distinct invocations is the crossing class in milder form, and consumption is the principled reading.
