@@ -1590,3 +1590,59 @@ fn dark_frames_carry_the_theme() {
         "the plain builder must stay light"
     );
 }
+
+#[test]
+fn extreme_range_scene_renders() {
+    // Round 15 (INV-88): a scene whose range spans most of
+    // the i64 millisecond range renders a defined picture
+    // through the waterfall and service map windows, where
+    // the window arithmetic once overflowed.
+    let spans = vec![
+        scale_span("a", None, "web", 0, 5),
+        scale_span("b", Some("a"), "api", 1, 4),
+    ];
+    for panel in [
+        "{\"data\":\"trace\",\"type\":\"waterfall\"}",
+        "{\"data\":\"trace\",\"type\":\"service_map\"}",
+    ] {
+        let mut scene = scale_scene(panel);
+        scene.context.range.from_unix_ms = i64::MIN / 2;
+        scene.context.range.to_unix_ms = i64::MAX / 2;
+        let svg = telorama_svg::render_scene_with_data(
+            &scene,
+            &telorama_svg::SceneData {
+                spans: &spans,
+                stacks: &[],
+                agent_run: None,
+                agent_state: &[],
+                findings: &[],
+            },
+        )
+        .expect("an extreme range must still render");
+        assert!(svg.contains("Scale trace"));
+    }
+}
+
+#[test]
+fn rootless_cycle_names_itself_in_the_render_error() {
+    // Round 15: a trace whose spans form a pure cycle has
+    // spans, and the render error says so, instead of
+    // claiming none were found.
+    let spans = vec![
+        scale_span("a", Some("b"), "web", 0, 5),
+        scale_span("b", Some("a"), "api", 1, 4),
+    ];
+    let scene = scale_scene("{\"data\":\"trace\",\"type\":\"waterfall\"}");
+    let err = telorama_svg::render_scene_with_data(
+        &scene,
+        &telorama_svg::SceneData {
+            spans: &spans,
+            stacks: &[],
+            agent_run: None,
+            agent_state: &[],
+            findings: &[],
+        },
+    )
+    .expect_err("a rootless cycle cannot render a waterfall");
+    assert!(err.to_string().contains("parent chain cycles"), "{err}");
+}

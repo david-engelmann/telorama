@@ -1063,3 +1063,96 @@ fn agent_state_blank_optional_fields_normalize_away() {
     assert_eq!(entries[0].waiting_on, None);
     assert_eq!(entries[0].next, None);
 }
+
+#[test]
+fn claude_session_reads_hostile_figures_as_defined_defaults() {
+    // Round 15 (INV-88): a negative token count reads as
+    // zero, a non-finite cost reads as zero, and an extreme
+    // duration saturates, where the adapter once cast,
+    // propagated, and overflowed on the same shapes.
+    use serde_json::json;
+    fn record(at: i64, name: &str, extra: &[(&str, serde_json::Value)]) -> String {
+        let mut attributes = vec![
+            json!({"key": "event.name", "value": {"stringValue": name}}),
+            json!({"key": "session.id", "value": {"stringValue": "sess-hostile"}}),
+            json!({"key": "prompt.id", "value": {"stringValue": "p-1"}}),
+        ];
+        for (key, value) in extra {
+            attributes.push(json!({"key": key, "value": value}));
+        }
+        json!({
+            "timeUnixNano": at.to_string(),
+            "body": {"stringValue": name},
+            "attributes": attributes,
+        })
+        .to_string()
+    }
+    let records = vec![
+        record(1_794_841_200_000_000_000, "claude_code.user_prompt", &[]),
+        record(
+            1_794_841_201_000_000_000,
+            "claude_code.api_request",
+            &[
+                ("model", json!({"stringValue": "claude-sonnet-4-5"})),
+                ("input_tokens", json!({"intValue": "-1"})),
+                ("output_tokens", json!({"intValue": "100"})),
+                ("cost_usd", json!({"stringValue": "NaN"})),
+                ("duration_ms", json!({"intValue": "10000000000000"})),
+            ],
+        ),
+    ];
+    let events = format!(
+        "{{\"resourceLogs\":[{{\"scopeLogs\":[{{\"logRecords\":[{}]}}]}}]}}",
+        records.join(",")
+    );
+    let run = telorama_ingest::parse_claude_code_session(&events, &[])
+        .expect("the session parses");
+    assert_eq!(run.turns.len(), 1);
+    assert_eq!(run.turns[0].input_tokens, 0);
+    assert_eq!(run.turns[0].output_tokens, 100);
+    assert_eq!(run.turns[0].cost_usd, 0.0);
+    // The investigation over this run must not panic.
+    let findings = telorama_scene::investigate(&[], Some(&run), 60.0);
+    assert!(findings.iter().all(|f| f.kind != "cost"));
+}
+
+#[test]
+fn otlp_spans_without_ids_are_refused() {
+    // Round 15 (INV-88): a span carrying no spanId is
+    // refused by name, not aliased to an empty id.
+    let doc = r#"{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"web"}}]},"scopeSpans":[{"spans":[{"traceId":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","name":"op","kind":2,"startTimeUnixNano":"1000","endTimeUnixNano":"2000"}]}]}]}"#;
+    let err =
+        telorama_ingest::parse_otlp_traces(doc).expect_err("an id-less span must be refused");
+    assert!(
+        err.to_string().contains("traceId or spanId"),
+        "{err}"
+    );
+}
+
+#[test]
+fn logs_reader_accepts_a_numeric_int_value() {
+    // Round 15 (INV-88): the logs reader takes intValue as
+    // a raw JSON number as well as a string, the leniency
+    // the traces reader already applied, so the two
+    // readers cannot disagree on a document.
+    use serde_json::json;
+    let record = json!({
+        "timeUnixNano": "1794841201000000000",
+        "body": {"stringValue": "claude_code.api_request"},
+        "attributes": [
+            {"key": "event.name", "value": {"stringValue": "claude_code.api_request"}},
+            {"key": "session.id", "value": {"stringValue": "sess-numeric"}},
+            {"key": "prompt.id", "value": {"stringValue": "p-1"}},
+            {"key": "model", "value": {"stringValue": "claude-sonnet-4-5"}},
+            {"key": "input_tokens", "value": {"intValue": 700}},
+            {"key": "output_tokens", "value": {"intValue": 70}},
+            {"key": "cost_usd", "value": {"doubleValue": 0.01}},
+            {"key": "duration_ms", "value": {"intValue": 900}},
+        ],
+    });
+    let events = json!({"resourceLogs": [{"scopeLogs": [{"logRecords": [record]}]}]});
+    let run = telorama_ingest::parse_claude_code_session(&events.to_string(), &[])
+        .expect("the session parses");
+    assert_eq!(run.turns.len(), 1);
+    assert_eq!(run.turns[0].input_tokens, 700);
+}

@@ -131,43 +131,47 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
                 }
             }
             "claude_code.api_request" => {
-                let duration = event.i64_attr("duration_ms") * 1_000_000;
+                let duration = event.duration_nanos_attr("duration_ms");
                 let ttft_ms = event.i64_attr("ttft_ms");
                 let call = ModelCall {
                     model: event
                         .str_attr("model")
                         .unwrap_or("unknown model")
                         .to_string(),
-                    start_unix_nano: event.time_nano - duration,
+                    start_unix_nano: event.time_nano.saturating_sub(duration),
                     end_unix_nano: event.time_nano,
                     ttft_nanos: if ttft_ms > 0 {
-                        Some(ttft_ms * 1_000_000)
+                        Some(ttft_ms.saturating_mul(1_000_000))
                     } else {
                         None
                     },
                     attempts: event.i64_attr("attempt").max(1) as u32,
                     is_error: false,
-                    input_tokens: event.i64_attr("input_tokens") as u64,
-                    output_tokens: event.i64_attr("output_tokens") as u64,
-                    cache_read_tokens: event.i64_attr("cache_read_tokens") as u64,
-                    cache_creation_tokens: event.i64_attr("cache_creation_tokens") as u64,
+                    input_tokens: event.token_attr("input_tokens"),
+                    output_tokens: event.token_attr("output_tokens"),
+                    cache_read_tokens: event.token_attr("cache_read_tokens"),
+                    cache_creation_tokens: event.token_attr("cache_creation_tokens"),
                     cost_usd: event.f64_attr("cost_usd"),
                 };
-                turn.input_tokens += call.input_tokens;
-                turn.output_tokens += call.output_tokens;
-                turn.cache_read_tokens += call.cache_read_tokens;
-                turn.cache_creation_tokens += call.cache_creation_tokens;
+                turn.input_tokens = turn.input_tokens.saturating_add(call.input_tokens);
+                turn.output_tokens = turn.output_tokens.saturating_add(call.output_tokens);
+                turn.cache_read_tokens = turn
+                    .cache_read_tokens
+                    .saturating_add(call.cache_read_tokens);
+                turn.cache_creation_tokens = turn
+                    .cache_creation_tokens
+                    .saturating_add(call.cache_creation_tokens);
                 turn.cost_usd += call.cost_usd;
                 turn.steps.push(AgentStep::ModelCall(call));
             }
             "claude_code.api_error" => {
-                let duration = event.i64_attr("duration_ms") * 1_000_000;
+                let duration = event.duration_nanos_attr("duration_ms");
                 turn.steps.push(AgentStep::ModelCall(ModelCall {
                     model: event
                         .str_attr("model")
                         .unwrap_or("unknown model")
                         .to_string(),
-                    start_unix_nano: event.time_nano - duration,
+                    start_unix_nano: event.time_nano.saturating_sub(duration),
                     end_unix_nano: event.time_nano,
                     ttft_nanos: None,
                     attempts: event.i64_attr("attempt").max(1) as u32,
@@ -183,13 +187,13 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
                 // A refusal is a failed call with no tokens, given
                 // exactly the shape an api_error call gets, so the
                 // step list and the error drawing see it (INV-83).
-                let duration = event.i64_attr("duration_ms") * 1_000_000;
+                let duration = event.duration_nanos_attr("duration_ms");
                 turn.steps.push(AgentStep::ModelCall(ModelCall {
                     model: event
                         .str_attr("model")
                         .unwrap_or("unknown model")
                         .to_string(),
-                    start_unix_nano: event.time_nano - duration,
+                    start_unix_nano: event.time_nano.saturating_sub(duration),
                     end_unix_nano: event.time_nano,
                     ttft_nanos: None,
                     attempts: event.i64_attr("attempt").max(1) as u32,
@@ -202,7 +206,7 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
                 }));
             }
             "claude_code.tool_result" => {
-                let duration = event.i64_attr("duration_ms") * 1_000_000;
+                let duration = event.duration_nanos_attr("duration_ms");
                 let name = event
                     .str_attr("tool_name")
                     .unwrap_or("unknown tool")
@@ -215,7 +219,7 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
                 let decision = decisions.get(&(prompt_id.clone(), name.clone())).cloned();
                 turn.steps.push(AgentStep::ToolCall(ToolCall {
                     name,
-                    start_unix_nano: event.time_nano - duration,
+                    start_unix_nano: event.time_nano.saturating_sub(duration),
                     end_unix_nano: event.time_nano,
                     wait_nanos: 0,
                     is_error: !success,
@@ -276,7 +280,7 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
         .iter()
         .filter(|s| s.attributes.contains_key("agent_id"))
         .collect();
-    agent_spans.sort_by_key(|s| (s.end_unix_nano - s.start_unix_nano, s.start_unix_nano));
+    agent_spans.sort_by_key(|s| (s.duration_nanos(), s.start_unix_nano));
     for span in &agent_spans {
         let agent_id = span.attributes["agent_id"].clone();
         for turn in builders.values_mut() {
@@ -284,7 +288,11 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
             let mut kept: Vec<AgentStep> = Vec::new();
             let mut insert_at: Option<usize> = None;
             for step in turn.steps.drain(..) {
-                let mid = (step.start_unix_nano() + step.end_unix_nano()) / 2;
+                let mid = step.start_unix_nano()
+                    + step
+                        .end_unix_nano()
+                        .saturating_sub(step.start_unix_nano())
+                        / 2;
                 if span.start_unix_nano <= mid && mid < span.end_unix_nano {
                     if insert_at.is_none() {
                         insert_at = Some(kept.len());
@@ -398,7 +406,7 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
     // the run coverage on this axis too.
     if !turns.is_empty() {
         for span in spans {
-            let mid = span.start_unix_nano + (span.end_unix_nano - span.start_unix_nano) / 2;
+            let mid = span.start_unix_nano + span.duration_nanos() / 2;
             let idx = turns
                 .iter()
                 .position(|t| mid >= t.start_unix_nano && mid <= t.end_unix_nano)

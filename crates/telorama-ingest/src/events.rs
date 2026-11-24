@@ -55,7 +55,7 @@ struct AnyValue {
     #[serde(default, rename = "stringValue")]
     string_value: Option<String>,
     #[serde(default, rename = "intValue")]
-    int_value: Option<String>,
+    int_value: Option<serde_json::Value>,
     #[serde(default, rename = "doubleValue")]
     double_value: Option<f64>,
     #[serde(default, rename = "boolValue")]
@@ -121,7 +121,27 @@ impl Event {
     }
 
     pub(crate) fn f64_attr(&self, key: &str) -> f64 {
-        self.attrs.get(key).and_then(Attr::as_f64).unwrap_or(0.0)
+        self.attrs
+            .get(key)
+            .and_then(Attr::as_f64)
+            .filter(|v| v.is_finite())
+            .unwrap_or(0.0)
+    }
+
+    /// A token count read from an attribute. A negative
+    /// count is malformed and reads as zero, the same
+    /// outcome the span dialects get by parsing the
+    /// attribute as unsigned (INV-88).
+    pub(crate) fn token_attr(&self, key: &str) -> u64 {
+        self.i64_attr(key).max(0) as u64
+    }
+
+    /// A millisecond duration read from an attribute,
+    /// converted to nanoseconds with saturation, so an
+    /// extreme value cannot overflow the conversion
+    /// (INV-88).
+    pub(crate) fn duration_nanos_attr(&self, key: &str) -> i64 {
+        self.i64_attr(key).saturating_mul(1_000_000)
     }
 }
 
@@ -156,10 +176,23 @@ pub(crate) fn parse_events(text: &str) -> Result<Vec<Event>, IngestError> {
                         let Some(value) = kv.value else { continue };
                         let attr = if let Some(s) = value.string_value {
                             Attr::Str(s)
-                        } else if let Some(s) = value.int_value {
-                            match s.parse::<i64>() {
-                                Ok(v) => Attr::Int(v),
-                                Err(_) => Attr::Str(s),
+                        } else if let Some(v) = value.int_value {
+                            // OTLP JSON encodes intValue as a
+                            // string. A raw JSON number is
+                            // accepted too, the same leniency
+                            // the traces reader applies, so
+                            // the two readers cannot disagree
+                            // on a document (INV-88).
+                            match &v {
+                                serde_json::Value::String(s) => match s.parse::<i64>() {
+                                    Ok(n) => Attr::Int(n),
+                                    Err(_) => Attr::Str(s.clone()),
+                                },
+                                serde_json::Value::Number(n) => match n.as_i64() {
+                                    Some(n) => Attr::Int(n),
+                                    None => Attr::Str(n.to_string()),
+                                },
+                                _ => continue,
                             }
                         } else if let Some(v) = value.double_value {
                             Attr::Float(v)

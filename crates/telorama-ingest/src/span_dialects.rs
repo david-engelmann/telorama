@@ -338,10 +338,14 @@ fn build_turn(
 /// traversal, so this census cannot diverge from the others.
 fn add_step_totals(turn: &mut AgentTurn, step: &AgentStep) {
     if let AgentStep::ModelCall(call) = step {
-        turn.input_tokens += call.input_tokens;
-        turn.output_tokens += call.output_tokens;
-        turn.cache_read_tokens += call.cache_read_tokens;
-        turn.cache_creation_tokens += call.cache_creation_tokens;
+        turn.input_tokens = turn.input_tokens.saturating_add(call.input_tokens);
+        turn.output_tokens = turn.output_tokens.saturating_add(call.output_tokens);
+        turn.cache_read_tokens = turn
+            .cache_read_tokens
+            .saturating_add(call.cache_read_tokens);
+        turn.cache_creation_tokens = turn
+            .cache_creation_tokens
+            .saturating_add(call.cache_creation_tokens);
         turn.cost_usd += call.cost_usd;
     }
 }

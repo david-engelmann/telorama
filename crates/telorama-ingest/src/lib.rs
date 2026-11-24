@@ -137,6 +137,18 @@ impl AnyValue {
         }
         String::new()
     }
+
+    /// Whether the value carries a modelled shape. An
+    /// unmodelled shape (an array or a key-value list)
+    /// has no display form, and the attribute is skipped
+    /// rather than emptied, the same rule the logs reader
+    /// applies (INV-88).
+    fn has_modelled_shape(&self) -> bool {
+        self.string_value.is_some()
+            || self.int_value.is_some()
+            || self.bool_value.is_some()
+            || self.double_value.is_some()
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -188,7 +200,9 @@ fn kind_from_i32(kind: i32) -> SpanKind {
 fn attributes_of(list: &[KeyValue]) -> BTreeMap<String, String> {
     let mut out = BTreeMap::new();
     for kv in list {
-        if let Some(v) = &kv.value {
+        if let Some(v) = &kv.value
+            && v.has_modelled_shape()
+        {
             out.insert(kv.key.clone(), v.to_display());
         }
     }
@@ -208,6 +222,11 @@ fn convert(doc: &ExportRequest, out: &mut Vec<Span>) -> Result<(), IngestError> 
             .unwrap_or_else(|| "unknown".to_string());
         for scope in &rs.scope_spans {
             for raw in &scope.spans {
+                if raw.trace_id.is_empty() || raw.span_id.is_empty() {
+                    return Err(fail(
+                        "a span is missing its traceId or spanId, which an export must carry",
+                    ));
+                }
                 let start = nano_value(&raw.start).ok_or_else(|| {
                     fail(format!(
                         "span {} is missing a numeric startTimeUnixNano",

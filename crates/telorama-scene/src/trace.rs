@@ -66,6 +66,8 @@ impl Span {
     /// output: a malformed span with end before start reports zero, and
     /// ingest keeps the raw values visible in attributes for diagnosis.
     pub fn duration_nanos(&self) -> i64 {
-        (self.end_unix_nano - self.start_unix_nano).max(0)
+        self.end_unix_nano
+            .saturating_sub(self.start_unix_nano)
+            .max(0)
     }
 }

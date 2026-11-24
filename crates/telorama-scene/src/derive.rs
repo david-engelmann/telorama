@@ -370,8 +370,12 @@ pub fn heatmap_grid(
     let columns = columns.max(1);
     let row_count = edges_seconds.len() + 1;
     let mut counts = vec![vec![0u64; columns]; row_count];
-    let from_nano = range.from_unix_ms * 1_000_000;
-    let window_nano = (range.to_unix_ms - range.from_unix_ms).max(1) * 1_000_000;
+    let from_nano = range.from_unix_ms.saturating_mul(1_000_000);
+    let window_nano = range
+        .to_unix_ms
+        .saturating_sub(range.from_unix_ms)
+        .max(1)
+        .saturating_mul(1_000_000);
     let mut outside_window = 0usize;
     // The longest span seen per cell, the exemplar candidates.
     let mut best: BTreeMap<(usize, usize), &Span> = BTreeMap::new();
@@ -382,7 +386,11 @@ pub fn heatmap_grid(
             outside_window += 1;
             continue;
         }
-        let col = (((span.start_unix_nano - from_nano) * columns as i64) / window_nano) as usize;
+        let col = ((span
+            .start_unix_nano
+            .saturating_sub(from_nano)
+            .saturating_mul(columns as i64))
+            / window_nano) as usize;
         let col = col.min(columns - 1);
         let duration_seconds = span.duration_nanos() as f64 / 1_000_000_000.0;
         let row = edges_seconds
@@ -481,7 +489,7 @@ impl FlameBuilder {
         // A loop, not recursion (INV-87): one stack in a folded
         // profile can run tens of thousands of frames deep.
         let mut node = self;
-        node.value += count;
+        node.value = node.value.saturating_add(count);
         for frame in frames {
             if !node.children.contains_key(frame) {
                 node.children
@@ -491,7 +499,7 @@ impl FlameBuilder {
                 .children
                 .get_mut(frame)
                 .expect("the child was just ensured");
-            node.value += count;
+            node.value = node.value.saturating_add(count);
         }
     }
 
@@ -611,7 +619,9 @@ pub fn flame_from_spans(spans: &[Span], trace_id: &str) -> FlameNode {
             let mut child_nodes = frame.built;
             sort_flame_children(&mut child_nodes);
             let self_nanos = self_time(frame.span, &frame.kids).max(0) as u64;
-            let value = self_nanos + child_nodes.iter().map(|c| c.value).sum::<u64>();
+            let value = child_nodes
+                .iter()
+                .fold(self_nanos, |acc, c| acc.saturating_add(c.value));
             let node = FlameNode {
                 name: format!("{} · {}", frame.span.service, frame.span.name),
                 value,

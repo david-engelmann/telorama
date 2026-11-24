@@ -595,8 +595,16 @@ fn tool_frames(args: &Value) -> Value {
             Ok(s) => s,
             Err(e) => return tool_error(&e.to_string()),
         };
-        let input: u64 = frame.run.turns.iter().map(|t| t.input_tokens).sum();
-        let output: u64 = frame.run.turns.iter().map(|t| t.output_tokens).sum();
+        let input: u64 = frame
+            .run
+            .turns
+            .iter()
+            .fold(0u64, |acc, t| acc.saturating_add(t.input_tokens));
+        let output: u64 = frame
+            .run
+            .turns
+            .iter()
+            .fold(0u64, |acc, t| acc.saturating_add(t.output_tokens));
         let cost: f64 = frame.run.turns.iter().map(|t| t.cost_usd).sum();
         lines.push(format!(
             "Frame {} of {}: {} {}, {} in, {} out, {}.",
@@ -634,8 +642,14 @@ fn tool_session(args: &Value) -> Value {
         Ok(r) => r,
         Err(m) => return tool_error(&m),
     };
-    let input: u64 = run.turns.iter().map(|t| t.input_tokens).sum();
-    let output: u64 = run.turns.iter().map(|t| t.output_tokens).sum();
+    let input: u64 = run
+        .turns
+        .iter()
+        .fold(0u64, |acc, t| acc.saturating_add(t.input_tokens));
+    let output: u64 = run
+        .turns
+        .iter()
+        .fold(0u64, |acc, t| acc.saturating_add(t.output_tokens));
     let cost: f64 = run.turns.iter().map(|t| t.cost_usd).sum();
     let mut text = format!(
         "Session {} ({}): {} turns, {} in, {} out, {} total.",

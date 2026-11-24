@@ -586,6 +586,11 @@ fn render_waterfall(
         .ok_or_else(|| fail("waterfall panel needs a data entry with a trace_id"))?;
     let rows = waterfall_rows(spans, trace_id);
     if rows.is_empty() {
+        if spans.iter().any(|s| s.trace_id == trace_id) {
+            return Err(fail(format!(
+                "trace {trace_id} has spans but none can root a waterfall, because every span's parent chain cycles"
+            )));
+        }
         return Err(fail(format!("no spans found for trace {trace_id}")));
     }
     let by_id: BTreeMap<&str, &Span> = spans
@@ -595,7 +600,7 @@ fn render_waterfall(
         .collect();
     let t0 = by_id.values().map(|s| s.start_unix_nano).min().unwrap_or(0);
     let t1 = by_id.values().map(|s| s.end_unix_nano).max().unwrap_or(0);
-    let total = (t1 - t0).max(1) as f64;
+    let total = t1.saturating_sub(t0).max(1) as f64;
     let critical: std::collections::BTreeSet<String> =
         critical_path(spans, trace_id).into_iter().collect();
 
@@ -652,7 +657,7 @@ fn render_waterfall(
             false,
             label,
         );
-        let bar_x = plot_x0 + (span.start_unix_nano - t0) as f64 / total * plot_w;
+        let bar_x = plot_x0 + span.start_unix_nano.saturating_sub(t0) as f64 / total * plot_w;
         let bar_w = ((span.duration_nanos() as f64) / total * plot_w).max(1.5);
         let fill = if highlight_errors && span.is_error {
             palette.error.to_string()
@@ -770,8 +775,9 @@ fn layout_agent_step_row(
 ) {
     let plot_x0 = 200.0;
     let plot_x1 = WIDTH - MARGIN;
-    let x_of =
-        |t: i64| plot_x0 + ((t - from_nano) as f64 / window_nano as f64) * (plot_x1 - plot_x0);
+    let x_of = |t: i64| {
+        plot_x0 + (t.saturating_sub(from_nano) as f64 / window_nano as f64) * (plot_x1 - plot_x0)
+    };
     let start = step.start_unix_nano();
     let end = step.end_unix_nano();
     let x1 = x_of(start);
@@ -984,9 +990,14 @@ fn render_agent_run(
     if run.turns.is_empty() {
         return Err(fail("the agent run has no turns"));
     }
-    let from_nano = scene.context.range.from_unix_ms * 1_000_000;
-    let window_nano =
-        ((scene.context.range.to_unix_ms - scene.context.range.from_unix_ms) * 1_000_000).max(1);
+    let from_nano = scene.context.range.from_unix_ms.saturating_mul(1_000_000);
+    let window_nano = (scene
+        .context
+        .range
+        .to_unix_ms
+        .saturating_sub(scene.context.range.from_unix_ms)
+        .saturating_mul(1_000_000))
+    .max(1);
 
     // Time axis, the same five ticks the waterfall uses.
     let plot_x0 = 200.0;
@@ -1398,9 +1409,13 @@ fn render_service_map(
     if set_owned.is_empty() {
         return Err(fail("service map has no spans in its data set"));
     }
-    let window_seconds =
-        ((scene.context.range.to_unix_ms - scene.context.range.from_unix_ms) as f64 / 1000.0)
-            .max(0.001);
+    let window_seconds = (scene
+        .context
+        .range
+        .to_unix_ms
+        .saturating_sub(scene.context.range.from_unix_ms) as f64
+        / 1000.0)
+        .max(0.001);
     let graph = service_graph(&set_owned, window_seconds);
     let positions = map_positions(&graph);
     let layers = positions.iter().map(|(_, l, _)| *l).max().unwrap_or(0) + 1;
@@ -1698,6 +1713,11 @@ fn render_flame(
     let (mut tree, note) = if let Some(trace_id) = entry.source.trace_id.as_deref() {
         let tree = flame_from_spans(data.spans, trace_id);
         if tree.children.is_empty() {
+            if data.spans.iter().any(|s| s.trace_id == trace_id) {
+                return Err(fail(format!(
+                    "trace {trace_id} has spans but none can root a flame graph, because every span's parent chain cycles"
+                )));
+            }
             return Err(fail(format!("no spans found for trace {trace_id}")));
         }
         let note = format!(

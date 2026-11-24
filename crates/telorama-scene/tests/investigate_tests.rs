@@ -256,3 +256,15 @@ fn investigate_unpriced_only_run_names_the_models() {
 fn investigate_empty_input_is_empty() {
     assert!(investigate(&[], None, 60.0).is_empty());
 }
+
+#[test]
+fn investigate_tolerates_a_non_finite_cost() {
+    // Round 15 (INV-88): a run whose turn costs include a
+    // NaN yields no cost finding and no panic, where the
+    // leader selection once unwrapped a comparison that
+    // NaN makes undefined.
+    let mut run = run_with_wait_and_cost();
+    run.turns[0].cost_usd = f64::NAN;
+    let findings = investigate(&[], Some(&run), 100.0);
+    assert!(findings.iter().all(|f| f.kind != "cost"));
+}

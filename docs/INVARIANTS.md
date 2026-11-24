@@ -661,6 +661,17 @@ later milestones are marked as validator-side.
   drop and its serialization. Enforced by the
   depth tests in the derive, MCP, and ingest
   suites.
+- INV-88. Every boundary the workspace
+  exposes refuses malformed or extreme input
+  with a named error or a defined rendering,
+  and caller text enters markup only escaped
+  for that markup. Time and figure arithmetic
+  over input values saturates rather than
+  overflowing, a negative or non-finite figure
+  reads as its defined default, and no
+  boundary panics, hangs, or emits unescaped
+  caller text. Enforced by the sweep tests in
+  the scene, ingest, svg, MCP, and CLI suites.
 
 ## Hostile inputs (derive, ingest, pricing)
 

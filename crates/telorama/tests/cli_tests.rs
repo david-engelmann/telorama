@@ -402,6 +402,64 @@ fn frames_command_writes_jsonl_and_a_framebook() {
 }
 
 #[test]
+fn frames_framebook_escapes_a_hostile_session_id() {
+    // Round 15 (INV-88): the session id is telemetry text,
+    // and the framebook escapes it, where it once entered
+    // the title and heading raw.
+    use serde_json::json;
+    let hostile = "</title><script>alert(1)</script>";
+    let record = |name: &str, extra: serde_json::Value| {
+        let mut attributes = vec![
+            json!({"key": "event.name", "value": {"stringValue": name}}),
+            json!({"key": "session.id", "value": {"stringValue": hostile}}),
+            json!({"key": "prompt.id", "value": {"stringValue": "p-1"}}),
+        ];
+        if let serde_json::Value::Array(more) = extra {
+            attributes.extend(more);
+        }
+        json!({
+            "timeUnixNano": "1794841201000000000",
+            "body": {"stringValue": name},
+            "attributes": attributes,
+        })
+    };
+    let logs = json!({"resourceLogs": [{"scopeLogs": [{"logRecords": [
+        record("claude_code.user_prompt", json!([])),
+        record("claude_code.api_request", json!([
+            {"key": "model", "value": {"stringValue": "claude-sonnet-4-5"}},
+            {"key": "input_tokens", "value": {"intValue": "100"}},
+            {"key": "output_tokens", "value": {"intValue": "10"}},
+            {"key": "cost_usd", "value": {"doubleValue": 0.01}},
+            {"key": "duration_ms", "value": {"intValue": "900"}},
+        ])),
+    ]}]}]});
+    let tmp_logs =
+        std::env::temp_dir().join(format!("telorama-hostile-{}.json", std::process::id()));
+    std::fs::write(&tmp_logs, logs.to_string()).unwrap();
+    let out_path =
+        std::env::temp_dir().join(format!("telorama-hostile-{}.jsonl", std::process::id()));
+    let book =
+        std::env::temp_dir().join(format!("telorama-hostile-book-{}.html", std::process::id()));
+    let out = telorama(&[
+        "frames",
+        "--logs",
+        tmp_logs.to_str().unwrap(),
+        "--out",
+        out_path.to_str().unwrap(),
+        "--html",
+        book.to_str().unwrap(),
+    ]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let html = std::fs::read_to_string(&book).unwrap();
+    assert!(!html.contains("<script>alert"), "{html}");
+    assert!(html.contains("&lt;script&gt;"), "{html}");
+}
+
+#[test]
 fn render_with_state_refuses_a_misbound_agent_state_panel() {
     let scene_path = workspace_file("tests/fixtures/scenes/agent_state_scene.json");
     let text = std::fs::read_to_string(&scene_path).unwrap();
