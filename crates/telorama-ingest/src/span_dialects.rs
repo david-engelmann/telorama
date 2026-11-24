@@ -372,7 +372,7 @@ fn add_step_totals(turn: &mut AgentTurn, step: &AgentStep) {
 
 /// The children of one span occurrence, as positions in the
 /// caller's slice. Only the adopting copy of a repeated id
-/// carries the id's children (INV-89); every other copy
+/// carries the id's children (INV-89). Every other copy
 /// carries none.
 fn children_of<'a>(
     children: &'a BTreeMap<&str, Vec<usize>>,
