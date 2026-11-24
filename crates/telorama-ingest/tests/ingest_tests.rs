@@ -1370,3 +1370,95 @@ fn claude_code_blocked_wait_stays_with_its_own_tool_occurrence() {
     assert_eq!(edit.wait_nanos, 10_000_000_000);
     assert_eq!(run.coverage.spans_merged, 2);
 }
+
+#[test]
+fn claude_code_decisions_pair_to_results_by_occurrence() {
+    // Round 18 (INV-90): one turn carries two Bash decisions
+    // before either Bash result, the batched interleaving of
+    // concurrent tool calls. The first result reads the first
+    // decision and the second reads the second, so no label
+    // crosses between the two invocations.
+    use telorama_scene::AgentStep;
+    let logs = r#"{"resourceLogs":[{"scopeLogs":[{"logRecords":[
+      {"timeUnixNano":"1794841200000000000","attributes":[{"key":"event.name","value":{"stringValue":"claude_code.user_prompt"}},{"key":"session.id","value":{"stringValue":"sess-pair"}},{"key":"prompt.id","value":{"stringValue":"p-1"}}]},
+      {"timeUnixNano":"1794841201000000000","attributes":[{"key":"event.name","value":{"stringValue":"claude_code.tool_decision"}},{"key":"session.id","value":{"stringValue":"sess-pair"}},{"key":"prompt.id","value":{"stringValue":"p-1"}},{"key":"tool_name","value":{"stringValue":"Bash"}},{"key":"decision","value":{"stringValue":"accept"}}]},
+      {"timeUnixNano":"1794841202000000000","attributes":[{"key":"event.name","value":{"stringValue":"claude_code.tool_decision"}},{"key":"session.id","value":{"stringValue":"sess-pair"}},{"key":"prompt.id","value":{"stringValue":"p-1"}},{"key":"tool_name","value":{"stringValue":"Bash"}},{"key":"decision","value":{"stringValue":"reject"}}]},
+      {"timeUnixNano":"1794841210000000000","attributes":[{"key":"event.name","value":{"stringValue":"claude_code.tool_result"}},{"key":"session.id","value":{"stringValue":"sess-pair"}},{"key":"prompt.id","value":{"stringValue":"p-1"}},{"key":"tool_name","value":{"stringValue":"Bash"}},{"key":"success","value":{"boolValue":true}},{"key":"duration_ms","value":{"intValue":"5000"}}]},
+      {"timeUnixNano":"1794841220000000000","attributes":[{"key":"event.name","value":{"stringValue":"claude_code.tool_result"}},{"key":"session.id","value":{"stringValue":"sess-pair"}},{"key":"prompt.id","value":{"stringValue":"p-1"}},{"key":"tool_name","value":{"stringValue":"Bash"}},{"key":"success","value":{"boolValue":true}},{"key":"duration_ms","value":{"intValue":"5000"}}]}
+    ]}]}]}"#;
+    let run = telorama_ingest::parse_claude_code_session(logs, &[]).expect("the session must adapt");
+    assert_eq!(run.turns.len(), 1);
+    let turn = &run.turns[0];
+    assert_eq!(turn.steps.len(), 2);
+    let AgentStep::ToolCall(first) = &turn.steps[0] else {
+        panic!("the first step must be the first Bash call");
+    };
+    assert_eq!(first.decision.as_deref(), Some("accept"));
+    let AgentStep::ToolCall(second) = &turn.steps[1] else {
+        panic!("the second step must be the second Bash call");
+    };
+    assert_eq!(second.decision.as_deref(), Some("reject"));
+}
+
+#[test]
+fn codex_decisions_pair_to_results_by_occurrence() {
+    // Round 18 (INV-90): the same batched interleaving in the
+    // Codex dialect. Two exec_command decisions land before
+    // either result, and the results read them in order.
+    use telorama_scene::AgentStep;
+    let logs = r#"{"resourceLogs":[{"scopeLogs":[{"logRecords":[
+      {"timeUnixNano":"1794841200000000000","attributes":[{"key":"event.name","value":{"stringValue":"codex.user_prompt"}},{"key":"conversation.id","value":{"stringValue":"c-pair"}},{"key":"turn.id","value":{"stringValue":"t-1"}}]},
+      {"timeUnixNano":"1794841201000000000","attributes":[{"key":"event.name","value":{"stringValue":"codex.tool_decision"}},{"key":"conversation.id","value":{"stringValue":"c-pair"}},{"key":"turn.id","value":{"stringValue":"t-1"}},{"key":"tool_name","value":{"stringValue":"exec_command"}},{"key":"decision","value":{"stringValue":"approved"}}]},
+      {"timeUnixNano":"1794841202000000000","attributes":[{"key":"event.name","value":{"stringValue":"codex.tool_decision"}},{"key":"conversation.id","value":{"stringValue":"c-pair"}},{"key":"turn.id","value":{"stringValue":"t-1"}},{"key":"tool_name","value":{"stringValue":"exec_command"}},{"key":"decision","value":{"stringValue":"denied"}}]},
+      {"timeUnixNano":"1794841210000000000","attributes":[{"key":"event.name","value":{"stringValue":"codex.tool_result"}},{"key":"conversation.id","value":{"stringValue":"c-pair"}},{"key":"turn.id","value":{"stringValue":"t-1"}},{"key":"tool_name","value":{"stringValue":"exec_command"}},{"key":"success","value":{"boolValue":true}},{"key":"duration_ms","value":{"intValue":"5000"}}]},
+      {"timeUnixNano":"1794841220000000000","attributes":[{"key":"event.name","value":{"stringValue":"codex.tool_result"}},{"key":"conversation.id","value":{"stringValue":"c-pair"}},{"key":"turn.id","value":{"stringValue":"t-1"}},{"key":"tool_name","value":{"stringValue":"exec_command"}},{"key":"success","value":{"boolValue":true}},{"key":"duration_ms","value":{"intValue":"5000"}}]}
+    ]}]}]}"#;
+    let run = telorama_ingest::parse_codex_session(logs, &[]).expect("the session must adapt");
+    assert_eq!(run.turns.len(), 1);
+    let turn = &run.turns[0];
+    assert_eq!(turn.steps.len(), 2);
+    let AgentStep::ToolCall(first) = &turn.steps[0] else {
+        panic!("the first step must be the first exec_command call");
+    };
+    assert_eq!(first.decision.as_deref(), Some("approved"));
+    let AgentStep::ToolCall(second) = &turn.steps[1] else {
+        panic!("the second step must be the second exec_command call");
+    };
+    assert_eq!(second.decision.as_deref(), Some("denied"));
+}
+
+#[test]
+fn claude_code_blocked_child_resolves_to_the_smallest_containing_occurrence() {
+    // Round 18 (INV-89): two claude_code.tool spans share one
+    // id with nested windows, the larger first in the export,
+    // and one blocked_on_user child sits inside both. The
+    // child resolves to the smallest containing occurrence, so
+    // the step only the larger occurrence contains keeps a
+    // zero wait.
+    use telorama_scene::AgentStep;
+    let logs = r#"{"resourceLogs":[{"scopeLogs":[{"logRecords":[
+      {"timeUnixNano":"1794841200000000000","attributes":[{"key":"event.name","value":{"stringValue":"claude_code.user_prompt"}},{"key":"session.id","value":{"stringValue":"sess-dup"}},{"key":"prompt.id","value":{"stringValue":"p-1"}}]},
+      {"timeUnixNano":"1794841380000000000","attributes":[{"key":"event.name","value":{"stringValue":"claude_code.tool_result"}},{"key":"session.id","value":{"stringValue":"sess-dup"}},{"key":"prompt.id","value":{"stringValue":"p-1"}},{"key":"tool_name","value":{"stringValue":"Bash"}},{"key":"success","value":{"boolValue":true}},{"key":"duration_ms","value":{"intValue":"60000"}}]},
+      {"timeUnixNano":"1794841500000000000","attributes":[{"key":"event.name","value":{"stringValue":"claude_code.tool_result"}},{"key":"session.id","value":{"stringValue":"sess-dup"}},{"key":"prompt.id","value":{"stringValue":"p-1"}},{"key":"tool_name","value":{"stringValue":"Edit"}},{"key":"success","value":{"boolValue":true}},{"key":"duration_ms","value":{"intValue":"50000"}}]}
+    ]}]}]}"#;
+    let span_doc = r#"{"resourceSpans":[{"scopeSpans":[{"spans":[
+      {"traceId":"aa11bb22cc33dd44ee55ff6677889900","spanId":"00000000000000e1","name":"claude_code.tool","startTimeUnixNano":"1794841200000000000","endTimeUnixNano":"1794841500000000000"},
+      {"traceId":"aa11bb22cc33dd44ee55ff6677889900","spanId":"00000000000000e1","name":"claude_code.tool","startTimeUnixNano":"1794841300000000000","endTimeUnixNano":"1794841400000000000"},
+      {"traceId":"aa11bb22cc33dd44ee55ff6677889900","spanId":"00000000000000f1","parentSpanId":"00000000000000e1","name":"claude_code.tool.blocked_on_user","startTimeUnixNano":"1794841320000000000","endTimeUnixNano":"1794841370000000000"}
+    ]}]}]}"#;
+    let spans = telorama_ingest::parse_otlp_traces(span_doc).expect("the spans parse");
+    let run =
+        telorama_ingest::parse_claude_code_session(logs, &spans).expect("the session must adapt");
+    assert_eq!(run.turns.len(), 1);
+    let turn = &run.turns[0];
+    assert_eq!(turn.steps.len(), 2);
+    let AgentStep::ToolCall(bash) = &turn.steps[0] else {
+        panic!("the first step must be the Bash call");
+    };
+    assert_eq!(bash.wait_nanos, 50_000_000_000);
+    let AgentStep::ToolCall(edit) = &turn.steps[1] else {
+        panic!("the second step must be the Edit call");
+    };
+    assert_eq!(edit.wait_nanos, 0);
+    assert_eq!(run.coverage.spans_merged, 1);
+}

@@ -9,7 +9,7 @@
 //! for permission waits and subagent structure; the coverage counts
 //! on the run say how much each source contributed.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use telorama_scene::{
     AgentRun, AgentStep, AgentTurn, Coverage, MAX_AGENT_NESTING, ModelCall, Span, SubagentRun,
     ToolCall,
@@ -104,7 +104,12 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
 
     let mut order: Vec<String> = Vec::new();
     let mut builders: BTreeMap<String, TurnBuilder> = BTreeMap::new();
-    let mut decisions: BTreeMap<(String, String), String> = BTreeMap::new();
+    // Decisions pair to results by occurrence within a turn
+    // and tool name (INV-90): each decision queues, and a
+    // result takes the oldest unconsumed decision for its
+    // name, so a batched pair of decisions cannot cross
+    // between two invocations of one tool.
+    let mut decisions: BTreeMap<(String, String), VecDeque<String>> = BTreeMap::new();
     for event in &relevant {
         let Some(prompt_id) = event.str_attr("prompt.id") else {
             continue;
@@ -119,7 +124,10 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
             if let (Some(tool), Some(decision)) =
                 (event.str_attr("tool_name"), event.str_attr("decision"))
             {
-                decisions.insert((prompt_id.clone(), tool.to_string()), decision.to_string());
+                decisions
+                    .entry((prompt_id.clone(), tool.to_string()))
+                    .or_default()
+                    .push_back(decision.to_string());
             }
             continue;
         }
@@ -216,7 +224,9 @@ pub fn parse_claude_code_session(logs_text: &str, spans: &[Span]) -> Result<Agen
                     .get("success")
                     .and_then(Attr::as_bool)
                     .unwrap_or(true);
-                let decision = decisions.get(&(prompt_id.clone(), name.clone())).cloned();
+                let decision = decisions
+                    .get_mut(&(prompt_id.clone(), name.clone()))
+                    .and_then(VecDeque::pop_front);
                 turn.steps.push(AgentStep::ToolCall(ToolCall {
                     name,
                     start_unix_nano: event.time_nano.saturating_sub(duration),

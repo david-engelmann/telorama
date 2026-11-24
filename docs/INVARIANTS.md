@@ -685,6 +685,14 @@ later milestones are marked as validator-side.
   joins a derived row back to a span by id
   alone. Enforced by the duplicate-id tests in
   the scene, ingest, svg, and MCP suites.
+- INV-90. Within a turn, the decisions recorded
+  for one tool name pair to that name's results
+  by occurrence. The n-th decision in event
+  order labels the n-th result, a result with
+  no unconsumed decision before it carries no
+  decision, and a decision no result consumes
+  labels nothing. Enforced by the decision
+  pairing tests in the ingest suite.
 
 ## Hostile inputs (derive, ingest, pricing)
 
