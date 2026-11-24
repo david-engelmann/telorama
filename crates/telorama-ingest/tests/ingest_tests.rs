@@ -1297,7 +1297,11 @@ fn genai_session_gives_each_copy_of_a_shared_id_its_own_step() {
         panic!("the first step must be the first copy's subagent");
     };
     assert_eq!(first.agent_id, "agent-a");
-    assert_eq!(first.steps.len(), 2, "both children walk under the adopting copy");
+    assert_eq!(
+        first.steps.len(),
+        2,
+        "both children walk under the adopting copy"
+    );
     let AgentStep::Subagent(second) = &turn.steps[1] else {
         panic!("the second step must be the second copy's subagent");
     };
@@ -1351,8 +1355,8 @@ fn claude_code_blocked_wait_stays_with_its_own_tool_occurrence() {
       {"traceId":"aa11bb22cc33dd44ee55ff6677889900","spanId":"00000000000000f2","parentSpanId":"00000000000000e1","name":"claude_code.tool.blocked_on_user","startTimeUnixNano":"1794841410000000000","endTimeUnixNano":"1794841420000000000"}
     ]}]}]}"#;
     let spans = telorama_ingest::parse_otlp_traces(span_doc).expect("the spans parse");
-    let run = telorama_ingest::parse_claude_code_session(logs, &spans)
-        .expect("the session must adapt");
+    let run =
+        telorama_ingest::parse_claude_code_session(logs, &spans).expect("the session must adapt");
     assert_eq!(run.turns.len(), 1);
     let turn = &run.turns[0];
     assert_eq!(turn.steps.len(), 2);

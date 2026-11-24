@@ -411,7 +411,11 @@ fn subtree_len(
             continue;
         }
         count += 1;
-        stack.extend(children_of(children, adopters, index, &spans[index]).iter().copied());
+        stack.extend(
+            children_of(children, adopters, index, &spans[index])
+                .iter()
+                .copied(),
+        );
     }
     count
 }
@@ -546,8 +550,7 @@ fn emit(
                             "session nests agents deeper than the {MAX_AGENT_NESTING} level budget"
                         )));
                     }
-                    if let Some(frame) = open(child, spans, children, adopters, child_depth, seen)
-                    {
+                    if let Some(frame) = open(child, spans, children, adopters, child_depth, seen) {
                         stack.push(frame);
                     }
                 }
