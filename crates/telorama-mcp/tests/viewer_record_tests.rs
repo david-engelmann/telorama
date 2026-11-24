@@ -89,7 +89,7 @@ struct RecordMeta {
 struct Record {
     record: RecordMeta,
     incident: IncidentRecord,
-    session: SessionRecord,
+    sessions: Vec<SessionRecord>,
 }
 
 /// The panel a finding is about, derived from the finding and the
@@ -154,6 +154,43 @@ fn panel_type_names(scene: &telorama_scene::Scene) -> Vec<String> {
         .collect()
 }
 
+/// One recorded session, assembled from an adapted run exactly as
+/// the CLI frames path assembles it. The frames render through the
+/// scene renderer with the run as their data, and each frame's
+/// findings anchor against its own scene.
+fn session_record(run: &telorama_scene::AgentRun) -> SessionRecord {
+    let frames = telorama_scene::session_frames(run, GENERATED_BY)
+        .into_iter()
+        .map(|frame| {
+            let svg = telorama_svg::render_scene_with_data(
+                &frame.scene,
+                &telorama_svg::SceneData {
+                    spans: &[],
+                    stacks: &[],
+                    agent_run: Some(&frame.run),
+                    agent_state: &[],
+                    findings: &frame.findings,
+                },
+            )
+            .expect("each frame must render");
+            FrameRecord {
+                frame: frame.index + 1,
+                turns: frame.turns,
+                anchors: anchors_for(&frame.scene, &frame.findings),
+                svg_fnv1a64: telorama_scene::content_hash(svg.as_bytes()),
+                svg,
+                findings: frame.findings,
+                scene: frame.scene,
+            }
+        })
+        .collect();
+    SessionRecord {
+        session_id: run.session_id.clone(),
+        dialect: run.dialect.clone(),
+        frames,
+    }
+}
+
 fn assemble_record() -> Record {
     let spans = telorama_ingest::parse_otlp_traces(&workspace_file(
         "tests/fixtures/otel-demo-checkout.json",
@@ -196,38 +233,12 @@ fn assemble_record() -> Record {
         "tests/fixtures/agents/claude-code-session-spans.json",
     ))
     .expect("the session span fixture must parse");
-    let run = telorama_ingest::parse_claude_code_session(&logs, &session_spans)
-        .expect("the session fixture must adapt");
-    let frames = telorama_scene::session_frames(&run, GENERATED_BY)
-        .into_iter()
-        .map(|frame| {
-            let svg = telorama_svg::render_scene_with_data(
-                &frame.scene,
-                &telorama_svg::SceneData {
-                    spans: &[],
-                    stacks: &[],
-                    agent_run: Some(&frame.run),
-                    agent_state: &[],
-                    findings: &frame.findings,
-                },
-            )
-            .expect("each frame must render");
-            FrameRecord {
-                frame: frame.index + 1,
-                turns: frame.turns,
-                anchors: anchors_for(&frame.scene, &frame.findings),
-                svg_fnv1a64: telorama_scene::content_hash(svg.as_bytes()),
-                svg,
-                findings: frame.findings,
-                scene: frame.scene,
-            }
-        })
-        .collect();
-    let session = SessionRecord {
-        session_id: run.session_id.clone(),
-        dialect: run.dialect.clone(),
-        frames,
-    };
+    let claude_run = telorama_ingest::parse_claude_code_session(&logs, &session_spans)
+        .expect("the Claude Code session fixture must adapt");
+    let codex_logs = workspace_file("tests/fixtures/agents/codex-session-logs.json");
+    let codex_run = telorama_ingest::parse_codex_session(&codex_logs, &[])
+        .expect("the Codex session fixture must adapt");
+    let sessions = vec![session_record(&claude_run), session_record(&codex_run)];
 
     Record {
         record: RecordMeta {
@@ -238,10 +249,11 @@ fn assemble_record() -> Record {
                 "tests/fixtures/otel-demo-checkout.json".to_string(),
                 "tests/fixtures/agents/claude-code-session-logs.json".to_string(),
                 "tests/fixtures/agents/claude-code-session-spans.json".to_string(),
+                "tests/fixtures/agents/codex-session-logs.json".to_string(),
             ],
         },
         incident,
-        session,
+        sessions,
     }
 }
 
@@ -312,29 +324,47 @@ fn viewer_record_covers_every_finding_kind_and_the_quiet_panel() {
         "the incident hash must be the hash of the incident svg"
     );
 
-    assert_eq!(record.session.session_id, "sess-2026-1116-demo");
-    assert_eq!(record.session.frames.len(), 2);
-    for frame in &record.session.frames {
+    assert_eq!(record.sessions.len(), 2);
+    let claude = &record.sessions[0];
+    assert_eq!(claude.session_id, "sess-2026-1116-demo");
+    assert_eq!(claude.dialect, "claude_code");
+    assert_eq!(claude.frames.len(), 2);
+    for frame in &claude.frames {
         let kinds: Vec<&str> = frame.findings.iter().map(|f| f.kind.as_str()).collect();
         assert_eq!(
             kinds,
             ["wait", "cost"],
             "a frame investigates its run alone, so its findings are exactly the session kinds"
         );
-        assert_eq!(
-            frame.anchors.len(),
-            frame.findings.len(),
-            "every session finding carries an anchor"
-        );
+    }
+    let codex = &record.sessions[1];
+    assert_eq!(codex.session_id, "conv-2026-1116-demo");
+    assert_eq!(codex.dialect, "codex");
+    assert_eq!(codex.frames.len(), 2);
+    for frame in &codex.frames {
+        let kinds: Vec<&str> = frame.findings.iter().map(|f| f.kind.as_str()).collect();
         assert!(
-            frame.anchors.iter().all(|anchor| anchor.panel == 0),
-            "session findings anchor to the frame's one panel"
+            !kinds.is_empty(),
+            "each Codex frame carries at least one finding"
         );
-        assert_eq!(
-            telorama_scene::content_hash(frame.svg.as_bytes()),
-            frame.svg_fnv1a64,
-            "each frame hash must be the hash of its svg"
-        );
+    }
+    for session in &record.sessions {
+        for frame in &session.frames {
+            assert_eq!(
+                frame.anchors.len(),
+                frame.findings.len(),
+                "every session finding carries an anchor"
+            );
+            assert!(
+                frame.anchors.iter().all(|anchor| anchor.panel == 0),
+                "session findings anchor to the frame's one panel"
+            );
+            assert_eq!(
+                telorama_scene::content_hash(frame.svg.as_bytes()),
+                frame.svg_fnv1a64,
+                "each frame hash must be the hash of its svg"
+            );
+        }
     }
 }
 

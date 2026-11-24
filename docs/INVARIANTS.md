@@ -696,7 +696,9 @@ later milestones are marked as validator-side.
 - INV-91. The verdict viewer renders one
   recorded run from the committed record under
   web/data and computes nothing at view time.
-  It displays only the delivered SVG and the
+  The run comprises one incident and the
+  recorded sessions, one per dialect the record
+  carries. It displays only the delivered SVG and the
   recorded findings, stepping replaces whole
   frames, and payload data never animates. The
   record is assembled from the committed

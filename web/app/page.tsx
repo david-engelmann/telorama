@@ -8,18 +8,21 @@ export default async function Page() {
     "utf-8"
   );
   const parsed = JSON.parse(raw);
+  const withPanels = (frame: Record<string, unknown>) => ({
+    ...frame,
+    panels: (
+      (frame.scene as { panels?: { type?: string }[] } | undefined)
+        ?.panels ?? []
+    ).map((panel) => String(panel.type ?? "unknown")),
+  });
   const data: RecordData = {
     ...parsed,
-    session: {
-      ...parsed.session,
-      frames: parsed.session.frames.map((frame: Record<string, unknown>) => ({
-        ...frame,
-        panels: (
-          (frame.scene as { panels?: { type?: string }[] } | undefined)
-            ?.panels ?? []
-        ).map((panel) => String(panel.type ?? "unknown")),
-      })),
-    },
+    sessions: parsed.sessions.map(
+      (session: { frames: Record<string, unknown>[] }) => ({
+        ...session,
+        frames: session.frames.map(withPanels),
+      })
+    ),
   };
   return <Viewer data={data} />;
 }
