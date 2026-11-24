@@ -375,9 +375,10 @@ fn viewer_record_covers_every_finding_kind_and_the_quiet_panel() {
     assert_eq!(genai.frames.len(), 1);
     for frame in &genai.frames {
         let kinds: Vec<&str> = frame.findings.iter().map(|f| f.kind.as_str()).collect();
-        assert!(
-            !kinds.is_empty(),
-            "each GenAI frame carries at least one finding"
+        assert_eq!(
+            kinds,
+            ["cost"],
+            "the GenAI adapter merges no wait data, so a GenAI frame's only session finding is cost"
         );
     }
     let openinference = &record.sessions[3];
@@ -386,9 +387,10 @@ fn viewer_record_covers_every_finding_kind_and_the_quiet_panel() {
     assert_eq!(openinference.frames.len(), 1);
     for frame in &openinference.frames {
         let kinds: Vec<&str> = frame.findings.iter().map(|f| f.kind.as_str()).collect();
-        assert!(
-            !kinds.is_empty(),
-            "each OpenInference frame carries at least one finding"
+        assert_eq!(
+            kinds,
+            ["cost"],
+            "the OpenInference adapter merges no wait data, so an OpenInference frame's only session finding is cost"
         );
     }
     for session in &record.sessions {
