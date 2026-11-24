@@ -1,0 +1,69 @@
+# Design record: the Codex session in the viewer record
+
+Round 23 extends the verdict viewer's recorded run with the second
+session dialect the engine ingests. The record Round 20 landed
+carries one session, a Claude Code session, while the ingest layer
+reads four dialects and the Codex dialect already has a priced
+fixture, a composed golden scene, and a frames path through the
+CLI. A showcase that shows one dialect understates the tool it
+demonstrates. This record settles the shape before the build.
+
+## The record
+
+The record's session field becomes a sessions list. Each entry
+carries the dialect name as the ingest layer reports it, the
+session id, and the frames in the shape the record already uses,
+each frame with its scene, its rendered SVG, its content hash, its
+findings, and its anchors. The Claude Code entry comes first and
+the Codex entry second, matching the order the dialects are named
+in the CLI. The incident half of the record does not change.
+
+The Codex entry is assembled from the priced Codex fixture,
+tests/fixtures/agents/codex-session-logs.json, through the same
+CLI frames path the Claude Code entry uses, with the spans input
+the CLI itself passes for the dialect. The unpriced Codex fixture
+stays out of the record. The existing record is a priced record,
+its cost findings depend on prices, and a second session that
+could not price its turns would teach the page a special case for
+no gain.
+
+## The page
+
+The page renders one section per session entry, in record order.
+Each section names its dialect from the record rather than from a
+page-side constant, shows the session id, and steps its own frames
+with its own position, so stepping one session never moves the
+other. The summary bar's scope grows to match. It counts the
+incident findings and the final frame of each session, and its
+scope label says so in words. Nothing else on the page changes,
+and the page still recomputes no finding, figure, or hash.
+
+## Anchors and findings
+
+Anchors derive per frame exactly as they do today, under the
+hardened derivation Round 21 landed. The derivation reads each
+frame's own scene, so a second dialect needs no new anchor rule.
+The coverage test pins the Codex frames' finding kinds exactly,
+as it now pins the Claude Code frames. What those kinds are is a
+measurement the build takes from the real fixture before pinning,
+not a value this record assumes. If the Codex run yields only one
+of the two session kinds, the pin says so and the summary bar's
+totals change to the true counts.
+
+## The invariant
+
+INV-91 is amended in place. Where it now says the viewer renders
+one recorded run, it will say the run comprises one incident and
+the recorded sessions, one per dialect the record carries. The
+rest of the invariant, the freshness gate, the whole-frame
+stepping, and the ban on payload animation, stands unchanged.
+
+## Fences
+
+No renderer, derivation, or ingest behavior changes. No new
+fixtures. The record's incident half is byte-identical to the
+current record's, and the Claude Code entry's frames are
+byte-identical to the current record's session frames. The
+freshness gate re-pins once, on the regenerated record, in the
+same UPDATE_RECORD mold as Round 20. The owed capture of the
+viewer page is untouched by this round and stays owed.
