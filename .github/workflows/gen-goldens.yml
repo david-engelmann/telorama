@@ -21,6 +21,7 @@ jobs:
           cd ..
           python3 -m http.server 8321 -d web/out &
           sleep 2
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
           cp capture-r71.mjs web/capture-r71.mjs
           (cd web && node capture-r71.mjs)
           WEBM=$(ls web/video/*.webm | head -1)

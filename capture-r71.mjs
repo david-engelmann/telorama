@@ -12,25 +12,29 @@ const context = await browser.newContext({
 const page = await context.newPage();
 await page.goto(BASE, { waitUntil: "networkidle" });
 console.log("EVIDENCE page title:", await page.title());
-await dwell(4000);
+await dwell(5000);
 
-const nextButtons = page.getByRole("button", { name: "Next", exact: true });
-const count = await nextButtons.count();
-console.log("EVIDENCE next buttons:", count);
+// Each session section opens on its last frame, so the live step
+// direction on load is Previous, walking back to the first frame.
+const prevButtons = page.getByRole("button", { name: "Previous", exact: true });
+const count = await prevButtons.count();
+console.log("EVIDENCE previous buttons:", count);
 for (let i = 0; i < count; i++) {
-  const btn = nextButtons.nth(i);
+  const btn = prevButtons.nth(i);
   try {
     await btn.scrollIntoViewIfNeeded({ timeout: 3000 });
-    await dwell(1500);
-    const enabled = await btn.isEnabled();
-    console.log(`EVIDENCE next ${i}: enabled=${enabled}`);
-    if (enabled) {
+    await dwell(3500);
+    let steps = 0;
+    while (await btn.isEnabled()) {
       await btn.click({ timeout: 3000 });
-      console.log(`EVIDENCE next ${i}: clicked`);
-      await dwell(3000);
+      steps += 1;
+      console.log(`EVIDENCE previous ${i}: step ${steps} clicked`);
+      await dwell(3500);
+      if (steps > 10) break;
     }
+    console.log(`EVIDENCE previous ${i}: ${steps} steps taken`);
   } catch (e) {
-    console.log(`EVIDENCE next ${i}: skipped (${e.message.split("\n")[0]})`);
+    console.log(`EVIDENCE previous ${i}: skipped (${e.message.split("\n")[0]})`);
   }
 }
 
