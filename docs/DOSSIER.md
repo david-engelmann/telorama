@@ -26,9 +26,10 @@ render the run the user is currently inside. The demo is the product.
 - MCP Apps (SEP-1865, io.modelcontextprotocol/ui) is Stable as of 2026-01-26.
   A tool declares _meta.ui.resourceUri pointing at a ui:// HTML resource; the
   host renders it in a sandboxed iframe; data flows over a JSON-RPC bridge.
-- Rendering hosts today: Claude web, desktop and mobile; ChatGPT; VS Code
-  Copilot; Cursor; Goose. Claude Code CLI and Codex CLI do NOT render apps;
-  they consume text and structuredContent. Terminal output is a first-class
+- Rendering hosts as of 2026-11-25 are Claude web, desktop and mobile,
+  ChatGPT, VS Code Copilot, Microsoft 365 Copilot, Cursor, and Goose on
+  the desktop. Claude Code CLI and Codex CLI do NOT render apps. They
+  consume text and structuredContent. Terminal output is a first-class
   tier, not a fallback afterthought.
 - Default CSP for a view is deny-by-default with connect-src 'none'. The
   working shape is one self-contained HTML file, zero declared domains, all
