@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="550" viewBox="0 0 960 550" role="img">
+<title>Wide names trace</title>
+<desc>One trace across five services, named in four scripts</desc>
+<rect x="0" y="0" width="960" height="550" fill="#FFFFFF"/>
+<text x="24" y="30" font-family="system-ui, sans-serif" font-size="20" fill="#1A1A1A" text-anchor="start" font-weight="700">One trace across five services, named in four scripts</text>
+<text x="24" y="50" font-family="system-ui, sans-serif" font-size="12" fill="#5A5A5A" text-anchor="start">Wide names trace</text>
+<text x="24" y="80" font-family="system-ui, sans-serif" font-size="14" fill="#1A1A1A" text-anchor="start" font-weight="700">Waterfall</text>
+<line x1="320" y1="92" x2="936" y2="92" stroke="#CCCCCC" stroke-width="1"/>
+<line x1="320" y1="92" x2="320" y2="96" stroke="#CCCCCC" stroke-width="1"/>
+<text x="320" y="88" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">0 ns</text>
+<line x1="474" y1="92" x2="474" y2="96" stroke="#CCCCCC" stroke-width="1"/>
+<text x="474" y="88" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">225 ms</text>
+<line x1="628" y1="92" x2="628" y2="96" stroke="#CCCCCC" stroke-width="1"/>
+<text x="628" y="88" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">450 ms</text>
+<line x1="782" y1="92" x2="782" y2="96" stroke="#CCCCCC" stroke-width="1"/>
+<text x="782" y="88" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">675 ms</text>
+<line x1="936" y1="92" x2="936" y2="96" stroke="#CCCCCC" stroke-width="1"/>
+<text x="936" y="88" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">900 ms</text>
+<text x="24" y="122" font-family="system-ui, sans-serif" font-size="11" fill="#1A1A1A" text-anchor="start">支付服务 · POST /pay</text>
+<rect x="320" y="112" width="616" height="11" fill="#D55E00" stroke="#111111" stroke-width="1.5"/>
+<rect x="320" y="120" width="616" height="3" fill="#111111" fill-opacity="0.45"/>
+<text x="942" y="122" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">900 ms</text>
+<text x="38" y="142" font-family="system-ui, sans-serif" font-size="11" fill="#1A1A1A" text-anchor="start">خدمة-الدفع · charge card</text>
+<rect x="354.22" y="132" width="308" height="11" fill="#009E73"/>
+<text x="668.22" y="142" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">450 ms</text>
+<text x="52" y="162" font-family="system-ui, sans-serif" font-size="11" fill="#1A1A1A" text-anchor="start">inventory · check stock</text>
+<rect x="388.44" y="152" width="136.89" height="11" fill="#E69F00"/>
+<text x="531.33" y="162" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">200 ms</text>
+<text x="38" y="182" font-family="system-ui, sans-serif" font-size="11" fill="#1A1A1A" text-anchor="start">café-gateway · reserve</text>
+<rect x="675.91" y="172" width="123.2" height="11" fill="#0072B2"/>
+<text x="805.11" y="182" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">180 ms</text>
+<text x="38" y="202" font-family="system-ui, sans-serif" font-size="11" fill="#1A1A1A" text-anchor="start">这是一个非常长的服务名称用于测试截…</text>
+<rect x="805.96" y="192" width="116.36" height="11" fill="#56B4E9" stroke="#111111" stroke-width="1.5"/>
+<rect x="805.96" y="200" width="116.36" height="3" fill="#111111" fill-opacity="0.45"/>
+<text x="928.31" y="202" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">170 ms</text>
+<text x="24" y="224" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">5 spans, 2 on the critical path. Self time is computed per span in the scene data.</text>
+<text x="24" y="250" font-family="system-ui, sans-serif" font-size="14" fill="#1A1A1A" text-anchor="start" font-weight="700">Service map</text>
+<line x1="493" y1="320" x2="637" y2="274" stroke="#888888" stroke-width="4"/>
+<text x="565" y="293" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">1 call · p99 200 ms</text>
+<line x1="189" y1="274" x2="333" y2="274" stroke="#888888" stroke-width="4"/>
+<text x="261" y="270" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">1 call · p99 180 ms</text>
+<line x1="189" y1="274" x2="333" y2="320" stroke="#888888" stroke-width="4"/>
+<text x="261" y="293" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">1 call · p99 450 ms</text>
+<line x1="189" y1="274" x2="333" y2="366" stroke="#888888" stroke-width="4"/>
+<text x="261" y="316" font-family="system-ui, sans-serif" font-size="10" fill="#5A5A5A" text-anchor="middle">1 call · p99 170 ms</text>
+<rect x="333" y="258" width="160" height="32" fill="#0072B2"/>
+<text x="341" y="272" font-family="system-ui, sans-serif" font-size="11" fill="#FFFFFF" text-anchor="start" font-weight="700">café-gateway</text>
+<text x="341" y="285" font-family="system-ui, sans-serif" font-size="10" fill="#FFFFFF" text-anchor="start">1 call · 0 errors</text>
+<rect x="637" y="258" width="160" height="32" fill="#E69F00"/>
+<text x="645" y="272" font-family="system-ui, sans-serif" font-size="11" fill="#1A1A1A" text-anchor="start" font-weight="700">inventory</text>
+<text x="645" y="285" font-family="system-ui, sans-serif" font-size="10" fill="#1A1A1A" text-anchor="start">1 call · 0 errors</text>
+<rect x="333" y="304" width="160" height="32" fill="#009E73"/>
+<text x="341" y="318" font-family="system-ui, sans-serif" font-size="11" fill="#FFFFFF" text-anchor="start" font-weight="700">خدمة-الدفع</text>
+<text x="341" y="331" font-family="system-ui, sans-serif" font-size="10" fill="#FFFFFF" text-anchor="start">1 call · 0 errors</text>
+<rect x="29" y="258" width="160" height="32" fill="#D55E00"/>
+<text x="37" y="272" font-family="system-ui, sans-serif" font-size="11" fill="#FFFFFF" text-anchor="start" font-weight="700">支付服务</text>
+<text x="37" y="285" font-family="system-ui, sans-serif" font-size="10" fill="#FFFFFF" text-anchor="start">1 call · 0 errors</text>
+<rect x="333" y="350" width="160" height="32" fill="#56B4E9"/>
+<text x="341" y="364" font-family="system-ui, sans-serif" font-size="11" fill="#1A1A1A" text-anchor="start" font-weight="700">这是一个非常长的服务…</text>
+<text x="341" y="377" font-family="system-ui, sans-serif" font-size="10" fill="#1A1A1A" text-anchor="start">1 call · 0 errors</text>
+<text x="24" y="410" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">café-gateway · 1 call · 0 errors (0.0%) · p50 180 ms · p99 180 ms</text>
+<text x="24" y="425" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">inventory · 1 call · 0 errors (0.0%) · p50 200 ms · p99 200 ms</text>
+<text x="24" y="440" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">خدمة-الدفع · 1 call · 0 errors (0.0%) · p50 450 ms · p99 450 ms</text>
+<text x="24" y="455" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">支付服务 · 1 call · 0 errors (0.0%) · p50 900 ms · p99 900 ms</text>
+<text x="24" y="470" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">这是一个非常长的服务名称用于测试截断功能 · 1 call · 0 errors (0.0%) · p50 170 ms · p99 170 ms</text>
+<line x1="24" y1="490" x2="936" y2="490" stroke="#CCCCCC" stroke-width="1"/>
+<text x="24" y="506" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Window 2026-11-16T19:20:00Z to 2026-11-16T19:20:01Z</text>
+<text x="24" y="521" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Data trace · otlp_file · trace aa11aa11aa11aa11aa11aa11aa11aa11 · sampling unknown</text>
+<text x="24" y="536" font-family="system-ui, sans-serif" font-size="11" fill="#5A5A5A" text-anchor="start">Generated by agent · Question: Do service names in every script stay inside their columns?</text>
+</svg>

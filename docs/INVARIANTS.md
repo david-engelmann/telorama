@@ -705,6 +705,22 @@ later milestones are marked as validator-side.
   fixtures through the tool paths and
   freshness-gated byte for byte. Enforced by
   the viewer record tests in the MCP suite.
+- INV-92. Layout width is a function of
+  character classes, never a raw character
+  count. A combining mark and the zero width
+  characters count zero, a character in the
+  East Asian wide and fullwidth ranges counts
+  two, and everything else, the East Asian
+  ambiguous class included, counts one.
+  Truncation cuts to a width budget at a
+  character boundary and never splits a
+  combining sequence, with the ellipsis
+  costing one column of the budget. For text
+  whose characters all count one the width is
+  the character count, so Latin layout is
+  unchanged. Enforced by the width tests in
+  the telorama-svg suite and the wide names
+  golden.
 
 ## Hostile inputs (derive, ingest, pricing)
 

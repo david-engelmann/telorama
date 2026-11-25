@@ -242,6 +242,11 @@ fn sections() -> Vec<Section> {
         "sankey_scene.json",
         "otel-demo-checkout.json",
     ));
+    out.push(trace_section(
+        "Trace diagrams",
+        "wide_names_scene.json",
+        "wide-names-trace.json",
+    ));
     {
         let scene =
             telorama_scene::parse_scene(&workspace_file("tests/fixtures/scenes/flame_scene.json"))
