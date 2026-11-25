@@ -1599,3 +1599,7 @@ The documented surface beyond the README was audited claim by claim for the seco
 ## Round 47: version 0.6.0 (2026-11-25)
 
 All five crates move from version 0.5.0 to version 0.6.0, carrying the work landed since the Round 35 release. The price rows for the current model lines and INV-93 ship in this version, with the two new agent run scenes and their goldens, the viewer record regenerated so its engine version stamp reads 0.6.0, and the accuracy programme's corrections to the README, the invariants, the dossier, and the roadmap. The README names the new version and counts forty-six completed rounds under the standing convention. Cargo.lock stays untouched in the repository, as in every release, and the packaging route refreshes it on the runner. The publish record for this round follows when the crates stand live on the index.
+
+## Round 47 publish record (2026-11-25)
+
+All five crates stand live on the crates.io index at version 0.6.0, published in the settled order of scene, ingest, svg, the command line crate, and the MCP server, with no version yanked. The packaged files were built on the hosted packaging route from the merged main and staged through the packaging branch, and the index carries versions 0.1.0 through 0.6.0 for every crate. Documentation for the new version is served by docs.rs.
