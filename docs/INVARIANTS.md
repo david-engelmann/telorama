@@ -619,7 +619,8 @@ later milestones are marked as validator-side.
   golden_agent_run_genai_current_scene_dark, and
   golden_api_scene_dark, and
   golden_heatmap_scene_dark, and
-  golden_service_map_scene_dark, and by
+  golden_service_map_scene_dark, and
+  golden_agent_run_codex_scene_dark, and by
   cli_tests render_html_honours_a_dark_scene.
 
 ## Registry finish (all crates, packaging)
