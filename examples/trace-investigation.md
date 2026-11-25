@@ -1,7 +1,7 @@
 # Investigating one trace
 
 The checkout fixture is a nine-span trace of a single request, a
-frontend root, a checkout span, five service calls beneath it, and
+frontend root, a checkout span, six service calls beneath it, and
 an email span that errors at the end. This walkthrough inspects
 the export, validates a scene written against it, and renders the
 scene.
