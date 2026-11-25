@@ -1,0 +1,25 @@
+# Design record: completing the width tables
+
+## The gap this round closes
+
+Round 32 landed the width model of docs/TEXT-WIDTH-DESIGN.md under INV-92, over range tables the code describes honestly as the principal blocks of the Unicode data. Its red team then did the seat a favour. It replayed the landed tables against Python's unicodedata across all 1.1 million codepoints and counted 458 disagreements. None touches a character the corpus, the fixtures, or a realistic service name in this repository carries, and the review said so. But the disagreements are real, and they concentrate where a future label could plausibly reach. About 241 are non-spacing marks the hand table omits, mostly marks of recent or minority scripts. About 107 are codepoints the East Asian Width property calls wide that the table counts as one, among them the Hangul Jamo Extended-A block and the emoji presentation symbols. About 78 are unassigned codepoints sitting inside wide blocks, which no real name can contain. Six are marks that are both non-spacing and wide, which the table counts as zero, the same choice the wcwidth tradition makes. A table that is right for every label the repo has met and silent about the rest is a good table. A table whose disagreements are enumerated, principled, and as small as the data allows is a finished one. This round designs the completion.
+
+## The completion rule
+
+The build replaces the hand-derived principal blocks with tables derived from the Unicode Character Database as published through a named authority, and it states the derivation so the next reader can repeat it. The authority for the derivation is the unicodedata module of a named Python release, whose Unicode version the build record states. The rule a codepoint's width follows stays exactly the rule INV-92 already states. A character counts zero when its general category is Mn or Me or it is one of the zero width format characters the current table names. A character counts two when its East Asian Width property is W or F. Everything else counts one. The completion changes the tables' coverage, never the rule, so INV-92 stands unamended and the design record for the width model needs no revision.
+
+## The principled remainder
+
+Three classes of disagreement with a naive reading of the data are intended, and the build record enumerates them rather than leaving them to be rediscovered. Unassigned codepoints carry no width of their own, since no name can contain them, and the tables may treat them as their surrounding block does or omit them, provided the record says which. The marks that are both non-spacing and wide count zero, because a combining mark adds no advance to its base character whatever its standalone width says, and the zero table is consulted first precisely so this choice holds. Codepoints a future Unicode version adds cannot be in the tables until the derivation is re-run against that version, and the record states the version the tables derive from so staleness is checkable rather than suspected.
+
+## The proving method
+
+The fence from Round 32 stands first and unchanged. Every width the corpus already pins must come out identical, so every golden, the gallery page, and the viewer record pass byte for byte, and the Round 32 fixture's names keep the widths the build gave them. The new proof is the red team's own sweep, run as the build's verification rather than as an external audit. The built tables are replayed against the derivation authority across every codepoint, and the build is done only when the disagreements that remain are exactly the principled remainder above, each class counted and named in the build record. A disagreement outside those classes fails the build however obscure the codepoint is, because obscurity is how the principal blocks drifted short in the first place.
+
+## The pin question
+
+Round 32's review left a precision note standing, that the landed unit pins cover the named classes' load-bearing edges rather than every table row. Completion makes exhaustive pinning in source form worse, not better, since fuller tables carry more rows. This design answers the note differently. The unit pins stay as they are, guarding the edges a reader would check by hand, and the exhaustive guard is the sweep itself, recorded in the build round's DECISIONS entry with its counts, so the claim the tables match the data rests on a replayable method rather than on hundreds of assertion lines no one would re-read. If a future change edits a table by hand, the sweep is the check that change owes.
+
+## Scope
+
+The change is confined to the two range tables in crates/telorama-svg/src/lib.rs and their doc comments, which after completion state the derivation and its Unicode version instead of describing principal blocks. No width rule changes, no call site changes, no fixture or golden changes, and no public API changes. If the sweep finds a disagreement the principled remainder does not cover and the derivation rule does not explain, the build stops and the design reopens, because a table that needs an unexplained exception is a design question, not a data entry.
