@@ -1294,6 +1294,13 @@ fn golden_sankey_scene_dark() {
 }
 
 #[test]
+fn golden_wide_names_scene_dark() {
+    let (scene_obj, spans) = darkened("wide_names_scene.json", "wide-names-trace.json");
+    let svg = telorama_svg::render_scene(&scene_obj, &spans).expect("dark scene must render");
+    assert_golden("wide_names_scene_dark.svg", &svg);
+}
+
+#[test]
 fn golden_agent_run_scene_dark() {
     let mut scene = telorama_scene::parse_scene(&workspace_file(
         "tests/fixtures/scenes/agent_run_scene.json",
