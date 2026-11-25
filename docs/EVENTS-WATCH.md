@@ -67,3 +67,19 @@ client. Either trigger earns a design record of its own. Until
 one fires, the re-check cadence is the next MCP protocol
 revision or the extension leaving Beta, whichever the seat
 notices first.
+
+## Re-check (2026-11-25)
+
+This watch was re-checked firsthand on 2026-11-25 under
+Round 49. The extension stands where Round 26 left it, still
+in Beta under the same identifier and the same three delivery
+modes, with no support yet in the official Rust SDK, so
+neither named trigger has fired and the watch continues on
+its stated terms. One fact has sharpened since the watch was
+written. The core protocol has moved twice past the revision
+telorama negotiates, and SEP-3415 defines the extension for
+protocol revision 2026-07-28 and later, so the second trigger
+is now coupled to the core revision. If it ever fires,
+exercising it first requires the separate design question of
+moving telorama-mcp to the current revision, which is a new
+item in its own right and not part of this watch.
