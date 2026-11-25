@@ -1651,3 +1651,7 @@ The heatmap scene gains its dark pin, the tenth of the seventeen scenes pinned i
 ## Round 60: Service map scene dark pin (2026-11-25)
 
 The service map scene gains its dark pin, the eleventh of the seventeen scenes pinned in both themes, following the same pattern as the heatmap pin before it. The dark golden will be generated on the hosted route from the scene as it stands, the README's count moves with it, and the INV-77 enumeration gains the new test's name. The corpus will stand at twenty-eight goldens, seventeen light and eleven dark.
+
+## Round 61: Codex agent run scene dark pin (2026-11-25)
+
+The Codex agent run scene gains its dark pin, the twelfth of the seventeen scenes pinned in both themes, following the agent run pattern of the fable and GenAI current pins before it. The dark golden will be generated on the hosted route from the scene as it stands, the README's count moves with it, and the INV-77 enumeration gains the new test's name. The corpus will stand at twenty-nine goldens, seventeen light and twelve dark.
