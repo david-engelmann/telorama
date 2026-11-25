@@ -67,6 +67,15 @@ fn golden_api_scene() {
 }
 
 #[test]
+fn golden_wide_names_scene() {
+    golden(
+        "wide_names_scene.svg",
+        "wide_names_scene.json",
+        "wide-names-trace.json",
+    );
+}
+
+#[test]
 fn golden_heatmap_scene() {
     golden(
         "heatmap_scene.svg",
