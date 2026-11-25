@@ -35,7 +35,14 @@ The build adds one pure function to telorama-svg that reads
 a string's layout width from the classes of its characters.
 A combining mark and the zero width characters count zero.
 A character in the East Asian wide and fullwidth ranges
-counts two. Everything else counts one. The ranges are
+counts two. Everything else counts one. One class needs
+naming because the corpus itself depends on it. Characters
+in the East Asian ambiguous class count one, and the
+renderer's own label separator and its truncation ellipsis
+are both ambiguous characters that sit in nearly every
+golden the corpus pins, so a range table that swept the
+ambiguous class into wide would break the Latin fence on
+its first run. The ranges are
 hand-derived, written into the code as named ranges with
 their sources stated, and pinned by unit tests character by
 character at the range edges. No font is consulted, no
@@ -46,7 +53,10 @@ Truncation and budgeting then work in width instead of
 character count. The truncation helper takes a width budget
 and cuts at the last character boundary that fits, never
 inside a combining sequence, with the ellipsis counted in
-the budget as it is today. Each call site keeps the pixel
+the budget as it is today. The conversion also keeps
+today's edge behaviour exactly. A zero budget yields the
+empty string, and a budget of one yields the ellipsis
+alone. Each call site keeps the pixel
 budget it already computes and converts through the width
 function rather than through a raw count. The build's first
 task is a census of every site that turns a character count
