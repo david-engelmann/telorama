@@ -262,6 +262,22 @@ fn formatting_is_canonical() {
 }
 
 #[test]
+fn unsupported_panel_type_is_a_specific_error() {
+    // INV-20: a panel type with no renderer yet is refused
+    // at parse time with the error naming the type at its
+    // path, so nothing renders silently wrong.
+    let text = workspace_file("tests/fixtures/scenes/checkout_scene.json")
+        .replace("\"type\":\"waterfall\"", "\"type\":\"treemap\"");
+    let errors = match telorama_scene::parse_scene(&text) {
+        Ok(_) => panic!("a scene naming an unrenderable panel type must fail"),
+        Err(errors) => errors,
+    };
+    assert_eq!(errors.len(), 1, "got: {errors:?}");
+    assert_eq!(errors[0].path, "$.panels[0]");
+    assert_eq!(errors[0].message, "unknown panel type \"treemap\"");
+}
+
+#[test]
 fn flame_declared_count_mismatch_is_a_render_error() {
     let text = workspace_file("tests/fixtures/scenes/flame_scene.json")
         .replace("\"sample_count\":970", "\"sample_count\":971");

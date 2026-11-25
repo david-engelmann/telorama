@@ -516,8 +516,19 @@ later milestones are marked as validator-side.
   FNV-1a hash and its headline counts by assertion, so a
   change at scale fails the suite the way a changed
   golden fails it at small scale.
-  Enforced by the scale tests in derive_tests,
-  golden_tests, and frames_tests.
+  Enforced by derive_tests
+  sankey_flow_conserves_at_ten_thousand_spans,
+  sankey_flow_holds_across_a_thousand_traces, and
+  profile_holds_at_a_hundred_thousand_samples,
+  golden_tests scale_trace_renders_pin_by_hash,
+  wide_trace_flame_renders_pin_by_hash,
+  many_trace_sankey_renders_pin_by_hash,
+  frame_stream_at_five_thousand_turns, and
+  profile_flame_renders_at_a_hundred_thousand_samples,
+  frames_tests session_frames_hold_at_five_hundred_turns,
+  and ingest_tests
+  genai_session_parses_ten_thousand_spans and
+  claude_session_parses_ten_thousand_events.
 - INV-70. Derivation and rendering grow no faster than
   the input times its logarithm. Session adaptation is
   linear in spans, and one frame's work is linear in the
@@ -527,7 +538,8 @@ later milestones are marked as validator-side.
   benchmark claim. Figures under ten milliseconds carry
   a one hundred millisecond floor, the smallest ceiling
   a shared runner can hold.
-  Enforced by the scale tests named under INV-69.
+  Enforced by the ceiling assertions in the scale
+  tests named under INV-69.
 - INV-71. The frame stream's total output is quadratic
   in the turn count by construction, because every frame
   is a complete scene. The five-hundred-turn stream's
@@ -573,7 +585,10 @@ later milestones are marked as validator-side.
   bytes never change. Colors a scene declares for
   itself, such as field threshold colors, are data and
   pass through unchanged in both themes.
-  Enforced by the validator tests for the theme field
+  Enforced by validator_tests
+  theme_dark_is_accepted_and_parsed,
+  theme_absent_means_light_and_serializes_without_the_field,
+  and theme_rejects_any_other_value_with_a_named_error,
   and by the whole light golden corpus standing
   byte-identical.
 - INV-75. Every foreground and background pair the
@@ -596,8 +611,11 @@ later milestones are marked as validator-side.
   background to match the scene's theme. The SVG's own
   ground rectangle takes the palette's background in
   both themes.
-  Enforced by the dark goldens in golden_tests and the
-  HTML export tests in cli_tests.
+  Enforced by golden_tests golden_checkout_scene_dark,
+  golden_sankey_scene_dark, golden_wide_names_scene_dark,
+  golden_agent_run_scene_dark, golden_flame_scene_dark,
+  and golden_incident_findings_scene_dark, and by
+  cli_tests render_html_honours_a_dark_scene.
 
 ## Registry finish (all crates, packaging)
 
@@ -607,12 +625,14 @@ later milestones are marked as validator-side.
   the registries rewrite relative paths against the
   crate directory, where the files do not live. The
   repo root readme keeps relative media for GitHub.
-  Enforced by packaging_tests in the telorama crate.
+  Enforced by packaging_tests
+  every_crate_readme_is_its_own_and_absolute.
 - INV-79. The five crates version together and
   publish in one order, scene, ingest, svg, telorama,
   telorama-mcp, each version confirmed live before
   the next is sent.
-  Enforced by packaging_tests for the version
+  Enforced by packaging_tests
+  the_five_crates_version_together for the version
   agreement and by the publish record in DECISIONS.md
   for the order.
 
@@ -629,7 +649,9 @@ later milestones are marked as validator-side.
   session's spans plus the agent run, so the CLI,
   the MCP server, and the gallery rank the same
   findings for the same session.
-  Enforced by the parity test in cli_tests.
+  Enforced by cli_tests
+  render_session_findings_cover_the_session_spans and
+  gallery_tests gallery_page_matches_the_current_renders.
 - INV-85. A command that takes traces and a
   session builds one combined span set, trace
   spans first, with each trace id and span id
@@ -637,7 +659,9 @@ later milestones are marked as validator-side.
   The incident command composes over that set,
   the rule the MCP incident tool applies to its
   input, and both commands rank findings over
-  it. Enforced by the parity tests in cli_tests.
+  it. Enforced by cli_tests
+  incident_composes_over_the_session_spans and
+  duplicate_inputs_count_each_span_once.
 - INV-86. Every public derivation tolerates a
   malformed graph or an extreme shape without
   panicking. The MCP
@@ -653,8 +677,14 @@ later milestones are marked as validator-side.
   named depth refusal instead of overflowing
   inside the verdict, and the renderer takes
   its tree apart iteratively when it is done
-  with it. Enforced by the leftover tests in
-  the MCP, derive, and golden suites.
+  with it. Enforced by derive_tests
+  service_layers_ignore_edges_that_name_an_absent_service,
+  flame_from_spans_builds_a_very_deep_chain, and
+  unique_spans_drops_redeliveries_and_keeps_distinct_copies,
+  mcp_tests
+  incident_scene_tool_counts_a_duplicated_span_once,
+  and golden_tests
+  deep_flame_refusal_is_reached_at_extreme_depth.
 - INV-87. No derivation, verdict, walk, or drop
   in the workspace recurses over the depth of
   its input. The dialect session builder, the
@@ -669,9 +699,12 @@ later milestones are marked as validator-side.
   builders enforce by refusing a deeper session
   with a named error, which bounds the
   recursions that remain over a run tree, its
-  drop and its serialization. Enforced by the
-  depth tests in the derive, MCP, and ingest
-  suites.
+  drop and its serialization. Enforced by
+  derive_tests flame_tree_folds_a_very_deep_stack,
+  mcp_tests panel_detail_reads_a_very_deep_profile,
+  and ingest_tests
+  genai_session_refuses_nesting_past_the_budget and
+  claude_session_refuses_nesting_past_the_budget.
 - INV-88. Every boundary the workspace
   exposes refuses malformed or extreme input
   with a named error or a defined rendering,
@@ -681,8 +714,15 @@ later milestones are marked as validator-side.
   overflowing, a negative or non-finite figure
   reads as its defined default, and no
   boundary panics, hangs, or emits unescaped
-  caller text. Enforced by the sweep tests in
-  the scene, ingest, svg, MCP, and CLI suites.
+  caller text. Enforced by derive_tests
+  extreme_timestamps_saturate_instead_of_overflowing,
+  ingest_tests
+  claude_session_reads_hostile_figures_as_defined_defaults
+  and claude_session_wait_sum_saturates, golden_tests
+  agent_run_renders_steps_at_time_extremes, mcp_tests
+  panel_detail_offsets_saturate_at_time_extremes,
+  and cli_tests
+  frames_framebook_escapes_a_hostile_session_id.
 - INV-89. Within a trace, spans that share an
   id are distinct occurrences. Every reached
   occurrence renders its own row with its own
@@ -694,16 +734,26 @@ later milestones are marked as validator-side.
   finding or detail that names a span names the
   occurrence its figures came from. No surface
   joins a derived row back to a span by id
-  alone. Enforced by the duplicate-id tests in
-  the scene, ingest, svg, and MCP suites.
+  alone. Enforced by derive_tests
+  duplicate_span_ids_each_get_their_own_row,
+  service_graph_resolves_a_shared_parent_id_to_the_first_copy,
+  and children_of_a_shared_id_follow_the_reached_copy,
+  ingest_tests
+  genai_session_gives_each_copy_of_a_shared_id_its_own_step
+  and
+  genai_session_two_root_copies_do_not_double_the_shared_subtree,
+  golden_tests
+  waterfall_renders_both_copies_of_a_shared_id, and
+  mcp_tests panel_detail_rows_name_their_own_occurrence.
 - INV-90. Within a turn, the decisions recorded
   for one tool name pair to that name's results
   by occurrence. The n-th decision in event
   order labels the n-th result, a result with
   no unconsumed decision before it carries no
   decision, and a decision no result consumes
-  labels nothing. Enforced by the decision
-  pairing tests in the ingest suite.
+  labels nothing. Enforced by ingest_tests
+  claude_code_decisions_pair_to_results_by_occurrence
+  and codex_decisions_pair_to_results_by_occurrence.
 - INV-91. The verdict viewer renders one
   recorded run from the committed record under
   web/data and computes nothing at view time.
@@ -715,7 +765,9 @@ later milestones are marked as validator-side.
   record is assembled from the committed
   fixtures through the tool paths and
   freshness-gated byte for byte. Enforced by
-  the viewer record tests in the MCP suite.
+  viewer_record_tests
+  viewer_record_matches_the_committed_record and
+  viewer_record_covers_every_finding_kind_and_the_quiet_panel.
 - INV-92. Layout width is a function of
   character classes, never a raw character
   count. A combining mark and the zero width
@@ -729,9 +781,13 @@ later milestones are marked as validator-side.
   costing one column of the budget. For text
   whose characters all count one the width is
   the character count, so Latin layout is
-  unchanged. Enforced by the width tests in
-  the telorama-svg suite and the wide names
-  golden.
+  unchanged. Enforced by the telorama-svg unit
+  tests width_classes_and_range_edges,
+  text_width_sums_by_class,
+  truncation_matches_the_count_model_for_latin,
+  truncation_counts_wide_characters_twice, and
+  truncation_never_splits_a_combining_sequence,
+  and by golden_tests golden_wide_names_scene.
 
 ## Hostile inputs (derive, ingest, pricing)
 
@@ -742,20 +798,32 @@ later milestones are marked as validator-side.
   component shares a layer. Acyclic output over
   traces whose span ids are unique is
   byte-identical to the pre-cycle derivations.
-  Enforced by the cycle tests in derive_tests,
-  the dialect session tests in ingest_tests, and
-  the scale suite, with the goldens unchanged.
+  Enforced by derive_tests
+  waterfall_rows_terminate_on_a_cyclic_trace,
+  critical_path_stops_at_the_first_repeated_span,
+  flame_from_spans_terminates_on_a_cyclic_trace, and
+  service_layers_collapse_a_cycle_to_one_layer,
+  ingest_tests
+  genai_session_terminates_on_a_cyclic_span_tree, and
+  golden_tests
+  cyclic_spans_at_scale_render_and_terminate, with
+  the goldens unchanged.
 - INV-83. A claude_code.api_refusal event becomes
   a model call in its turn with the error flag
   set and zero tokens, so a refusal is visible in
   the turn's step list and drawn as an error step,
   the treatment an api_error call already gets.
-  Enforced by the refusal fixture tests in the
-  ingest and scene test suites.
+  Enforced by ingest_tests
+  claude_refusal_becomes_an_error_model_call and
+  cli_tests
+  render_refusal_session_draws_the_refusal_as_an_error.
 - INV-84. A dated or dash-form snapshot model id
   prices by its base model only through exact
   matches: strip one trailing date suffix, read
   the dash version form as the dot form, and
   require a table row at every step. An id that
   matches nothing stays unpriced.
-  Enforced by the pricing tests in telorama-ingest.
+  Enforced by the pricing module's unit tests
+  dated_snapshot_ids_price_by_their_base_model,
+  an_unknown_base_model_stays_unpriced_after_every_transform,
+  and a_non_ascii_model_id_is_unpriced_not_a_panic.
