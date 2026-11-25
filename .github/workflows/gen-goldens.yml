@@ -1,0 +1,34 @@
+name: gen-goldens
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  gen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build the export, capture the page, and commit the reel
+        run: |
+          cd web
+          npm ci --no-audit --no-fund
+          npm run build
+          npm i --no-save playwright@1.65.1
+          npx playwright install --with-deps chromium
+          cd ..
+          python3 -m http.server 8321 -d web/out &
+          sleep 2
+          node capture-r71.mjs
+          WEBM=$(ls video/*.webm | head -1)
+          echo "EVIDENCE webm: $WEBM $(wc -c < "$WEBM") bytes"
+          ffprobe -v error -show_entries format=duration -show_entries stream=codec_name,width,height -of default=noprint_wrappers=1 "$WEBM" | sed 's/^/EVIDENCE webm /'
+          ffmpeg -y -loglevel error -i "$WEBM" -c:v libx264 -pix_fmt yuv420p -movflags +faststart docs/media/viewer-reel.mp4
+          ffprobe -v error -show_entries format=duration,size -show_entries stream=codec_name,width,height -of default=noprint_wrappers=1 docs/media/viewer-reel.mp4 | sed 's/^/EVIDENCE reel /'
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/media/viewer-reel.mp4
+          git commit -m "Capture the viewer page reel on the hosted route"
+          git push
