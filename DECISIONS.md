@@ -1667,3 +1667,7 @@ The GenAI agent run scene gains its dark pin, the fourteenth of the seventeen sc
 ## Round 64: OpenInference agent run scene dark pin (2026-11-25)
 
 The OpenInference agent run scene gains its dark pin, the fifteenth of the seventeen scenes pinned in both themes, following the agent run pattern of the GenAI and Codex pins before it. The dark golden will be generated on the hosted route from the scene as it stands, the README's count moves with it, and the INV-77 enumeration gains the new test's name. The corpus will stand at thirty-two goldens, seventeen light and fifteen dark.
+
+## Round 65: Incident checkout scene dark pin (2026-11-25)
+
+The incident checkout scene gains its dark pin, the sixteenth of the seventeen scenes pinned in both themes, following the incident pattern of the incident findings pin before it. The dark golden will be generated on the hosted route from the scene as it stands, the README's count moves with it, and the INV-77 enumeration gains the new test's name. The corpus will stand at thirty-three goldens, seventeen light and sixteen dark.
