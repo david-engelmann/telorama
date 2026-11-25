@@ -491,6 +491,17 @@ later milestones are marked as validator-side.
   Enforced by the pricing module's unit tests, ingest_tests
   codex_session_names_unpriced_models, and ingest_tests
   openinference_session_ignores_span_carried_cost.
+- INV-93. A model id carries a price row only when a
+  committed fixture names that id in a dialect export and
+  a price published by the model's vendor stands behind
+  every figure in the row. An id failing either condition
+  has no row, lands unpriced, and is named by the run
+  under INV-38.
+  Enforced by the pricing module's unit tests
+  every_table_row_is_pinned and a_model_with_no_row_is_unpriced,
+  ingest_tests genai_session_prices_the_current_model_lines,
+  and ingest_tests
+  openinference_session_prices_the_fable_and_mythos_lines.
 
 ## Scale bounds (telorama-scene derive and frames, telorama-svg)
 

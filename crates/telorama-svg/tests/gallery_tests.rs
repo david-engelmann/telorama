@@ -177,6 +177,46 @@ fn sections() -> Vec<Section> {
             &spans,
         ));
     }
+    {
+        let scene = telorama_scene::parse_scene(&workspace_file(
+            "tests/fixtures/scenes/agent_run_genai_current_scene.json",
+        ))
+        .expect("genai current scene must validate");
+        let spans = telorama_ingest::parse_otlp_traces(&workspace_file(
+            "tests/fixtures/agents/genai-session-current-spans.json",
+        ))
+        .expect("genai current fixture must parse");
+        let run = telorama_ingest::parse_genai_session(&spans).expect("spans must adapt");
+        out.push(tool_render(
+            "Agent runs",
+            scene,
+            &spans,
+            &[],
+            Some(&run),
+            &[],
+            &spans,
+        ));
+    }
+    {
+        let scene = telorama_scene::parse_scene(&workspace_file(
+            "tests/fixtures/scenes/agent_run_openinference_fable_scene.json",
+        ))
+        .expect("openinference fable scene must validate");
+        let spans = telorama_ingest::parse_otlp_traces(&workspace_file(
+            "tests/fixtures/agents/openinference-session-fable-spans.json",
+        ))
+        .expect("openinference fable fixture must parse");
+        let run = telorama_ingest::parse_openinference_session(&spans).expect("spans must adapt");
+        out.push(tool_render(
+            "Agent runs",
+            scene,
+            &spans,
+            &[],
+            Some(&run),
+            &[],
+            &spans,
+        ));
+    }
     // Agent state.
     {
         let scene = telorama_scene::parse_scene(&workspace_file(

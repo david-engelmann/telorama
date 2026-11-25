@@ -6,7 +6,7 @@
 use telorama_scene::ModelCall;
 
 /// The date the price table below was compiled.
-pub const PRICE_TABLE_AS_OF: &str = "2026-11-23";
+pub const PRICE_TABLE_AS_OF: &str = "2026-11-25";
 
 /// One model's prices in US dollars per million tokens.
 struct ModelPrice {
@@ -33,6 +33,31 @@ fn price_exact(model: &str) -> Option<ModelPrice> {
             input: 1.75,
             cached_input: 0.175,
             output: 14.0,
+        }),
+        "gpt-5.4" => Some(ModelPrice {
+            input: 2.50,
+            cached_input: 0.25,
+            output: 15.0,
+        }),
+        "gpt-5.4-mini" => Some(ModelPrice {
+            input: 0.75,
+            cached_input: 0.075,
+            output: 4.50,
+        }),
+        "gpt-5.4-nano" => Some(ModelPrice {
+            input: 0.20,
+            cached_input: 0.02,
+            output: 1.25,
+        }),
+        "gpt-6-astra" => Some(ModelPrice {
+            input: 10.0,
+            cached_input: 1.0,
+            output: 50.0,
+        }),
+        "gpt-6.1-sol" => Some(ModelPrice {
+            input: 2.0,
+            cached_input: 0.10,
+            output: 10.0,
         }),
         "gpt-5-nano" => Some(ModelPrice {
             input: 0.05,
@@ -79,6 +104,16 @@ fn price_exact(model: &str) -> Option<ModelPrice> {
             input: 8.0,
             cached_input: 0.20,
             output: 40.0,
+        }),
+        "claude-fable-5" | "claude-mythos-5" => Some(ModelPrice {
+            input: 10.0,
+            cached_input: 1.0,
+            output: 50.0,
+        }),
+        "claude-fable-5.1" | "claude-mythos-5.1" => Some(ModelPrice {
+            input: 10.0,
+            cached_input: 0.25,
+            output: 50.0,
         }),
         _ => None,
     }
@@ -235,12 +270,27 @@ mod tests {
         row("claude-haiku-4.5", 1.0, 0.10, 5.0);
         row("claude-fable-5.2", 8.0, 0.20, 40.0);
         row("claude-mythos-5.2", 8.0, 0.20, 40.0);
+        row("gpt-5.4", 2.50, 0.25, 15.0);
+        row("gpt-5.4-mini", 0.75, 0.075, 4.50);
+        row("gpt-5.4-nano", 0.20, 0.02, 1.25);
+        row("gpt-6-astra", 10.0, 1.0, 50.0);
+        row("gpt-6.1-sol", 2.0, 0.10, 10.0);
+        row("claude-fable-5", 10.0, 1.0, 50.0);
+        row("claude-mythos-5", 10.0, 1.0, 50.0);
+        row("claude-fable-5.1", 10.0, 0.25, 50.0);
+        row("claude-mythos-5.1", 10.0, 0.25, 50.0);
     }
 
     #[test]
     fn a_model_with_no_row_is_unpriced() {
         assert!(price_call(&call("gpt-6.2", 1_000, 0, 1_000)).is_none());
         assert!(price_call(&call("claude-haiku-5.5", 1_000, 0, 1_000)).is_none());
+        // INV-93: gpt-5.4-pro publishes no cached input rate, and
+        // the GPT-6.2 pair waits on a real Codex export naming
+        // its model string, so all three stay rowless for now.
+        assert!(price_call(&call("gpt-5.4-pro", 1_000, 0, 1_000)).is_none());
+        assert!(price_call(&call("gpt-6.2-astra", 1_000, 0, 1_000)).is_none());
+        assert!(price_call(&call("gpt-6.2-sol", 1_000, 0, 1_000)).is_none());
     }
 
     #[test]
