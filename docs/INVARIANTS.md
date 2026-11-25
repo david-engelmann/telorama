@@ -624,7 +624,8 @@ later milestones are marked as validator-side.
   golden_agent_run_codex_unpriced_scene_dark, and
   golden_agent_run_genai_scene_dark, and
   golden_agent_run_openinference_scene_dark, and
-  golden_incident_checkout_scene_dark, and by
+  golden_incident_checkout_scene_dark, and
+  golden_agent_state_scene_dark, and by
   cli_tests render_html_honours_a_dark_scene.
 
 ## Registry finish (all crates, packaging)
