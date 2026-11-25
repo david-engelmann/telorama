@@ -379,7 +379,11 @@ fn genai_session_prices_the_current_model_lines() {
     assert_eq!(turn.input_tokens, 9000);
     assert_eq!(turn.output_tokens, 1850);
     assert_eq!(turn.cache_read_tokens, 4500);
-    assert!((turn.cost_usd - 0.0534125).abs() < 1e-9, "{}", turn.cost_usd);
+    assert!(
+        (turn.cost_usd - 0.0534125).abs() < 1e-9,
+        "{}",
+        turn.cost_usd
+    );
 }
 
 #[test]
