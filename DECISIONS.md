@@ -1643,3 +1643,7 @@ The dossier's rendering-host snapshot was re-derived firsthand from the vendors'
 ## Round 58: API scene dark pin (2026-11-25)
 
 The API scene gains its dark pin, the ninth of the seventeen scenes pinned in both themes, following the same pattern as the GenAI current pin before it. The dark golden will be generated on the hosted route from the scene as it stands, the README's count moves with it, and the INV-77 enumeration gains the new test's name. The corpus will stand at twenty-six goldens, seventeen light and nine dark.
+
+## Round 59: Heatmap scene dark pin (2026-11-25)
+
+The heatmap scene gains its dark pin, the tenth of the seventeen scenes pinned in both themes, following the same pattern as the API pin before it. The dark golden will be generated on the hosted route from the scene as it stands, the README's count moves with it, and the INV-77 enumeration gains the new test's name. The corpus will stand at twenty-seven goldens, seventeen light and ten dark.
