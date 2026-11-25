@@ -159,7 +159,11 @@ Sugiyama quality is the largest single work item if in-house layout is
 needed. Host support for MCP Apps is young and uneven; the fallback ladder
 is a launch requirement. Per-host size caps for UI resources are UNVERIFIED;
 the engine designs to a self-imposed budget (about 150 KB for a typical
-inline embed) and aggregates server-side beyond it. Latin-subset fonts fail
-CJK and Arabic service names; mitigation is an open spike. GenAI semconv
+inline embed) and aggregates server-side beyond it. CJK and Arabic service
+names outrun a layout that budgets one column per character. Rounds 31 to
+34 closed the width half of this risk under INV-92, with layout width
+derived from the Unicode Character Database. Text shaping and
+bidirectional ordering stay outside the renderer by the Round 31 design's
+fence. GenAI semconv
 churn continues; attribute mapping stays isolated in one module and draft
 names never enter the spec's public surface.
