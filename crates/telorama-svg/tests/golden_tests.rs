@@ -1547,6 +1547,29 @@ fn golden_agent_run_codex_scene_dark() {
     assert_golden("agent_run_codex_scene_dark.svg", &svg);
 }
 
+#[test]
+fn golden_agent_run_codex_unpriced_scene_dark() {
+    let mut scene = telorama_scene::parse_scene(&workspace_file(
+        "tests/fixtures/scenes/agent_run_codex_unpriced_scene.json",
+    ))
+    .expect("unpriced scene must validate");
+    scene.theme = telorama_scene::Theme::Dark;
+    let logs = workspace_file("tests/fixtures/agents/codex-session-unpriced-logs.json");
+    let run = telorama_ingest::parse_codex_session(&logs, &[]).expect("fixture must adapt");
+    let svg = telorama_svg::render_scene_with_data(
+        &scene,
+        &telorama_svg::SceneData {
+            spans: &[],
+            stacks: &[],
+            agent_run: Some(&run),
+            agent_state: &[],
+            findings: &[],
+        },
+    )
+    .expect("dark unpriced scene must render");
+    assert_golden("agent_run_codex_unpriced_scene_dark.svg", &svg);
+}
+
 fn rel_luminance(hex: &str) -> f64 {
     let hex = hex.trim_start_matches('#');
     let channel = |i: usize| {
