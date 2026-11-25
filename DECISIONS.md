@@ -1631,3 +1631,7 @@ The OpenInference fable scene gains its dark pin, the seventh of the seventeen s
 ## Round 55: GenAI current scene dark pin (2026-11-25)
 
 The GenAI current scene gains its dark pin, the eighth of the seventeen scenes pinned in both themes, following the same pattern as the fable pin before it. The dark golden was generated on the hosted route from the scene as it stands, the README's count moves with it, and the INV-77 enumeration gains the new test's name. The corpus now stands at twenty-five goldens, seventeen light and eight dark.
+
+## Round 56: docs surface accuracy sweep, third running (2026-11-25)
+
+The docs surface was swept for the third time, seventy-nine checkable claims audited across the docs, the examples, the crate readmes, the plugin, and the web copy, with seventy-seven standing true. The one stale item was the roadmap's closing section ending at Round 49, and it now carries the programme through Round 55 in the same append form as the earlier extensions. One claim was left unverified by design rather than corrected, the dossier's rendering-host snapshot from the November research, which is dated framing in a concept document and belongs to a research pass of its own when it is refreshed. Nothing else on the documented surface had staled.

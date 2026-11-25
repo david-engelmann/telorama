@@ -261,6 +261,29 @@ the 2025-06-18 telorama negotiates, with
 the older revision final and frozen and
 nothing in the move breaking it.
 
+Rounds 50 to 55 brought the record
+current again and widened the dark
+corpus. Round 50 carried the README
+count to forty-nine rounds and this
+roadmap's closing section through
+Round 49. Round 51 settled the protocol
+revision move in a design record,
+dual-era service from the one stateless
+handler, its build waiting on the
+owner's lock. Rounds 52 and 53 audited
+the invariant traceability and repaired
+what it found, one cited test missing
+and its behaviour untested, so the test
+now stands under the cited name and
+every enforcement line names tests that
+resolve in the tree. Rounds 54 and 55
+pinned the OpenInference fable scene
+and the GenAI current scene in the dark
+theme beside the light, eight of the
+seventeen scenes now pinned in both
+themes and the golden corpus standing
+at twenty-five.
+
 DECISIONS.md carries the record of every
 round, this one included, and stands as
 the live account of the programme.
