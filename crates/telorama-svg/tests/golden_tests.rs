@@ -1649,6 +1649,31 @@ fn golden_incident_checkout_scene_dark() {
     assert_golden("incident_checkout_scene_dark.svg", &svg);
 }
 
+#[test]
+fn golden_agent_state_scene_dark() {
+    let mut scene = telorama_scene::parse_scene(&workspace_file(
+        "tests/fixtures/scenes/agent_state_scene.json",
+    ))
+    .expect("agent state scene must validate");
+    scene.theme = telorama_scene::Theme::Dark;
+    let state = telorama_ingest::parse_agent_state(&workspace_file(
+        "tests/fixtures/agents/agent-state.json",
+    ))
+    .expect("state fixture must parse");
+    let svg = telorama_svg::render_scene_with_data(
+        &scene,
+        &telorama_svg::SceneData {
+            spans: &[],
+            stacks: &[],
+            agent_run: None,
+            agent_state: &state,
+            findings: &[],
+        },
+    )
+    .expect("dark agent state scene must render");
+    assert_golden("agent_state_scene_dark.svg", &svg);
+}
+
 fn rel_luminance(hex: &str) -> f64 {
     let hex = hex.trim_start_matches('#');
     let channel = |i: usize| {
