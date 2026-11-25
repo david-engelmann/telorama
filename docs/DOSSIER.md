@@ -104,6 +104,15 @@ exemplars that were never captured degrade to a window search, never a fake
 link; every panel carries source, exact query, window and sampling state;
 derived numbers show their derivation.
 
+As built, the pipeline ships as five crates. telorama-scene carries the spec,
+the schema, the honesty validator, and the derivations. telorama-ingest
+carries the readers and the four dialect adapters. telorama-svg carries
+layout, the character-class text widths, and the canonical SVG writer.
+telorama-mcp carries the server, its seven tools, and the MCP Apps shell. The
+telorama crate is the command line tool. No font library is embedded, because
+layout measures text by character class under INV-92 rather than by font
+metrics.
+
 ## Scope fences
 
 No datastore. No query language. No dashboard editor, no alerting. No

@@ -205,6 +205,31 @@ Rounds 39 and 40 renewed the accuracy
 passes over the README and the documented
 surface.
 
+Rounds 41 to 45 kept the record and the
+price table current. Round 41 brought this
+roadmap current, adding the closing section
+that records the programme from Round 16.
+Round 42 re-checked the dialect and price
+currency and found no drift, the table's
+date staying at 2026-11-23 because a
+re-verification alone does not advance it,
+and the GenAI pin holding against the
+conventions as they now stand. Rounds 43
+and 44 designed and then built price rows
+for the current model lines under INV-93,
+which admits a row only behind a committed
+fixture and a price its vendor published.
+Nine of the eleven designed ids landed and
+the table's date advanced to 2026-11-25 as
+its contents changed, while the GPT-6.2
+pair waits on the model string a real
+Codex export of a GPT-6.2 run carries, its
+ids pinned rowless until one can be
+staged. Round 45 ran the README accuracy
+pass for the third time, thirty-five
+claims audited and the two the intervening
+rounds had staled corrected.
+
 DECISIONS.md carries the record of every
 round, this one included, and stands as
 the live account of the programme.
