@@ -1503,6 +1503,13 @@ fn golden_incident_findings_scene_dark() {
     assert_golden("incident_findings_scene_dark.svg", &svg);
 }
 
+#[test]
+fn golden_api_scene_dark() {
+    let (scene_obj, spans) = darkened("api_scene.json", "single-service-api.json");
+    let svg = telorama_svg::render_scene(&scene_obj, &spans).expect("dark scene must render");
+    assert_golden("api_scene_dark.svg", &svg);
+}
+
 fn rel_luminance(hex: &str) -> f64 {
     let hex = hex.trim_start_matches('#');
     let channel = |i: usize| {
