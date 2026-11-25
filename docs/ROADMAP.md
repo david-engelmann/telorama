@@ -324,6 +324,32 @@ both themes, and the golden corpus
 stands at thirty-four, seventeen light
 and seventeen dark.
 
+Rounds 67 to 71 renewed the record,
+closed the viewer's owed verification,
+and made the reel a recording of the
+page itself. Round 67 ran the README
+and roadmap currency audit again and
+carried both files current through
+Round 66. Round 68 audited the
+invariant traceability a second time
+and found it clean, every enforcement
+line naming tests that resolve in the
+tree. Round 69 verified the viewer
+export on the hosted route against the
+committed record, the page building
+clean from the record as it stands, and
+recorded that the web project carried
+no committed lockfile. Round 70
+committed that lockfile, proven by a
+clean install and build on the hosted
+route before the pull request opened.
+Round 71 discharged the owed page
+capture on the same route, the reel now
+a recording of the viewer page stepped
+through its own controls in place of
+the composition of rendered frames that
+stood before it.
+
 DECISIONS.md carries the record of every
 round, this one included, and stands as
 the live account of the programme.
