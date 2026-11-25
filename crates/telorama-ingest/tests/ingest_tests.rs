@@ -198,7 +198,7 @@ fn codex_session_prices_tokens_and_pairs_tools() {
     assert_eq!(run.coverage.spans_seen, 0);
     assert_eq!(run.coverage.spans_merged, 0);
     let pricing = run.pricing.as_ref().expect("codex runs are priced");
-    assert_eq!(pricing.table_as_of, "2026-11-23");
+    assert_eq!(pricing.table_as_of, "2026-11-25");
     assert_eq!(
         pricing.priced_models,
         vec![
@@ -343,6 +343,47 @@ fn genai_session_maps_spans_to_a_run() {
     };
     assert_eq!(sub.agent_id, "agent-researcher");
     assert_eq!(sub.steps.len(), 1);
+}
+
+#[test]
+fn genai_session_prices_the_current_model_lines() {
+    // INV-93: every id this fixture names carries a row behind a
+    // vendor-published price, so the whole run prices and the
+    // total is the sum at the Round 44 rows.
+    let spans = telorama_ingest::parse_otlp_traces(&fixture_text(
+        "tests/fixtures/agents/genai-session-current-spans.json",
+    ))
+    .expect("current genai fixture must parse");
+    let run = telorama_ingest::parse_genai_session(&spans).expect("spans must adapt");
+    assert_eq!(run.session_id, "conv-genai-current");
+    assert_eq!(run.dialect, "genai");
+    assert_eq!(run.turns.len(), 1);
+    assert_eq!(run.coverage.spans_seen, 6);
+    let pricing = run.pricing.as_ref().expect("span runs are priced");
+    assert_eq!(pricing.table_as_of, "2026-11-25");
+    assert_eq!(
+        pricing.priced_models,
+        vec![
+            "gpt-5.4".to_string(),
+            "gpt-5.4-mini".to_string(),
+            "gpt-5.4-nano".to_string(),
+            "gpt-6-astra".to_string(),
+            "gpt-6.1-sol".to_string()
+        ]
+    );
+    assert!(pricing.unpriced_models.is_empty());
+
+    let turn = &run.turns[0];
+    assert_eq!(turn.steps.len(), 5);
+    // Gross input enters net of cache reads, as in every dialect.
+    assert_eq!(turn.input_tokens, 9000);
+    assert_eq!(turn.output_tokens, 1850);
+    assert_eq!(turn.cache_read_tokens, 4500);
+    assert!(
+        (turn.cost_usd - 0.0534125).abs() < 1e-9,
+        "{}",
+        turn.cost_usd
+    );
 }
 
 #[test]
@@ -793,6 +834,46 @@ fn openinference_session_maps_span_kinds() {
     assert_eq!(turn.output_tokens, 570);
     assert_eq!(turn.cache_read_tokens, 600);
     assert!((turn.cost_usd - 0.0094).abs() < 1e-9, "{}", turn.cost_usd);
+    let AgentStep::ToolCall(tool) = &turn.steps[1] else {
+        panic!("step 2 must be the calculator tool call");
+    };
+    assert_eq!(tool.name, "calculator");
+}
+
+#[test]
+fn openinference_session_prices_the_fable_and_mythos_lines() {
+    // INV-93: the four Claude ids this fixture names carry rows
+    // behind the vendor's published prices, so the whole run
+    // prices and the total is the sum at the Round 44 rows.
+    use telorama_scene::AgentStep;
+    let spans = telorama_ingest::parse_otlp_traces(&fixture_text(
+        "tests/fixtures/agents/openinference-session-fable-spans.json",
+    ))
+    .expect("fable openinference fixture must parse");
+    let run = telorama_ingest::parse_openinference_session(&spans).expect("spans must adapt");
+    assert_eq!(run.session_id, "sess-oi-fable");
+    assert_eq!(run.dialect, "openinference");
+    assert_eq!(run.coverage.spans_seen, 6);
+    let pricing = run.pricing.as_ref().expect("span runs are priced");
+    assert_eq!(pricing.table_as_of, "2026-11-25");
+    assert_eq!(
+        pricing.priced_models,
+        vec![
+            "claude-fable-5".to_string(),
+            "claude-fable-5.1".to_string(),
+            "claude-mythos-5".to_string(),
+            "claude-mythos-5.1".to_string()
+        ]
+    );
+    assert!(pricing.unpriced_models.is_empty());
+
+    let turn = &run.turns[0];
+    assert_eq!(turn.steps.len(), 5);
+    // Prompt tokens enter net of cache reads, as in every dialect.
+    assert_eq!(turn.input_tokens, 5600);
+    assert_eq!(turn.output_tokens, 1250);
+    assert_eq!(turn.cache_read_tokens, 1800);
+    assert!((turn.cost_usd - 0.11955).abs() < 1e-9, "{}", turn.cost_usd);
     let AgentStep::ToolCall(tool) = &turn.steps[1] else {
         panic!("step 2 must be the calculator tool call");
     };

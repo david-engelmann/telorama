@@ -209,7 +209,7 @@ fn session_run_tool_prices_a_codex_session() {
     assert_eq!(result["structuredContent"]["dialect"], "codex");
     assert_eq!(
         result["structuredContent"]["pricing"]["table_as_of"],
-        "2026-11-23"
+        "2026-11-25"
     );
     let text = result["content"][0]["text"].as_str().expect("text part");
     assert!(text.contains("$0.0289"), "got: {text}");
