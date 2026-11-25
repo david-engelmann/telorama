@@ -230,6 +230,37 @@ pass for the third time, thirty-five
 claims audited and the two the intervening
 rounds had staled corrected.
 
+Rounds 46 to 49 swept the documented
+surface again, shipped the next release,
+refreshed the reel, and re-checked the
+MCP ground. Round 46 ran the docs surface
+accuracy sweep for the second time, forty
+claims audited and thirty-seven standing
+true, and its three corrections landed,
+this roadmap carried through Round 45,
+the wording of INV-48 matched to its own
+enforcement, and the dossier given a
+closing note naming the five crates as
+built. Round 47 released all five crates
+at version 0.6.0, and the publish record
+stands with the crates live on the index
+and their documentation served by docs.rs.
+Round 48 recomposed the viewer scene reel
+from the record as it now stands, its
+frames carrying the price table date of
+2026-11-25 and the engine stamp of the
+new version. Round 49 read the MCP facts
+again firsthand and found MCP Apps and
+the Events extension unchanged, SEP-1865
+still Final and Events still in Beta, so
+the watch continues on its two named
+triggers. The same round recorded a gap
+it did not close, the core protocol now
+standing at revision 2026-07-28 against
+the 2025-06-18 telorama negotiates, with
+the older revision final and frozen and
+nothing in the move breaking it.
+
 DECISIONS.md carries the record of every
 round, this one included, and stands as
 the live account of the programme.
