@@ -1517,6 +1517,13 @@ fn golden_heatmap_scene_dark() {
     assert_golden("heatmap_scene_dark.svg", &svg);
 }
 
+#[test]
+fn golden_service_map_scene_dark() {
+    let (scene_obj, spans) = darkened("service_map_scene.json", "otel-demo-checkout.json");
+    let svg = telorama_svg::render_scene(&scene_obj, &spans).expect("dark scene must render");
+    assert_golden("service_map_scene_dark.svg", &svg);
+}
+
 fn rel_luminance(hex: &str) -> f64 {
     let hex = hex.trim_start_matches('#');
     let channel = |i: usize| {

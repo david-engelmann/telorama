@@ -1647,3 +1647,7 @@ The API scene gains its dark pin, the ninth of the seventeen scenes pinned in bo
 ## Round 59: Heatmap scene dark pin (2026-11-25)
 
 The heatmap scene gains its dark pin, the tenth of the seventeen scenes pinned in both themes, following the same pattern as the API pin before it. The dark golden will be generated on the hosted route from the scene as it stands, the README's count moves with it, and the INV-77 enumeration gains the new test's name. The corpus will stand at twenty-seven goldens, seventeen light and ten dark.
+
+## Round 60: Service map scene dark pin (2026-11-25)
+
+The service map scene gains its dark pin, the eleventh of the seventeen scenes pinned in both themes, following the same pattern as the heatmap pin before it. The dark golden will be generated on the hosted route from the scene as it stands, the README's count moves with it, and the INV-77 enumeration gains the new test's name. The corpus will stand at twenty-eight goldens, seventeen light and eleven dark.
