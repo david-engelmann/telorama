@@ -1603,3 +1603,7 @@ All five crates move from version 0.5.0 to version 0.6.0, carrying the work land
 ## Round 47 publish record (2026-11-25)
 
 All five crates stand live on the crates.io index at version 0.6.0, published in the settled order of scene, ingest, svg, the command line crate, and the MCP server, with no version yanked. The packaged files were built on the hosted packaging route from the merged main and staged through the packaging branch, and the index carries versions 0.1.0 through 0.6.0 for every crate. Documentation for the new version is served by docs.rs.
+
+## Round 48: the scene reel recomposed (2026-11-25)
+
+The viewer scene reel was recomposed from the record as it now stands, following the Round 25 recipe against the current committed record. The reel is assembled from that record's own renders and nothing else, the incident scene split at its panel boundary and the six session frames stepped whole, in H.264 at 1160 by 868 for thirty seconds. Its frames carry the price table date of 2026-11-25 that Round 44 stamped into them, and the record behind them carries the engine stamp of version 0.6.0 from Round 47, where the Round 25 reel showed the record as it stood before either change. No frame was retouched and no figure was redrawn.
