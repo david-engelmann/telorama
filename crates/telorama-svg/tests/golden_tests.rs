@@ -1421,6 +1421,32 @@ fn golden_agent_run_openinference_fable_scene_dark() {
 }
 
 #[test]
+fn golden_agent_run_genai_current_scene_dark() {
+    let mut scene = telorama_scene::parse_scene(&workspace_file(
+        "tests/fixtures/scenes/agent_run_genai_current_scene.json",
+    ))
+    .expect("genai current scene must validate");
+    scene.theme = telorama_scene::Theme::Dark;
+    let spans = telorama_ingest::parse_otlp_traces(&workspace_file(
+        "tests/fixtures/agents/genai-session-current-spans.json",
+    ))
+    .expect("genai current fixture must parse");
+    let run = telorama_ingest::parse_genai_session(&spans).expect("spans must adapt");
+    let svg = telorama_svg::render_scene_with_data(
+        &scene,
+        &telorama_svg::SceneData {
+            spans: &spans,
+            stacks: &[],
+            agent_run: Some(&run),
+            agent_state: &[],
+            findings: &[],
+        },
+    )
+    .expect("dark genai current scene must render");
+    assert_golden("agent_run_genai_current_scene_dark.svg", &svg);
+}
+
+#[test]
 fn golden_flame_scene_dark() {
     // The flame root box is the one dark fill a label lands
     // on, so this golden pins the dark label rule as well
