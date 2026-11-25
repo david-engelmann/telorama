@@ -284,6 +284,46 @@ seventeen scenes now pinned in both
 themes and the golden corpus standing
 at twenty-five.
 
+Rounds 56 to 66 swept the documented
+surface a third time, refreshed the
+rendering-host snapshot, and carried the
+dark corpus to completion. Round 56 ran
+the docs surface accuracy sweep for the
+third time, seventy-nine claims audited
+and seventy-seven standing true, its one
+correction carrying this closing section
+through Round 55, and one claim left
+unverified by design, the dossier's
+rendering-host snapshot, dated research
+framing awaiting a research pass of its
+own. Round 57 was that pass, the
+snapshot re-derived firsthand from the
+vendors' current documentation, every
+host the November snapshot named standing
+where it stood, Microsoft 365 Copilot
+joining the rendering set, and Goose's
+entry gaining the desktop qualifier its
+own documentation supports, with two
+findings recorded rather than acted on,
+the ui.domain guidance joining the watch
+list and the new host rendering only
+from remote servers a local stdio server
+does not reach. Rounds 58 to 66 then
+pinned the nine scenes the dark corpus
+still lacked, the API, heatmap, and
+service map scenes, the Codex, GenAI,
+and OpenInference agent run scenes with
+the unpriced Codex run beside them, the
+incident checkout scene, and the agent
+state scene last, each dark golden
+generated on the hosted route from its
+scene as it stood and each README count
+moving with its pin. Every one of the
+seventeen scenes now stands pinned in
+both themes, and the golden corpus
+stands at thirty-four, seventeen light
+and seventeen dark.
+
 DECISIONS.md carries the record of every
 round, this one included, and stands as
 the live account of the programme.
