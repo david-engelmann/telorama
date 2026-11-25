@@ -308,9 +308,9 @@ later milestones are marked as validator-side.
 
 - INV-48. The plugin manifest, the MCP registration, and the
   skill describe the same product. The manifest names telorama
-  at the workspace version, the registration starts the
-  telorama-mcp binary, and the skill names all seven tools and all
-  four dialects.
+  at the plugin's own version, pinned at 0.1.0 by the packaging
+  test, the registration starts the telorama-mcp binary, and the
+  skill names all seven tools and all four dialects.
   Enforced by cli_tests plugin_packaging_is_wellformed.
 
 ## Investigation (telorama-scene investigate)
