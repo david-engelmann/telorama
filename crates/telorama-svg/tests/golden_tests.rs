@@ -1622,6 +1622,33 @@ fn golden_agent_run_openinference_scene_dark() {
     assert_golden("agent_run_openinference_scene_dark.svg", &svg);
 }
 
+#[test]
+fn golden_incident_checkout_scene_dark() {
+    let spans = telorama_ingest::parse_otlp_traces(&workspace_file(
+        "tests/fixtures/otel-demo-checkout.json",
+    ))
+    .expect("checkout fixture must parse");
+    let scene = telorama_scene::incident_scene_with_theme(
+        &spans,
+        None,
+        "agent",
+        telorama_scene::Theme::Dark,
+    )
+    .expect("composition must succeed");
+    let svg = telorama_svg::render_scene_with_data(
+        &scene,
+        &telorama_svg::SceneData {
+            spans: &spans,
+            stacks: &[],
+            agent_run: None,
+            agent_state: &[],
+            findings: &[],
+        },
+    )
+    .expect("dark incident scene must render");
+    assert_golden("incident_checkout_scene_dark.svg", &svg);
+}
+
 fn rel_luminance(hex: &str) -> f64 {
     let hex = hex.trim_start_matches('#');
     let channel = |i: usize| {
