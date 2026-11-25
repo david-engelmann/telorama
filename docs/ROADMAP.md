@@ -161,6 +161,54 @@ boundaries, and fixes what the audit
 convicts. Design record
 docs/SWEEP-DESIGN.md.
 
+## After Round 15: the programme since
+
+The programme did not stop where this
+roadmap's sections stop. Rounds 16 to 18
+hardened identity in the derivations.
+Duplicate span ids are attributed by
+occurrence under INV-89, on the trace side
+in Round 16 and on the session side in
+Round 17, and permission decisions pair to
+their results by occurrence under INV-90
+in Round 18. Round 19 released all five
+crates at version 0.4.0 on those rounds.
+
+Rounds 20 to 25 built the verdict viewer
+and completed its recorded run, the viewer
+itself, its anchor truth hardening, the
+scene reel, the Codex session, all four
+dialects in the record, and the reel
+refreshed for the completed record. Round
+26 re-checked the MCP Events watch and
+left it standing on its two named
+triggers. Rounds 27 and 28 ran the
+accuracy programme over the README and
+the rest of the documented surface,
+correcting only what the audits proved
+stale.
+
+Rounds 29 and 30 gave the OpenInference
+dialect its own golden scene. Rounds 31
+to 34 made text width honest, a layout
+width read from character classes under
+INV-92 in place of a raw character count,
+with the width tables then derived from
+the Unicode Character Database rather
+than drawn by hand. Round 35 released all
+five crates at version 0.5.0 on that work.
+Rounds 36 and 37 re-proved the Round 14
+scale figures under the width model, and
+Round 38 pinned the wide names scene in
+the dark theme as well as the light.
+Rounds 39 and 40 renewed the accuracy
+passes over the README and the documented
+surface.
+
+DECISIONS.md carries the record of every
+round, this one included, and stands as
+the live account of the programme.
+
 ## Standing lanes between rounds
 
 - The A2UI watch in docs/A2UI-SPIKE.md stays a watch item,
