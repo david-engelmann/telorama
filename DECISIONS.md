@@ -1623,3 +1623,7 @@ A design record for moving telorama-mcp to the current MCP protocol revision sta
 ## Round 53: invariant traceability repaired (2026-11-25)
 
 The traceability audit's eight defects are repaired. Every enforcement line in docs/INVARIANTS.md now names tests that resolve in the tree, the dangling cross-reference and the suite claims the tree did not bear out are corrected to the suites and tests that carry the claims, and the generic lines whose tests the audit verified now name them. The one dead citation is resolved on the evidence of whether its behaviour was tested under another name or not at all, and the record of that resolution stands in the round's own report. The two process enforcements, publish order and the missing-docs lint, keep their form because the generic statement is their mechanism. No invariant's claim text changed.
+
+## Round 54: OpenInference fable scene dark pin (2026-11-25)
+
+The OpenInference fable scene gains its dark pin, the seventh of the seventeen scenes pinned in both themes, following the Round 38 pattern. The dark golden was generated on the hosted route from the scene as it stands, and the README's count moves with it. The corpus now stands at twenty-four goldens, seventeen light and seven dark.
