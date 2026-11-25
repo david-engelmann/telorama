@@ -57,7 +57,9 @@ No renderer, derivation, ingest, or page changes. No new
 fixtures. The record re-pins once through the hosted generation
 workflow in the established mold. The owed capture of the viewer
 page and the owed local export verification are untouched by
-this round and stay owed.
+this round. Both have since been discharged, the export
+verification in Round 69 and the page capture in Round 71,
+each on the hosted route.
 
 ## Amendment from the build (2026-11-24)
 

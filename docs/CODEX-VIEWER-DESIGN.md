@@ -66,7 +66,10 @@ current record's, and the Claude Code entry's frames are
 byte-identical to the current record's session frames. The
 freshness gate re-pins once, on the regenerated record, in the
 same UPDATE_RECORD mold as Round 20. The owed capture of the
-viewer page is untouched by this round and stays owed.
+viewer page is untouched by this round. It stayed owed
+through the rounds that followed and was discharged in
+Round 71, which recorded the page on the hosted route and
+made the reel a recording of the page itself.
 
 ## Amendment from the build (2026-11-24)
 
