@@ -88,7 +88,7 @@ dependencies = [
 
 [[package]]
 name = "telorama"
-version = "0.6.0"
+version = "0.3.0"
 dependencies = [
  "serde_json",
  "telorama-ingest",
@@ -98,7 +98,7 @@ dependencies = [
 
 [[package]]
 name = "telorama-ingest"
-version = "0.6.0"
+version = "0.3.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -107,7 +107,7 @@ dependencies = [
 
 [[package]]
 name = "telorama-mcp"
-version = "0.6.0"
+version = "0.3.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -118,7 +118,7 @@ dependencies = [
 
 [[package]]
 name = "telorama-scene"
-version = "0.6.0"
+version = "0.3.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -126,7 +126,7 @@ dependencies = [
 
 [[package]]
 name = "telorama-svg"
-version = "0.6.0"
+version = "0.3.0"
 dependencies = [
  "telorama-ingest",
  "telorama-scene",
