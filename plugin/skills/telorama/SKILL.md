@@ -20,7 +20,11 @@ scene traces back to the data it names.
   and per-service errors, before you commit to a scene.
 - `render_scene` renders a scene and returns the triple contract,
   a concise text answer for the model, compact structured content,
-  and the SVG for the view on hosts that render MCP Apps.
+  and the SVG for the view on hosts that render MCP Apps. The
+  data the panels read rides beside the spec as arguments,
+  traces for the trace panels, a profile for the flame panel,
+  session logs and spans with the dialect for the run panel, and
+  a state report for the state panel.
 - `session_run` adapts an agent session export into the canonical
   run model and returns it as JSON.
 - `session_frames` builds the live frame stream for a session
@@ -45,6 +49,12 @@ service, and the map shows who calls whom. Map edges exist only
 where a span's parent belongs to another service in the same
 trace, so the picture never invents a dependency.
 
+Flow across a call tree wants a sankey. It stages calls by
+depth and counts spans rather than calls, and the spec names an
+explicit residual bucket where whatever does not balance lands,
+in the open. A sankey without its residual bucket does not
+validate.
+
 Latency shape wants a heatmap. Declare the bucket edges on the
 data entry, because buckets are data, not style. The rendered grid
 names a real span as its exemplar, the longest span in the busiest
@@ -62,6 +72,13 @@ arrive as spans alone. Call `session_run` with the matching
 dialect to read the canonical run, then place an agent_run panel
 in a scene when the run belongs in a picture.
 
+An agent state report wants the agent_state panel. The report
+is a list of entries naming each agent, what it is doing, and
+why, and every entry must carry all three or the report is
+refused. The panel reads a data entry whose source kind is
+agent_state, and the report text rides into the render as the
+agent_state argument beside the scene.
+
 An incident with a known window wants `incident_scene` before any
 hand authoring. The template composes a service map, the RED row,
 a waterfall of the exemplar trace, and a latency heatmap, and it
@@ -72,6 +89,11 @@ erroring trace, so the first scene of an incident is one an
 investigator can check rather than trust.
 
 ## The honesty rules
+
+A scene leads with its takeaway. The headline is required and
+a spec without one does not validate. Every data entry names
+the exact query or the trace id that produced it, because a
+diagram without its query is not reproducible.
 
 Percentiles are percentiles and never averages. A stat names the
 percentile it reports.
@@ -100,3 +122,5 @@ hosts such as Claude Code and Codex render nothing, and there the
 text and structured content are the product, written to be read.
 The CLI's render-html command produces the same scene as a
 standalone page when a person needs the picture outside a chat.
+Its schema command prints the scene spec's JSON schema, the
+same contract `validate_scene` checks a spec against.
