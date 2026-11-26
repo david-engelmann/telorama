@@ -32,14 +32,17 @@ The verdict viewer in the web directory renders one recorded investigation end t
 
 ## How it is used
 
-The command line tool reads a scene spec plus the data its panels name and writes an SVG image. The data can be an OpenTelemetry trace export in OTLP JSON form, a folded stack profile, or an agent session export of OTLP logs and spans. The tool and the MCP server install from crates.io with `cargo install telorama` and `cargo install telorama-mcp`.
+The command line tool reads a scene spec plus the data its panels name and writes an SVG image. The data can be an OpenTelemetry trace export in OTLP JSON form, a folded stack profile, an agent session export of OTLP logs and spans, or an agent state report. The tool and the MCP server install from crates.io with `cargo install telorama` and `cargo install telorama-mcp`.
 
 ```text
 telorama render --scene scene.json --traces traces.json --out scene.svg
 telorama render --scene flame.json --profile stacks.txt --out flame.svg
 telorama render --scene run.json --session-logs logs.json --session-spans spans.json --out run.svg
+telorama render --scene run.json --session-logs codex-logs.json --dialect codex --out run.svg
+telorama render --scene state.json --state state.json --out state.svg
 telorama render-html --scene scene.json --traces traces.json --out scene.html
 telorama validate scene.json
+telorama schema
 telorama inspect traces.json
 telorama session --logs logs.json --spans spans.json
 telorama session --logs codex-logs.json --dialect codex
@@ -48,7 +51,7 @@ telorama incident --traces traces.json --out incident.json --render incident.svg
 telorama frames --logs logs.json --spans spans.json --out frames.jsonl --html framebook.html
 ```
 
-The validate command checks a scene spec against the schema and the honesty rules without rendering it. The inspect command summarizes a trace file by service, span count, and time range, so an agent can learn what data exists before it writes a spec. The session command prints an agent run as JSON for tools that read text rather than pictures. Four session dialects are supported, Claude Code, Codex, GenAI, and OpenInference. The incident command composes an incident scene from a trace export and prints the spec, rendering it as well when asked. The frames command writes one JSON payload per turn boundary for a session, and can also write a static framebook page that stacks the frames with no scripts. Renders from the command line and the MCP server carry the ranked findings automatically. Worked examples for all these flows live in the examples directory.
+The validate command checks a scene spec against the schema and the honesty rules without rendering it. The schema command prints that schema as JSON, so an agent can read the exact contract before it writes a spec against it. The inspect command summarizes a trace file by service, span count, and time range, so an agent can learn what data exists before it writes a spec. The session command prints an agent run as JSON for tools that read text rather than pictures. Four session dialects are supported, Claude Code, Codex, GenAI, and OpenInference. The incident command composes an incident scene from a trace export and prints the spec, rendering it as well when asked. The frames command writes one JSON payload per turn boundary for a session, and can also write a static framebook page that stacks the frames with no scripts. Renders from the command line and the MCP server carry the ranked findings automatically. Worked examples for all these flows live in the examples directory.
 
 The same engine also runs as an MCP server, the telorama-mcp program, speaking JSON-RPC over standard input and output. A host connects it once and its tools validate a spec, summarize a trace export, adapt a session, build a session frame stream, compose an incident scene, and render a scene. A render returns short text the model can read, structured figures drawn from the same workings as the picture, and the picture itself for hosts that can show the interactive view. The frame stream tool hands the view every frame, and the view steps through them by replacement. One further tool exists only for that view and fetches the detail behind a single panel, so drilling down costs the model no context. The scene spec stays the same across every surface. The plugin directory packages the server for Claude Code together with a skill that teaches an agent when to render what.
 
