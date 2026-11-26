@@ -21,6 +21,8 @@ pin. A dialect-normalizing ingest that fuses traces, logs and metrics into one
 canonical agent-run model is the moat, and the engine's own MCP server can
 render the run the user is currently inside. The demo is the product.
 
+One fact in that sentence has since moved. The conventions repository cut its first standalone release, v0.1.0, on 2026-11-21, after this dossier was written, and the adapter pins that repository at a commit, as the Round 83 entry in DECISIONS.md records. The Development status the sentence names stands as written.
+
 ## Established facts the design rests on
 
 - MCP Apps (SEP-1865, io.modelcontextprotocol/ui) is Stable as of 2026-01-26.
