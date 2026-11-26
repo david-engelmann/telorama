@@ -23,6 +23,8 @@ round. The Codex dialect is likewise unchanged in shape,
 and Codex still exports tokens with no cost, so its gap is
 price rows, not parsing.
 
+A correction stands against the release claim in that sentence. The dedicated repository cut its first release, v0.1.0, on 2026-11-21, two days before this record settled, and Round 83 established the fact and corrected the same premise in the adapter's pin header and in the record. The pin itself is unchanged, a commit in that repository read against the released 1.41 text.
+
 ## The GenAI cache write spelling
 
 Cache creation has a new canonical attribute name,
