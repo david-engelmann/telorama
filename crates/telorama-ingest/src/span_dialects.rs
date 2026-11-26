@@ -14,8 +14,9 @@
 //! The adapter reads the union of the 1.30, 1.37, and 1.41 shapes,
 //! so a span from any of those generations maps the same way. The
 //! conventions have since moved to their own repository, which
-//! has cut no versioned conventions release, so the adapter pins
-//! to that repository at commit
+//! cut its first standalone release, v0.1.0, on 2026-11-21, two
+//! days before this pin, so the adapter pins to that repository
+//! at commit
 //! ae8214a8f3a98786071736855093b74621174dc4 (2026-11-23), read
 //! against the released 1.41 text, plus the deltas the Round 3
 //! currency pass verified from the current sources: cache
