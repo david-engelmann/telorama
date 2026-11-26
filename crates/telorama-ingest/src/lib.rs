@@ -1,6 +1,6 @@
 //! telorama-ingest: OpenTelemetry data in, canonical spans out.
 //!
-//! M1 reads OTLP trace exports in JSON form, either a single
+//! The crate reads OTLP trace exports in JSON form, either a single
 //! `ExportTraceServiceRequest` document or JSON Lines with one document
 //! per line, from a file's text. The agent dialect adapters for
 //! the Claude Code, Codex, GenAI and OpenInference dialects read
