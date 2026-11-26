@@ -278,7 +278,7 @@ fn tool_definitions() -> Value {
             "description": "Compose the incident template from a trace export: service map, RED row, exemplar waterfall, and latency heatmap, with the headline and narrative derived from the data. Returns the triple contract and the composed scene spec.",
             "inputSchema": {
                 "type": "object",
-                "properties": detail_props,
+                "properties": data_args,
                 "required": ["traces"]
             },
             "_meta": {"ui": {"resourceUri": VIEW_URI}}
