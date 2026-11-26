@@ -350,6 +350,43 @@ through its own controls in place of
 the composition of rendered frames that
 stood before it.
 
+Rounds 72 to 78 renewed the accuracy
+programme across every surface and
+shipped the next release. Round 72 ran
+the README and roadmap currency audit
+for the fourth time, eighty claims
+audited and seventy-seven standing
+true. Round 73 swept the documented
+surface for the fourth time,
+eighty-eight claims audited and
+eighty-six standing true, its two
+corrections carrying the discharge of
+the viewer's owed verifications into
+the design records that had left them
+standing as owed. Round 74 audited the
+examples and plugin surface for the
+first time, one hundred and eighteen
+claims audited and one hundred and
+sixteen standing true. Round 75
+audited the viewer page copy for the
+first time and found all thirty-nine
+strings true. Round 76 audited the CLI
+and MCP surface text for the first
+time, fifty-nine claims audited and
+fifty-five standing true, its
+corrections stating the input choice
+on the session and frames usage lines
+and narrowing the incident tool's
+schema to the arguments it reads.
+Round 77 audited the crates.io and
+docs.rs surface for the first time and
+found all sixty-seven claims true.
+Round 78 released all five crates at
+version 0.7.0 on that work, the viewer
+record regenerated so its engine stamp
+reads the new version at an unchanged
+byte count.
+
 DECISIONS.md carries the record of every
 round, this one included, and stands as
 the live account of the programme.
