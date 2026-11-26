@@ -79,3 +79,28 @@ telorama render \
 The rendered run prints its coverage and pricing lines on its
 face, so a reader can see where every figure came from without
 leaving the picture.
+
+## Putting a state report in a scene
+
+A working agent can also report its own state as it works,
+as a list of entries naming the agent, what it is doing, and
+why. An entry that leaves any of the three empty is refused,
+and a panel with no report behind it fails rather than
+drawing empty. The report rides into a render beside the
+scene, under the `--state` flag.
+
+```sh
+telorama render \
+  --scene tests/fixtures/scenes/agent_state_scene.json \
+  --state tests/fixtures/agents/agent-state.json \
+  --out agent-state.svg
+```
+
+The output is byte-identical to
+`tests/golden/agent_state_scene.svg`. The fixture report
+carries two entries. The builder is running the workspace
+test suite, with opening the pull request as its next step,
+and the reviewer is reading the diff while it waits on the
+builder to push the final head. The panel prints each entry
+with its reason, and the waiting entry prints what it waits
+on, so the picture shows the blockage instead of hiding it.
