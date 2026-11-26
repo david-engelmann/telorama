@@ -387,6 +387,40 @@ record regenerated so its engine stamp
 reads the new version at an unchanged
 byte count.
 
+Rounds 79 to 85 renewed the record,
+audited the surfaces for completeness,
+re-checked the currency, and proved the
+gallery fresh. Round 79 ran this audit
+for the fifth time, one hundred claims
+across the two files and ninety-eight
+standing true. Round 80 audited the
+invariant traceability a third time and
+found it clean, every cited test name
+resolving in the tree. Round 81 asked
+whether the README says everything the
+CLI surface offers and added the schema
+command and the two render flags it had
+left unnamed. Round 82 asked the same
+of the plugin skill and gave the sankey
+and agent state panels their paragraphs
+there. Round 83 re-checked the dialect
+and price currency and found no figure
+drifted, the table date staying at
+2026-11-25, while the pin header in the
+GenAI adapter was corrected beside the
+record, the conventions repository
+having cut its first release two days
+before the pin. Round 84 asked whether
+the examples walk through everything
+the product teaches and closed the four
+gaps it found, the schema command, the
+flame and sankey panels, and the agent
+state panel now worked end to end.
+Round 85 regenerated the gallery on
+the hosted route and found the
+committed page byte-identical to the
+fresh generation.
+
 DECISIONS.md carries the record of every
 round, this one included, and stands as
 the live account of the programme.
