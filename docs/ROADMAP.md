@@ -506,6 +506,61 @@ each gated on something outside the
 repository rather than on unfinished
 work inside it.
 
+Rounds 101 to 109 carried the programme
+past its hundred under the
+post-completion cadence, the standing
+audits running again in their order.
+Round 101 ran this audit for the eighth
+time, one hundred and ninety-two claims
+across the two files and one hundred
+and ninety standing true, its two
+corrections carrying the README count
+to one hundred rounds and this closing
+section through Round 100. Round 102
+re-checked the MCP currency a third
+time and found nothing moved, MCP Apps
+stable at its 2026-01-26 revision, the
+Events extension still in Beta with
+neither watch trigger fired, and the
+core revision set unchanged. Round 103
+audited the invariant traceability a
+fifth time and found it clean, two
+hundred and ten citations over one
+hundred and eighty-six distinct test
+names all resolving, and two hundred
+and forty-three test functions counted
+in the reverse sweep. Round 104 audited
+the examples and plugin surface a third
+time, one hundred and sixty claims and
+one hundred and fifty-nine standing
+true, the one unverifiable claim the
+plugin README's direction about the
+host's own behaviour, standing as
+written. Round 105 audited the viewer
+page copy a third time and found all
+fifty-six strings true, the summary
+counts recomputed from the record and
+the masthead stamp reading engine
+0.7.0. Round 106 audited the CLI and
+MCP surface text a third time,
+seventy-four claims and all true, the
+four corrections of the first running
+standing verbatim as landed. Round 107
+audited the crates.io and docs.rs
+surface a third time and found all
+sixty-seven claims true against version
+0.7.0. Round 108 swept the documented
+surface a seventh time, one hundred and
+eighty-six claims and every one true.
+Round 109 re-checked the dialect and
+price currency a fourth time and found
+no figure drifted, the table's date
+staying at 2026-11-25, the GPT-6.2 pair
+priced by its vendor and still rowless
+on the fixture half of INV-93, and the
+GenAI dialect current on the identical
+upstream head.
+
 DECISIONS.md carries the record of every
 round, this one included, and stands as
 the live account of the programme.
