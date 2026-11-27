@@ -421,6 +421,64 @@ the hosted route and found the
 committed page byte-identical to the
 fresh generation.
 
+Rounds 86 to 98 renewed the record
+again and re-ran every accuracy pass
+the programme keeps. Round 86 ran this
+audit for the sixth time, one hundred
+and sixty-nine claims across the two
+files and one hundred and sixty-seven
+standing true. Round 87 checked the
+viewer reel's currency for the first
+time and found it stale in one
+rendered line, the engine stamp the
+Round 78 release had moved. Round 88
+re-captured the reel on the hosted
+route, H.264 at 1280 by 800 and 41.08
+seconds, 890,153 bytes, and restated
+the standing rule that a release
+regenerating the record owes the reel
+a re-capture when the stamp moves.
+Round 89 swept the documented surface
+for the fifth time, one hundred and
+forty-one claims and two staled, both
+carrying the GenAI conventions
+no-release premise, each corrected
+beside the sentence that carried it.
+Round 90 re-checked the MCP currency
+a second time and found nothing
+moved. Round 91 audited the invariant
+traceability a fourth time and found
+it clean, its figures identical to
+the third running in every dimension.
+Round 92 audited the examples and
+plugin surface a second time, one
+hundred and twenty-four claims and
+none staled. Round 93 audited the
+viewer page copy a second time and
+found all fifty-six strings true.
+Round 94 audited the CLI and MCP
+surface text a second time, seventy-
+four claims and all true, the four
+fixes of the first running verified
+as landed. Round 95 audited the
+crates.io and docs.rs surface a
+second time and found all sixty-seven
+claims true against version 0.7.0.
+Round 96 audited the showcase media
+for the first time and found all four
+artifacts current. Round 97 swept the
+documented surface a sixth time, one
+hundred and forty-six claims and
+every one true. Round 98 re-checked
+the dialect and price currency a
+third time and found no figure
+drifted, the GPT-6.2 pair now priced
+on its vendor's page yet still
+rowless on the fixture half of
+INV-93, and new deprecation colour
+touching priced ids recorded beside
+the figures it leaves unmoved.
+
 DECISIONS.md carries the record of every
 round, this one included, and stands as
 the live account of the programme.
