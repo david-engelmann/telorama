@@ -479,6 +479,33 @@ INV-93, and new deprecation colour
 touching priced ids recorded beside
 the figures it leaves unmoved.
 
+Rounds 99 and 100 renewed this audit
+and closed the programme. Round 99
+ran the README and roadmap currency
+audit for the seventh time, one
+hundred and seventy-seven claims
+across the two files and one hundred
+and seventy-five standing true, its
+two corrections carrying the README
+count to ninety-eight rounds and
+this closing section through Round
+98. Round 100 ran the closing
+full-state audit and reconciled the
+programme end to end, the round
+count exact from the record's own
+headings, the tree at one hundred
+and eighty-seven files, the golden
+corpus complete at thirty-four with
+seventeen scenes pinned in both
+themes, the invariants file ending
+at INV-93, all five crates published
+at version 0.7.0, and the checks on
+the main head green, with the five
+open items named as carried forward,
+each gated on something outside the
+repository rather than on unfinished
+work inside it.
+
 DECISIONS.md carries the record of every
 round, this one included, and stands as
 the live account of the programme.
