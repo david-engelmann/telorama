@@ -802,6 +802,63 @@ rowless on the fixture half of INV-93,
 and the GenAI dialect current on the
 identical upstream head.
 
+Rounds 158 to 169 renewed the record
+again and re-ran every standing audit in
+its order. Round 158 ran this audit for
+the thirteenth time, three hundred and
+seventy claims across the two files and
+three hundred and sixty-eight standing
+true, its two corrections carrying the
+README count to one hundred and fifty-
+seven rounds and this closing section
+through Round 157. Round 159 audited the
+showcase media a sixth time and found
+all four artifacts current, byte-
+identical to the fifth running. Round
+160 verified the gallery fresh on the
+hosted route a sixth time, the committed
+page byte-identical to a fresh
+generation at 147,612 bytes. Round 161
+verified the viewer export on the hosted
+route a sixth time, the record fresh at
+89,694 bytes with its stamp at engine
+0.7.0 and the exported page again
+178,950 bytes. Round 162 re-checked the
+MCP currency an eighth time and found
+nothing moved, neither Events watch
+trigger fired. Round 163 audited the
+invariant traceability a tenth time and
+found it clean, its figures identical to
+the ninth running in every dimension.
+Round 164 audited the examples and
+plugin surface an eighth time, one
+hundred and sixty claims and one hundred
+and fifty-nine standing true, the one
+unverifiable claim the plugin README's
+host-behaviour direction, standing as
+written. Round 165 audited the viewer
+page copy an eighth time and found all
+fifty-six strings true. Round 166
+audited the CLI and MCP surface text an
+eighth time, seventy-four claims and all
+true. Round 167 audited the crates.io
+and docs.rs surface an eighth time and
+found all sixty-seven claims true,
+version 0.7.0 newest and unyanked over
+exactly seven published versions. Round
+168 swept the documented surface a
+twelfth time, three hundred and ninety-
+nine claims and every one true, the
+growth over the eleventh running exactly
+the paragraph Round 158's landing added.
+Round 169 re-checked the dialect and
+price currency a ninth time and found no
+figure drifted, the table's date staying
+at 2026-11-25, the GPT-6.2 pair still
+rowless on the fixture half of INV-93,
+and the GenAI dialect current on the
+identical upstream head.
+
 DECISIONS.md carries the record of every
 round, this one included, and stands as
 the live account of the programme.
